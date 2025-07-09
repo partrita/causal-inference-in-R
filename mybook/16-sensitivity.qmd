@@ -1,0 +1,1048 @@
+# 민감도 분석 {#sec-sensitivity}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("wip")
+```
+
+```{r}
+#| include: false
+library(ggdag)
+library(touringplans)
+library(ggokabeito)
+library(broom)
+library(propensity)
+library(gt)
+```
+
+인과 추론의 많은 가정이 검증 불가능하기 때문에 결과의 타당성에 대해 우려하는 것은 합리적입니다.
+이 장에서는 가정과 결과의 강점과 약점을 조사하는 몇 가지 방법을 제공할 것입니다.
+이를 수행하는 두 가지 주요 방법을 살펴볼 것입니다. 즉, 인과적 질문 및 관련 DAG의 논리적 의미를 탐색하고, 측정되지 않은 교란이 있는 경우와 같이 다른 상황에서 결과가 어떻게 달라질지 정량화하기 위해 수학적 기법을 사용하는 것입니다.
+이러한 접근 방식을 *민감도 분석*이라고 합니다. 즉, 가설과 분석에 명시된 조건 이외의 조건에 결과가 얼마나 민감한가?
+
+## DAG의 견고성 확인하기
+
+모델링 프로세스를 시작한 곳, 즉 인과 다이어그램 만들기부터 시작하겠습니다.
+DAG는 분석의 기초가 되는 가정을 인코딩하므로 다른 사람과 자신 모두에게 자연스러운 비판 지점입니다.
+
+### 대체 조정 집합 및 대체 DAG
+
+조정 집합과 같은 것을 쿼리할 수 있도록 하는 DAG의 동일한 수학적 기반은 DAG의 다른 의미도 쿼리할 수 있도록 합니다.
+가장 간단한 것 중 하나는 DAG가 정확하고 데이터가 잘 측정된 경우 유효한 조정 집합은 인과 효과의 편향되지 않은 추정치를 생성한다는 것입니다.
+@fig-dag-magic에서 소개한 DAG를 고려해 보겠습니다.
+
+```{r}
+#| label: fig-dag-magic-orig
+#| code-fold: true
+#| fig-cap: >
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 간의 관계에 대해 제안된 원래 DAG.
+#|   이전과 마찬가지로 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐장 시간, 과거 최고 기온 및 티켓 시즌에 의해 결정된다고 믿습니다.
+coord_dag <- list(
+  x = c(park_ticket_season = 0, park_close = 0, park_temperature_high = -1, park_extra_magic_morning = 1, wait_minutes_posted_avg = 2),
+  y = c(park_ticket_season = -1, park_close = 1, park_temperature_high = 0, park_extra_magic_morning = 0, wait_minutes_posted_avg = 0)
+)
+
+labels <- c(
+  park_extra_magic_morning = "엑스트라 매직\n모닝",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고\n기온",
+  park_close = "공원 폐장\n시간"
+)
+
+emm_wait_dag <- dagify(
+  wait_minutes_posted_avg ~ park_extra_magic_morning + park_close + park_ticket_season + park_temperature_high,
+  park_extra_magic_morning ~ park_temperature_high + park_close + park_ticket_season,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "park_extra_magic_morning",
+  outcome = "wait_minutes_posted_avg"
+)
+
+curvatures <- rep(0, 7)
+curvatures[5] <- .3
+
+emm_wait_dag |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_arc(curvature = curvatures, edge_color = "grey80") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), size = 3.8, seed = 1630, color = "#494949") +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(
+    limits = c(-1.25, 2.25),
+    breaks = c(-1, 0, 1, 2)
+  )
+```
+
+@fig-dag-magic-orig에는 세 가지 교란 변수 모두 독립적인 백도어 경로를 나타내므로 조정 집합이 하나뿐입니다.
+그러나 공원 폐장 시간과 과거 기온에서 엑스트라 매직 모닝으로 향하는 화살표가 없는 @fig-dag-magic-missing을 대신 사용했다고 가정해 보겠습니다.
+
+```{r}
+#| label: fig-dag-magic-missing
+#| code-fold: true
+#| fig-cap: >
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 간의 관계에 대한 대체 DAG.
+#|   이 DAG에는 공원 폐장 시간과 과거 기온에서 엑스트라 매직 아워로 향하는 화살표가 없습니다.
+emm_wait_dag_missing <- dagify(
+  wait_minutes_posted_avg ~ park_extra_magic_morning + park_close + park_ticket_season + park_temperature_high,
+  park_extra_magic_morning ~ park_ticket_season,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "park_extra_magic_morning",
+  outcome = "wait_minutes_posted_avg"
+)
+
+# 아래 생성:
+# park_ticket_season, park_close + park_ticket_season, park_temperature_high + park_ticket_season, 또는 park_close + park_temperature_high + park_ticket_season
+adj_sets <- unclass(dagitty::adjustmentSets(emm_wait_dag_missing, type = "all")) |>
+  map_chr(\(.x) glue::glue('{unlist(glue::glue_collapse(.x, sep = " + "))}')) |>
+  glue::glue_collapse(sep = ", ", last = ", or ")
+
+curvatures <- rep(0, 5)
+curvatures[3] <- .3
+
+emm_wait_dag_missing |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_arc(curvature = curvatures, edge_color = "grey80") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), size = 3.8, seed = 1630, color = "#494949") +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(
+    limits = c(-1.25, 2.25),
+    breaks = c(-1, 0, 1, 2)
+  )
+```
+
+이제 `r length(dagitty::adjustmentSets(emm_wait_dag_missing, type = "all"))`개의 잠재적인 조정 집합이 있습니다. 즉, `park_ticket_season, park_close + park_ticket_season`, `park_temperature_high + park_ticket_season` 또는 `park_close + park_temperature_high + park_ticket_season`입니다.
+@tbl-alt-sets는 각 조정 집합에 대한 IPW 추정치를 보여줍니다.
+효과는 상당히 다릅니다.
+완벽하게 측정되지 않았을 수 있는 다른 변수를 사용하여 추정되므로 추정치에 약간의 변동이 예상됩니다. 그러나 이 DAG가 정확하다면 이보다 훨씬 더 밀접하게 정렬되어야 합니다.
+특히 공원 폐장 시간이 있는 모델과 없는 모델 사이에는 3분 차이가 있는 것으로 보입니다.
+이러한 결과의 차이는 지정한 인과 구조에 문제가 있음을 의미합니다.
+
+```{r}
+#| label: tbl-alt-sets
+#| tbl-cap: "IPW 추정기의 ATE 추정치 표. 각 추정치는 DAG에 대한 유효한 조정 집합 중 하나에 대해 계산되었습니다. 추정치는 효과 크기 순으로 정렬됩니다. DAG가 정확하고 모든 데이터가 잘 측정되었다면 다른 조정 집합은 거의 동일한 답을 제공해야 합니다."
+#| code-fold: true
+seven_dwarfs <- touringplans::seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9)
+
+# 나중에 `.data`와 `.trt`를 사용할 것입니다.
+fit_ipw_effect <- function(.fmla, .data = seven_dwarfs, .trt = "park_extra_magic_morning", .outcome_fmla = wait_minutes_posted_avg ~ park_extra_magic_morning) {
+  .trt_var <- rlang::ensym(.trt)
+
+  # 성향 점수 모델 적합시키기
+  propensity_model <- glm(
+    .fmla,
+    data = .data,
+    family = binomial()
+  )
+
+  # ATE 가중치 계산하기
+  .df <- propensity_model |>
+    augment(type.predict = "response", data = .data) |>
+    mutate(w_ate = wt_ate(.fitted, !!.trt_var, exposure_type = "binary"))
+
+  # ipw 모델 적합시키기
+  lm(.outcome_fmla, data = .df, weights = w_ate) |>
+    tidy() |>
+    filter(term == .trt) |>
+    pull(estimate)
+}
+
+effects <- list(
+  park_extra_magic_morning ~ park_ticket_season,
+  park_extra_magic_morning ~ park_close + park_ticket_season,
+  park_extra_magic_morning ~ park_temperature_high + park_ticket_season,
+  park_extra_magic_morning ~ park_temperature_high +
+    park_close + park_ticket_season
+) |>
+  map_dbl(fit_ipw_effect)
+
+tibble(
+  `조정 집합` = c(
+    "티켓 시즌",
+    "폐장 시간, 티켓 시즌",
+    "과거 기온, 티켓 시즌",
+    "과거 기온, 폐장 시간, 티켓 시즌"
+  ),
+  ATE = effects
+) |>
+  arrange(desc(ATE)) |>
+  gt()
+```
+
+### 음성 대조군
+
+대체 조정 집합은 DAG의 논리적 의미를 조사하는 한 가지 방법입니다. 즉, DAG가 정확하다면 열린 백도어 경로를 올바르게 설명하는 여러 가지 방법이 있을 수 있습니다.
+그 반대의 경우도 마찬가지입니다. 즉, 연구 질문의 인과 구조는 *귀무*여야 하는 관계도 암시합니다.
+연구자들이 이 의미를 활용하는 한 가지 방법은 *음성 대조군*을 사용하는 것입니다.
+음성 대조군은 인과 효과가 *없어야* 한다는 점을 제외하고 가능한 한 여러 면에서 질문과 유사한 노출(음성 노출 대조군) 또는 결과(음성 결과 대조군)입니다.
+@Lipsitch2010은 관찰 연구에 대한 음성 대조군을 설명합니다.
+그들의 논문에서는 실험실 과학의 표준 대조군을 참조합니다.
+실험실 실험에서 이러한 작업 중 어느 것도 귀무 효과로 이어져야 합니다.
+
+1.  필수 성분을 생략합니다.
+2.  가설된 활성 성분을 비활성화합니다.
+3.  가설된 결과에 의해 불가능한 효과를 확인합니다.
+
+여기에는 실험실 작업에 고유한 것이 없습니다. 이러한 과학자들은 단지 자신의 이해와 가설의 논리적 의미를 조사할 뿐입니다.
+좋은 음성 대조군을 찾으려면 일반적으로 질문을 둘러싼 인과 구조를 더 많이 포함하도록 DAG를 확장해야 합니다.
+몇 가지 예를 살펴보겠습니다.
+
+#### 음성 노출
+
+먼저 음성 노출 대조군을 살펴보겠습니다.
+엑스트라 매직 모닝이 실제로 대기 시간 증가를 유발한다면 이 효과는 시간 제한적이라는 것이 타당합니다.
+즉, 엑스트라 매직 모닝의 효과가 사라지는 기간이 있어야 합니다.
+오늘을 *i*일, 이전 날을 *i - n*일이라고 부르겠습니다. 여기서 *n*은 결과 이전에 음성 노출 대조군이 발생하는 날짜 수입니다.
+먼저 `n = 63`을 살펴보겠습니다. 즉, 9주 전에 엑스트라 매직 모닝이 있었는지 여부입니다.
+이것은 매우 합리적인 출발점입니다. 즉, 63일 후에 대기 시간에 대한 효과가 여전히 존재할 가능성은 거의 없습니다.
+이 분석은 필수 성분을 생략하는 예입니다. 즉, 이것이 현실적인 원인이 되기에는 너무 오래 기다렸습니다.
+남아 있는 모든 효과는 잔여 교란 때문일 가능성이 높습니다.
+
+이 상황을 시각화하기 위해 DAG를 살펴보겠습니다.
+@fig-dag-day-i에서는 원래 레이어에 동일한 레이어를 추가했습니다. 즉, 이제 `i`일과 `i - 63`일에 대한 두 개의 엑스트라 매직 모닝이 있습니다.
+마찬가지로 각 날짜에 대한 교란 변수의 두 가지 버전이 있습니다.
+이 DAG의 한 가지 중요한 세부 사항은 `i - 63`일의 엑스트라 매직 모닝이 `i`일의 엑스트라 매직 모닝에 영향을 미친다고 가정한다는 것입니다. 즉, 어느 날 엑스트라 매직 모닝이 있는지 여부는 다른 날에 발생하는지 여부에 영향을 미칠 가능성이 높습니다.
+연중 어느 곳에 배치할지에 대한 결정은 무작위가 아닙니다.
+이것이 사실이라면 효과를 기대할 *수 있습니다*. 즉, `i`일의 엑스트라 매직 모닝 상태를 통한 간접 효과입니다.
+유효한 음성 대조군을 얻으려면 이 효과를 *비활성화*해야 하며, 이는 `i`일의 엑스트라 매직 모닝 상태를 통계적으로 통제함으로써 수행할 수 있습니다.
+따라서 DAG를 고려할 때 조정 집합은 교란 변수의 모든 조합(각각의 버전이 하나 이상 있는 한)과 `i`일의 엑스트라 매직 모닝(간접 효과 억제)입니다.
+
+```{r}
+#| label: fig-dag-day-i
+#| code-fold: true
+#| fig-cap: >
+#|   @fig-dag-magic에 제시된 인과 구조의 확장.
+#|   이 DAG에서 노출은 대신 조사 중인 날짜의 대기 시간 63일 전에 엑스트라 매직 아워가 있었는지 여부입니다.
+#|   기간이 길기 때문에 효과가 없어야 합니다.
+#|   마찬가지로 DAG에는 `i - 63`일과 관련된 이전 교란 변수도 있습니다.
+labels <- c(
+  x63 = "엑스트라 매직\n모닝 (i-63)",
+  x = "엑스트라 매직\n모닝 (i)",
+  y = "평균\n대기 시간",
+  season = "티켓\n시즌",
+  weather = "과거\n최고\n기온",
+  close = "공원 폐장\n시간 (i)",
+  season63 = "티켓 시즌\n(i-63)",
+  weather63 = "과거\n최고\n기온\n(i-63)",
+  close63 = "공원 폐장\n시간 (i-63)"
+)
+
+dagify(
+  y ~ x + close + season + weather,
+  x ~ weather + close + season + x63,
+  x63 ~ weather63 + close63 + season63,
+  weather ~ weather63,
+  close ~ close63,
+  season ~ season63,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "x63",
+  outcome = "y"
+) |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_link(edge_color = "grey80") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), size = 3.8, color = "#494949") +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off")
+```
+
+노출은 `i - 63`일이므로 해당 날짜와 관련된 교란 변수를 통제하는 것을 선호하므로 `i - 63` 버전을 사용할 것입니다.
+dplyr의 `lag()`를 사용하여 해당 변수를 가져올 것입니다.
+
+```{r}
+#| eval: false
+n_days_lag <- 63
+distinct_emm <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  arrange(park_date) |>
+  transmute(
+    park_date,
+    prev_park_extra_magic_morning = lag(park_extra_magic_morning, n = n_days_lag),
+    prev_park_temperature_high = lag(park_temperature_high, n = n_days_lag),
+    prev_park_close = lag(park_close, n = n_days_lag),
+    prev_park_ticket_season = lag(park_ticket_season, n = n_days_lag)
+  )
+
+seven_dwarfs_train_2018_lag <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  left_join(distinct_emm, by = "park_date") |>
+  drop_na(prev_park_extra_magic_morning)
+```
+
+```{r}
+#| echo: false
+calculate_coef <- function(n_days_lag) {
+  distinct_emm <- seven_dwarfs_train_2018 |>
+    filter(wait_hour == 9) |>
+    arrange(park_date) |>
+    transmute(
+      park_date,
+      prev_park_extra_magic_morning = lag(park_extra_magic_morning, n = n_days_lag),
+      prev_park_temperature_high = lag(park_temperature_high, n = n_days_lag),
+      prev_park_close = lag(park_close, n = n_days_lag),
+      prev_park_ticket_season = lag(park_ticket_season, n = n_days_lag)
+    )
+
+  seven_dwarfs_train_2018_lag <- seven_dwarfs_train_2018 |>
+    filter(wait_hour == 9) |>
+    left_join(distinct_emm, by = "park_date") |>
+    drop_na(prev_park_extra_magic_morning)
+
+  fit_ipw_effect(
+    prev_park_extra_magic_morning ~ prev_park_temperature_high + prev_park_close + prev_park_ticket_season,
+    .data = seven_dwarfs_train_2018_lag,
+    .trt = "prev_park_extra_magic_morning",
+    .outcome_fmla = wait_minutes_posted_avg ~ prev_park_extra_magic_morning + park_extra_magic_morning
+  )
+}
+
+result63 <- calculate_coef(63) |>
+  round(2)
+```
+
+이 데이터를 IPW 효과에 사용하면 `i`일에서 발견한 것보다 훨씬 귀무 가설에 가까운 `r result63`분을 얻습니다.
+시간 경과에 따른 효과를 살펴보겠습니다.
+엑스트라 매직 모닝의 효과가 잠시(예: 디즈니 월드 평균 여행 기간) 지속될 수 있지만 빠르게 귀무 가설에 접근해야 합니다.
+그러나 @fig-sens-i-63에서는 결국 귀무 가설에 접근하지만 상당한 잔여 효과가 있음을 알 수 있습니다.
+이러한 결과가 정확하다면 효과에 잔여 교란이 있음을 의미합니다.
+
+```{r}
+#| label: fig-sens-i-63
+#| fig-cap: >
+#|    `i`일의 대기 시간과 `i - n`일(여기서 `n`은 `i`일 이전의 날짜 수)에 엑스트라 매직 아워가 있었는지 여부 간의 관계에 대한 평활 회귀가 있는 산점도. 이 관계는 빠르게 귀무 가설에 접근할 것으로 예상하지만 효과는 상당 기간 동안 귀무 가설 위에 머물러 있습니다. 이 잔여 효과는 잔여 교란이 있음을 의미합니다.
+#| code-fold: true
+#| warning: false
+#| message: false
+coefs <- purrr::map_dbl(1:63, calculate_coef)
+
+ggplot(tibble(coefs = coefs, x = 1:63), aes(x = x, y = coefs)) +
+  geom_hline(yintercept = 0) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  labs(y = "`i`일의 EMM에 대한 `i`일의 대기 시간 차이(분)", x = "`i - n`일")
+```
+
+#### 음성 결과
+
+이제 음성 대조군 결과의 예를 살펴보겠습니다. 즉, 유니버설 스튜디오의 놀이기구 대기 시간입니다.
+유니버설 스튜디오도 올랜도에 있으므로 대기 시간의 원인 집합은 당일 디즈니 월드의 것과 비슷할 가능성이 높습니다.
+물론 디즈니에 엑스트라 매직 모닝이 있는지 여부는 당일 유니버설의 대기 시간에 영향을 미치지 않아야 합니다. 즉, 별도의 공원이며 대부분의 사람들이 한 시간 이내에 두 곳 모두를 방문하지 않습니다.
+이 음성 대조군은 가설된 메커니즘에 의해 타당하지 않은 효과의 예입니다.
+
+유니버설의 놀이기구 데이터가 없으므로 잔여 교란이 있거나 없는 경우 어떻게 될지 시뮬레이션해 보겠습니다.
+과거 기온, 공원 폐장 시간 및 티켓 시즌(후자의 두 가지는 기술적으로 디즈니에 특정한 것이지만 유니버설 버전과 강한 상관 관계가 있을 것으로 예상)을 기반으로 대기 시간을 생성합니다.
+이것은 음성 결과이므로 디즈니에 엑스트라 매직 모닝 시간이 있었는지 여부와 관련이 없습니다.
+
+```{r}
+seven_dwarfs_sim <- seven_dwarfs_train_2018 |>
+  mutate(
+    # 각 변수를 조정하고 약간의 무작위 노이즈를 추가하여
+    # 합리적인 유니버설 대기 시간을 시뮬레이션합니다.
+    wait_time_universal =
+      park_temperature_high / 150 +
+        as.numeric(park_close) / 1500 +
+        as.integer(factor(park_ticket_season)) / 1000 +
+        rnorm(n(), 5, 5)
+  )
+```
+
+```{r}
+#| echo: false
+wait_universal <- seven_dwarfs_sim |>
+  fit_ipw_effect(
+    park_extra_magic_morning ~ park_temperature_high +
+      park_close + park_ticket_season,
+    .data = _,
+    .outcome_fmla = wait_time_universal ~ park_extra_magic_morning
+  ) |>
+  round(2)
+```
+
+`wait_time_universal`에 대한 `park_extra_magic_morning`의 IPW 효과를 계산하면 예상대로 거의 귀무 효과인 `r wait_universal`분을 얻습니다.
+그러나 디즈니와 유니버설 모두에서 엑스트라 매직 모닝과 대기 시간을 유발하는 측정되지 않은 교란 변수 `u`를 놓쳤다면 어떨까요?
+해당 시나리오를 시뮬레이션하되 데이터를 추가로 보강해 보겠습니다.
+
+```{r}
+seven_dwarfs_sim2 <- seven_dwarfs_train_2018 |>
+  mutate(
+    u = rnorm(n(), mean = 10, sd = 3),
+    wait_minutes_posted_avg = wait_minutes_posted_avg + u,
+    park_extra_magic_morning = if_else(
+      u > 10,
+      rbinom(1, 1, .1),
+      park_extra_magic_morning
+    ),
+    wait_time_universal =
+      park_temperature_high / 150 +
+        as.numeric(park_close) / 1500 +
+        as.integer(factor(park_ticket_season)) / 1000 +
+        u +
+        rnorm(n(), 5, 5)
+  )
+```
+
+```{r}
+#| echo: false
+disney <- seven_dwarfs_sim2 |>
+  fit_ipw_effect(
+    park_extra_magic_morning ~ park_temperature_high +
+      park_close + park_ticket_season,
+    .data = _
+  ) |>
+  round(2)
+
+universal <- seven_dwarfs_sim2 |>
+  fit_ipw_effect(
+    park_extra_magic_morning ~ park_temperature_high +
+      park_close + park_ticket_season,
+    .data = _,
+    .outcome_fmla = wait_time_universal ~ park_extra_magic_morning
+  ) |>
+  round(2)
+```
+
+이제 디즈니와 유니버설 대기 시간 모두에 대한 효과가 다릅니다.
+디즈니에 대한 효과가 `r disney`분이었다면 교란된 결과가 있다는 것을 반드시 알지는 못했을 것입니다.
+그러나 유니버설의 대기 시간은 관련이 없어야 하므로 결과 `r universal`분이 귀무 가설이 아니라는 것은 의심스럽습니다.
+이는 측정되지 않은 교란이 있다는 증거입니다.
+
+### DAG-데이터 일관성
+
+음성 대조군은 가정하는 인과 구조의 논리적 의미를 사용합니다.
+이 아이디어를 전체 DAG로 확장할 수 있습니다.
+DAG가 정확하다면 DAG의 다른 변수가 서로 관련되어야 하는 방식과 관련되지 않아야 하는 방식에 대한 많은 의미가 있습니다.
+음성 대조군과 마찬가지로 *독립적*이어야 하는 변수가 데이터에서 *독립적인지* 확인할 수 있습니다.
+때때로 DAG가 변수 간의 독립성을 암시하는 방식은 다른 변수에 *조건부*입니다.
+따라서 이 기법은 때때로 암시된 조건부 독립성이라고 불립니다[@Textor2016]*.* 원래 DAG를 쿼리하여 변수 간의 관계에 대해 무엇을 말하는지 알아보겠습니다.
+
+```{r}
+query_conditional_independence(emm_wait_dag) |>
+  unnest(conditioned_on)
+```
+
+이 DAG에서는 세 가지 관계가 귀무여야 합니다. 즉, 1) `park_close`와 `park_temperature_high`, 2) `park_close`와 `park_ticket_season`, 3) `park_temperature_high`와 `park_ticket_season`입니다.
+이러한 관계 중 어느 것도 독립성을 달성하기 위해 다른 변수에 조건화할 필요가 없습니다. 즉, 무조건적으로 독립적이어야 합니다.
+상관 관계 및 회귀와 같은 간단한 기법과 기타 통계 검정을 사용하여 이러한 관계에 대해 귀무성이 유지되는지 확인할 수 있습니다.
+조건부 독립성은 복잡한 DAG에서 빠르게 수가 증가하므로 dagitty는 이러한 암시된 귀무 가설을 고려하여 DAG-데이터 일관성을 자동으로 확인하는 방법을 구현합니다.
+dagitty는 특정 조건부 관계의 잔차가 상관 관계가 있는지 확인하며, 이는 여러 가지 방법으로 자동으로 모델링할 수 있습니다.
+`type = "cis.loess"`를 사용하여 비선형 모델을 사용하여 잔차를 계산하도록 dagitty에 지시할 것입니다.
+상관 관계를 사용하고 있으므로 DAG가 정확하다면 결과는 0에 가까워야 합니다.
+그러나 @fig-conditional-ind에서 볼 수 있듯이 한 관계는 유지되지 않습니다.
+공원 폐장 시간과 티켓 시즌 간에는 상관 관계가 있습니다.
+
+```{r}
+#| label: fig-conditional-ind
+#| fig-cap: >
+#|    관계가 없어야 하는 DAG의 변수 회귀에서 발생하는 잔차 간의 상관 관계의 추정치 및 95% 신뢰 구간 플롯. 두 관계는 귀무로 보이지만 공원 폐장 시간과 티켓 시즌은 상관 관계가 있는 것으로 보이며, 이는 DAG를 잘못 지정했음을 시사합니다. 이 잘못된 지정의 한 가지 원인은 변수 간의 화살표 누락일 수 있습니다. 특히 이 화살표가 있든 없든 조정 집합은 동일합니다.
+test_conditional_independence(
+  emm_wait_dag,
+  data = seven_dwarfs_train_2018 |>
+    filter(wait_hour == 9) |>
+    mutate(
+      across(where(is.character), factor),
+      park_close = as.numeric(park_close),
+    ) |>
+    as.data.frame(),
+  type = "cis.loess",
+  # CI를 계산하기 위해 200개의 부트스트랩된 표본 사용
+  R = 200
+) |>
+  ggdag_conditional_independence()
+```
+
+관계가 없어야 하는데 왜 관계가 보이는 걸까요?
+간단한 설명은 우연입니다. 즉, 모든 통계적 추론과 마찬가지로 제한된 표본에서 보는 것을 과도하게 외삽하는 데 주의해야 합니다.
+2018년 매일의 데이터가 있으므로 아마도 그것은 제외할 수 있을 것입니다.
+또 다른 이유는 한 변수에서 다른 변수로 향하는 직접적인 화살표가 누락되었기 때문입니다. 예를 들어, 과거 기온에서 공원 폐장 시간으로 향하는 화살표입니다.
+추가 화살표를 추가하는 것은 합리적입니다. 즉, 공원 폐장 시간과 티켓 시즌은 날씨와 밀접하게 관련되어 있습니다.
+그것은 우리가 화살표를 놓치고 있다는 약간의 증거입니다.
+
+이 시점에서 DAG를 데이터에 과적합하는 데 주의해야 합니다.
+DAG-데이터 일관성 검사는 DAG가 옳고 그름을 *증명할 수 없으며*, @sec-quartets에서 보았듯이 통계적 기법만으로는 문제의 인과 구조를 결정할 수 없습니다.
+그렇다면 이러한 검사를 사용하는 이유는 무엇일까요?
+음성 대조군과 마찬가지로 가정을 조사하는 방법을 제공합니다.
+가정에 대해 확신할 수는 없지만 데이터에는 정보가 *있습니다*.
+조건부 독립성이 유지된다는 것을 발견하면 가정을 뒷받침하는 증거가 조금 더 많아집니다.
+여기에는 미묘한 차이가 있으므로 이러한 유형의 확인에 대해 투명하게 공개하는 것이 좋습니다. 즉, 이러한 검사 결과를 기반으로 변경하는 경우 원래 DAG도 보고해야 합니다.
+특히 이 경우 이러한 세 가지 관계 모두에 직접적인 화살표를 추가하면 동일한 조정 집합이 생성됩니다.
+
+잘못 지정되었을 가능성이 더 높은 예를 살펴보겠습니다. 여기서 공원 폐장 시간과 티켓 시즌에서 엑스트라 매직 모닝으로 향하는 화살표를 제거합니다.
+
+```{r}
+#| echo: false
+labels <- c(
+  park_extra_magic_morning = "엑스트라 매직\n모닝",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고\n기온",
+  park_close = "공원 폐장\n시간"
+)
+```
+
+```{r}
+emm_wait_dag2 <- dagify(
+  wait_minutes_posted_avg ~ park_extra_magic_morning + park_close +
+    park_ticket_season + park_temperature_high,
+  park_extra_magic_morning ~ park_temperature_high,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "park_extra_magic_morning",
+  outcome = "wait_minutes_posted_avg"
+)
+
+query_conditional_independence(emm_wait_dag2) |>
+  unnest(conditioned_on)
+```
+
+이 대체 DAG는 독립적이어야 하는 두 가지 새로운 관계를 도입합니다.
+@fig-conditional-ind-misspec에서는 티켓 시즌과 엑스트라 매직 모닝 간의 추가적인 연관성을 볼 수 있습니다.
+
+```{r}
+#| label: fig-conditional-ind-misspec
+#| fig-cap: >
+#|    관계가 없어야 하는 DAG의 변수 회귀에서 발생하는 잔차 간의 상관 관계의 추정치 및 95% 신뢰 구간 플롯. 두 관계는 귀무로 보이지만 공원 폐장 시간과 티켓 시즌은 상관 관계가 있는 것으로 보이며, 이는 DAG를 잘못 지정했음을 시사합니다. 이 잘못된 지정의 한 가지 원인은 변수 간의 화살표 누락일 수 있습니다.
+test_conditional_independence(
+  emm_wait_dag2,
+  data = seven_dwarfs_train_2018 |>
+    filter(wait_hour == 9) |>
+    mutate(
+      across(where(is.character), factor),
+      park_close = as.numeric(park_close),
+    ) |>
+    as.data.frame(),
+  type = "cis.loess",
+  R = 200
+) |>
+  ggdag_conditional_independence()
+```
+
+그렇다면 이 DAG가 틀렸을까요?
+문제에 대한 이해를 바탕으로 보면 그럴 가능성이 높지만, DAG-데이터 일관성 검사를 해석하는 데는 문제가 있습니다. 즉, 서로 다른 DAG가 동일한 조건부 독립성 집합을 가질 수 있습니다.
+우리 DAG의 경우 다른 하나의 DAG가 동일한 암시된 조건부 독립성을 생성할 수 있습니다(@fig-equiv-dag).
+이를 *동등한* DAG라고 합니다. 왜냐하면 그 의미가 동일하기 때문입니다.
+
+```{r}
+#| eval: false
+ggdag_equivalent_dags(emm_wait_dag2)
+```
+
+```{r}
+#| label: fig-equiv-dag
+#| code-fold: true
+#| fig-width: 9
+#| fig-cap: >
+#|    @fig-dag-magic의 잘못 지정되었을 가능성이 있는 버전에 대한 동등한 DAG.
+#|    이 두 DAG는 동일한 암시된 조건부 독립성 집합을 생성합니다.
+#|    둘 사이의 차이점은 과거 최고 기온과 엑스트라 매직 아워 간의 화살표 방향뿐입니다.
+curvatures <- rep(0, 10)
+curvatures[c(4, 9)] <- .25
+
+ggdag_equivalent_dags(emm_wait_dag2, use_edges = FALSE, use_text = FALSE) +
+  geom_dag_edges_arc(data = function(x) distinct(x), curvature = curvatures, edge_color = "grey80") +
+  geom_dag_edges_link(data = function(x) filter(x, (name == "park_extra_magic_morning" & to == "park_temperature_high") | (name == "park_temperature_high" & to == "park_extra_magic_morning")), edge_color = "black") +
+  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("엑스트라 매직\n모닝", "과거 최고\n기온")), box.padding = 15, seed = 12, color = "#494949") +
+  theme_dag()
+```
+
+동등한 DAG는 화살표를 *뒤집어서* 생성됩니다.
+동일한 의미를 생성하는 뒤집을 수 있는 화살표가 있는 DAG 하위 집합을 *동등 클래스*라고 합니다.
+기술적이지만 이 연결은 시각화를 뒤집을 수 있는 간선이 화살표 없는 직선으로 표시되는 단일 DAG로 압축할 수 있습니다.
+
+```{r}
+#| eval: false
+ggdag_equivalent_class(emm_wait_dag2, use_text = FALSE, use_labels = TRUE)
+```
+
+```{r}
+#| label: fig-equiv-class
+#| code-fold: true
+#| fig-width: 5
+#| fig-cap: >
+#|    @fig-equiv-dag의 대체 시각화. 모든 동등한 DAG가 화살표 없는 간선으로 표시된 *뒤집을 수 있는* 간선이 있는 단일 버전으로 압축됩니다.
+curvatures <- rep(0, 4)
+curvatures[3] <- .25
+
+emm_wait_dag2 |>
+  node_equivalent_class() |>
+  ggdag(use_edges = FALSE, use_text = FALSE) +
+  geom_dag_edges_arc(data = function(x) filter(x, !reversable), curvature = curvatures, edge_color = "grey90") +
+  geom_dag_edges_link(data = function(x) filter(x, reversable), arrow = NULL) +
+  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("엑스트라 매직\n모닝", "과거 최고\n기온")), box.padding = 16, seed = 12, size = 5, color = "#494949") +
+  theme_dag()
+```
+
+그렇다면 이 정보로 무엇을 할 수 있을까요?
+많은 DAG가 동일한 조건부 독립성 집합을 생성할 수 있으므로 한 가지 전략은 모든 동등한 DAG에 대해 유효한 모든 조정 집합을 찾는 것입니다.
+dagitty는 `equivalenceClass()` 및 `adjustmentSets()`를 호출하여 이를 간단하게 만들지만 이 경우 중첩되는 조정 집합이 *없습니다*.
+
+```{r}
+library(dagitty)
+# 모든 동등한 DAG에 대한 유효한 집합 결정
+equivalenceClass(emm_wait_dag2) |>
+  adjustmentSets(type = "all")
+```
+
+개별 동등한 DAG를 보면 이를 알 수 있습니다.
+
+```{r}
+dags <- equivalentDAGs(emm_wait_dag2)
+
+# 중첩되는 집합 없음
+dags[[1]] |> adjustmentSets(type = "all")
+dags[[2]] |> adjustmentSets(type = "all")
+```
+
+좋은 소식은 이 경우 동등한 DAG 중 하나가 논리적으로 의미가 없다는 것입니다. 즉, 뒤집을 수 있는 간선은 과거 날씨에서 엑스트라 매직 모닝으로 향하지만, 이는 시간 순서상의 이유(과거 기온은 과거에 발생)와 논리적인 이유(디즈니는 강력할 수 있지만 우리가 아는 한 아직 날씨를 제어할 수는 없음) 모두 불가능합니다.
+이러한 유형의 확인에서 더 많은 데이터를 사용하더라도 가능한 시나리오의 논리적 및 시간 순서상의 타당성을 고려해야 합니다.
+
+### 대체 DAG
+
+<!-- TODO: 이것이 기계 학습 장에서 수행하는 작업의 확장이어야 한다고 생각합니다. 예를 들어, TMLE에 더 복잡한 공변량 집합을 적용한 다음 여기서 해당 분석을 다시 검토합니다. 즉, 이 대체 DAG는 책 전체에 약간의 스레드가 있어야 합니다. -->
+
+@sec-dags-iterate에서 언급했듯이 다른 전문가로부터 충분한 피드백을 받아 미리 DAG를 지정해야 합니다.
+이제 마지막 예와 반대되는 접근 방식을 취해 보겠습니다. 즉, 원래 DAG를 사용했지만 분석 후 더 많은 변수를 추가해야 한다는 피드백을 받았다면 어떻게 될까요?
+@fig-dag-extra-days의 확장된 DAG를 고려해 보십시오.
+주말인지 또는 공휴일인지 여부라는 두 가지 새로운 교란 변수를 추가했습니다.
+이 분석은 동일한 DAG에서 대체 조정 집합을 확인했을 때와 다릅니다. 그 경우에는 DAG의 논리적 일관성을 확인했습니다.
+이 경우 다른 인과 구조를 고려하고 있습니다.
+
+```{r}
+#| label: fig-dag-extra-days
+#| fig-cap: >
+#|    @fig-dag-magic의 확장. 이제 자체 백도어 경로에 두 개의 새로운 변수가 포함됩니다. 즉, 공휴일인지 여부와 주말인지 여부입니다.
+#| code-fold: true
+
+labels <- c(
+  park_extra_magic_morning = "엑스트라 매직\n모닝",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고\n기온",
+  park_close = "공원 폐장\n시간",
+  is_weekend = "주말",
+  is_holiday = "공휴일"
+)
+
+emm_wait_dag3 <- dagify(
+  wait_minutes_posted_avg ~ park_extra_magic_morning + park_close + park_ticket_season + park_temperature_high + is_weekend + is_holiday,
+  park_extra_magic_morning ~ park_temperature_high + park_close + park_ticket_season + is_weekend + is_holiday,
+  park_close ~ is_weekend + is_holiday,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "park_extra_magic_morning",
+  outcome = "wait_minutes_posted_avg"
+)
+
+curvatures <- rep(0, 13)
+curvatures[11] <- .25
+
+emm_wait_dag3 |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_arc(curvature = curvatures, edge_color = "grey80") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), size = 3.8, seed = 16301, color = "#494949") +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off")
+```
+
+timeDate 패키지를 사용하여 `park_date`에서 이러한 기능을 계산할 수 있습니다.
+
+```{r}
+library(timeDate)
+
+holidays <- c(
+  "USChristmasDay",
+  "USColumbusDay",
+  "USIndependenceDay",
+  "USLaborDay",
+  "USLincolnsBirthday",
+  "USMemorialDay",
+  "USMLKingsBirthday",
+  "USNewYearsDay",
+  "USPresidentsDay",
+  "USThanksgivingDay",
+  "USVeteransDay",
+  "USWashingtonsBirthday"
+) |>
+  holiday(2018, Holiday = _) |>
+  as.Date()
+
+seven_dwarfs_with_days <- seven_dwarfs_train_2018 |>
+  mutate(
+    is_holiday = park_date %in% holidays,
+    is_weekend = isWeekend(park_date)
+  ) |>
+  filter(wait_hour == 9)
+```
+
+엑스트라 매직 모닝 시간과 게시된 대기 시간 모두 공휴일 또는 주말인지 여부와 관련이 있습니다.
+
+```{r}
+#| label: tbl-days
+#| tbl-cap: >
+#|    두 개의 새로운 변수인 공휴일 및 주말과 노출 및 결과 간의 설명적 연관성. 평균 게시 대기 시간은 공휴일과 주말 모두 다르며 엑스트라 매직 아워 발생도 마찬가지입니다. 설명 통계만으로는 교란 관계를 결정할 수 없지만 이는 이러한 변수가 교란 변수라는 증거를 추가합니다.
+#| code-fold: true
+tbl_data_days <- seven_dwarfs_with_days |>
+  select(wait_minutes_posted_avg, park_extra_magic_morning, is_weekend, is_holiday)
+
+library(labelled)
+var_label(tbl_data_days) <- list(
+  is_weekend = "주말",
+  is_holiday = "공휴일",
+  park_extra_magic_morning = "엑스트라 매직 모닝",
+  wait_minutes_posted_avg = "게시된 대기 시간"
+)
+
+tbl1 <- gtsummary::tbl_summary(
+  tbl_data_days,
+  by = is_weekend,
+  include = -is_holiday
+)
+
+tbl2 <- gtsummary::tbl_summary(
+  tbl_data_days,
+  by = is_holiday,
+  include = -is_weekend
+)
+
+gtsummary::tbl_merge(list(tbl1, tbl2), c("주말", "공휴일"))
+```
+
+```{r}
+#| echo: false
+ipw_results_with_days <- fit_ipw_effect(
+  park_extra_magic_morning ~ park_temperature_high +
+    park_close + park_ticket_season + is_weekend + is_holiday,
+  .data = seven_dwarfs_with_days
+) |> round(2)
+```
+
+IPW 추정기를 다시 적합시키면 두 개의 새로운 교란 변수 없이 얻은 것보다 약간 큰 `r ipw_results_with_days`분을 얻습니다.
+분석 계획에서 벗어났으므로 두 가지 효과를 모두 보고해야 합니다.
+즉, 이 새로운 DAG는 원래 DAG보다 더 정확할 가능성이 높습니다.
+그러나 결정 관점에서 보면 절대적인 측면에서 차이는 미미하며(약 1분) 효과는 원래 추정치와 같은 방향입니다.
+즉, 결과는 정보에 따라 행동하는 방식과 관련하여 이 변화에 그다지 민감하지 않습니다.
+
+여기서 또 다른 점은 사람들이 점점 더 복잡한 조정 집합을 사용하는 결과를 제시한다는 것입니다.
+이는 복잡한 모델을 간결한 모델과 비교하는 전통에서 비롯됩니다.
+이러한 유형의 비교는 그 자체로 민감도 분석이지만 원칙에 입각해야 합니다. 즉, 단순성을 위해 간단한 모델을 적합시키는 대신 *경쟁하는* 조정 집합 또는 조건을 비교해야 합니다.
+예를 들어, 이 두 DAG가 똑같이 타당하다고 생각하거나 다른 변수를 추가하면 매직 킹덤의 기준선 군중 흐름을 더 잘 포착하는지 검토하고 싶을 수 있습니다.
+
+## 정량적 편향 분석
+
+지금까지 질문의 인과 구조에 대해 우리가 만든 가정 중 일부를 조사했습니다.
+정량적 편향 분석을 사용하여 이를 더 진행할 수 있으며, 이는 수학적 가정을 사용하여 다른 조건, 예를 들어 측정되지 않은 교란이 있는 경우 결과가 어떻게 변하는지 확인합니다.
+
+### 측정되지 않은 교란 변수에 대한 민감도 분석
+
+측정되지 않은 교란에 대한 민감도 분석은 관찰 연구에서 잠재적인 측정되지 않은 요인에 대한 결과의 견고성을 평가하는 중요한 도구입니다[@d2022sensitivity].
+이러한 분석은 세 가지 주요 구성 요소에 의존합니다.
+
+1)  측정된 교란 변수를 조정한 후 관찰된 노출-결과 효과,\
+2)  가상적인 측정되지 않은 교란 변수와 노출 간의 추정된 관계, 및\
+3)  해당 측정되지 않은 교란 변수와 결과 간의 추정된 관계.
+
+이러한 관계에 대한 타당한 값을 지정함으로써 연구자들은 그러한 측정되지 않은 교란 변수가 존재한다면 관찰된 효과가 얼마나 변할 수 있는지 정량화할 수 있습니다.
+
+위의 예제 맥락에서 이것이 왜 작동하는지 생각해 보겠습니다.
+@fig-dag-magic-sens가 관심 있는 노출과 결과 간의 실제 관계를 표시한다고 가정해 보겠습니다.
+과거 최고 기온을 측정하지 않았다고 가정하면(점선으로 표시됨) 측정되지 않은 교란 변수가 있습니다.
+위의 세 가지 주요 구성 요소는 1) '엑스트라 매직 모닝'과 '평균 대기 시간' 사이의 화살표, 2) '과거 최고 기온'과 '엑스트라 매직 모닝' 사이의 화살표, 3) '과거 최고 기온'과 '평균 대기 시간' 사이의 화살표로 설명됩니다.
+
+```{r}
+#| label: fig-dag-magic-sens
+#| code-fold: true
+#| fig-cap: >
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 간의 관계에 대해 제안된 원래 DAG. 각 간선의 선 종류는 측정된 것을 표시합니다. 여기서는 과거 최고 기온을 측정하지 않았습니다.
+#|   이전과 마찬가지로 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐장 시간, 과거 최고 기온 및 티켓 시즌에 의해 결정된다고 믿습니다.
+curvatures <- rep(0, 7)
+curvatures[5] <- 0.3
+emm_wait_dag |>
+  tidy_dagitty() |>
+  node_status() |>
+  mutate(linetype = if_else(name == "park_temperature_high", "dashed", "solid")) |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status, edge_linetype = linetype)
+  ) +
+  geom_dag_edges_arc(curvature = curvatures, edge_color = "grey80") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), size = 3.8, seed = 1630, color = "#494949") +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(
+    limits = c(-1.25, 2.25),
+    breaks = c(-1, 0, 1, 2)
+  )
+```
+
+결과 유형(예: 연속형, 이진형, 시간-사건) 및 잠재적인 측정되지 않은 교란 변수에 대해 알려진 정도에 따라 다양한 방법을 사용할 수 있습니다.
+이러한 분석은 측정되지 않은 교란의 부재를 증명할 수는 없지만 관찰 연구에서 인과 추론에 중요한 "측정되지 않은 교란 변수 없음" 가정 위반에 결과가 얼마나 민감한지에 대한 귀중한 통찰력을 제공합니다.
+
+#### 관찰된 노출-결과 효과
+
+첫 번째 구성 요소인 관찰된 노출-결과 효과는 관심 있는 제안된 인과 효과, 즉 민감도 분석을 수행하려는 효과입니다.
+효과 자체는 결과 모델의 선택에 따라 달라지며, 이는 결과적으로 결과의 분포와 원하는 효과 측정값에 따라 달라지는 경우가 많습니다.
+
+1.  연속형 결과의 경우: 가우스 분포와 항등 연결 함수를 사용하는 선형 모델 또는 일반화 선형 모델(GLM)이 사용되며, 일반적으로 계수를 추정합니다.
+
+2.  이진 결과의 경우 몇 가지 선택 사항이 있습니다.
+
+-   이항 분포와 로그 연결 함수를 사용하는 GLM
+-   포아송 분포와 로그 연결 함수를 사용하는 GLM
+-   이항 분포와 로짓 연결 함수를 사용하는 GLM 이러한 계수를 추정하며, 이를 지수화하여 위험비(로그 연결 모델) 또는 오즈비(로짓 연결 모델)를 얻을 수 있습니다.
+
+3.  시간-사건 결과의 경우: 콕스 비례 위험 모델이 사용되며, 계수를 지수화하여 위험비를 얻습니다.
+
+@tbl-alt-sets에서 '공원 폐장 시간'과 '티켓 시즌'만 조정한 분석을 사용해 보겠습니다.
+@fig-dag-magic-sens에 따르면 '과거 최고 기온'도 교란 변수이지만 *측정되지 않았으므로* 실제 조정 집합에 포함할 수 없습니다.
+이로 인해 관찰된 효과는 `r round(effects[2], 2)`였습니다.
+
+#### 측정되지 않은 교란 변수-노출 효과
+
+측정되지 않은 교란 변수와 노출 간의 관계는 세 가지 방법으로 특징지을 수 있습니다.
+
+1.  이진 측정되지 않은 교란 변수의 경우:
+
+-   노출된 그룹에서 측정되지 않은 교란 변수의 유병률
+-   노출되지 않은 그룹에서 측정되지 않은 교란 변수의 유병률
+
+2.  연속형 측정되지 않은 교란 변수의 경우(정규 분포 및 단위 분산 가정):
+
+-   노출된 그룹과 노출되지 않은 그룹 간의 측정되지 않은 교란 변수의 평균 차이
+
+3.  분포에 구애받지 않는 접근 방식:
+
+-   측정된 교란 변수를 설명한 후 측정되지 않은 교란 변수에 의해 설명되는 노출 변동의 비율을 나타내는 부분 $R^2$
+
+이러한 특성화를 통해 연구자들은 민감도 분석에서 측정되지 않은 교란 변수-노출 관계를 지정하여 다양한 유형의 교란 변수와 분포에 대한 지식 수준을 수용할 수 있습니다.
+
+여기서 측정되지 않은 교란 변수인 '과거 최고 기온'은 연속적입니다.
+이 예에서는 정규 분포를 따른다고 가정합니다.
+교란 변수의 영향을 표준 편차 단위로 쉽게 이야기할 수 있도록 "단위 분산"(분산 1)을 가정하라고 말합니다.
+엑스트라 매직 모닝 시간이 있는 날의 과거 최고 기온은 평균 80.5도, 표준 편차 9도인 정규 분포를 따른다고 가정해 보겠습니다.
+마찬가지로 엑스트라 매직 모닝 시간이 없는 날의 과거 최고 기온은 평균 82도, 표준 편차 9도인 정규 분포를 따른다고 가정합니다.
+이러한 값을 표준 편차 9로 나누어 '단위 분산' 정규 분포 변수로 변환할 수 있습니다(때로는 이를 변수 *표준화*라고도 함). 이렇게 하면 엑스트라 매직 모닝 시간이 있는 날의 표준화된 평균은 8.94이고 없는 날의 표준화된 평균은 9.11이 되거나 평균 차이는 -0.17이 됩니다.
+이 숫자를 기억하십시오. 민감도 분석을 위해 다음 섹션과 함께 사용할 것입니다.
+
+#### 측정되지 않은 교란 변수-결과 효과
+
+측정되지 않은 교란 변수와 결과 간의 관계는 두 가지 주요 방법으로 정량화할 수 있습니다.
+
+1.  계수 기반 접근 방식: 완전히 조정된 결과 모델에서 측정되지 않은 교란 변수에 대한 계수를 추정합니다.
+    지수화된 계수(위험비, 오즈비 또는 위험비)를 추정할 수도 있습니다.
+
+2.  분포에 구애받지 않는 접근 방식(연속형 결과의 경우): 노출 및 측정된 교란 변수를 설명한 후 측정되지 않은 교란 변수에 의해 설명되는 결과 변동의 비율을 나타내는 부분 $R^2$를 사용합니다.
+
+계수 기반 접근 방식을 사용해 보겠습니다.
+이 경우 표준화된 '과거 최고 기온' 변수와 노출 및 기타 측정된 교란 변수(이 경우 티켓 시즌 및 공원 폐장 시간)를 조정한 후 결과 간의 계수를 추정해야 합니다.
+이 문제의 맥락에서 이 효과를 설명하는 또 다른 방법은 "엑스트라 매직 모닝 시간이 있었는지 여부, 공원 폐장 시간 및 티켓 시즌을 조정한 후 과거 최고 기온을 1 표준 편차만큼 변경하면 평균 게시 대기 시간이 어떻게 변할까요?"입니다. 이것이 -2.3분만큼 변한다고 가정해 보겠습니다.
+즉, 과거 최고 기온이 1 표준 편차 단위 더 높으면(이 시나리오에서는 9도 더 따뜻함) 평균 게시 대기 시간이 2.3분 감소할 것으로 예상합니다.
+
+이러한 양에 대한 수학적 설명은 @d2022sensitivity를 참조하십시오.
+
+#### 구성 요소 결합하기
+
+위의 세 가지 양을 추정했으면 지정된 것과 같은 측정되지 않은 요인을 고려하여 노출과 결과 간의 업데이트된 효과 추정치를 계산할 수 있습니다.
+{tipr} R 패키지를 사용하여 이러한 분석을 수행할 수 있습니다.
+{tipr} 패키지의 함수는 통일된 문법을 따릅니다.
+함수 이름은 `{action}_{effect}_with_{what}` 형식을 따릅니다.
+
+예를 들어, 이진 측정되지 않은 교란 변수(`what`)로 계수(`effect`)를 조정(`action`)하려면 `adjust_coef_with_binary()` 함수를 사용합니다.
+
+아래는 이 패키지에 대한 @lucy2022tipr에 포함된 표의 사본입니다.
+
+| 범주   | 함수 용어 | 사용                                                                                                                                                                                                                                                                   |
+|----------------|-----------------|---------------------------------------|
+| **작업** | `adjust`      | 이러한 함수는 관찰된 효과를 조정하며, 측정되지 않은 \| 교란 변수-노출 관계와 측정되지 않은 교란 변수-결과 관계를 모두 지정해야 합니다.                                                                                            |
+|            | `tip`         | 이러한 함수는 관찰된 효과를 기울입니다. 측정되지 않은 교란 변수-노출 관계 또는 측정되지 않은 교란 변수-결과 관계 중 하나만 지정하면 됩니다.                                                                              |
+| **효과** | `coef`        | 이러한 함수는 선형, 로그 선형, 로지스틱 또는 콕스 비례 위험 모델의 관찰된 계수를 지정합니다.                                                                                                                                                |
+|            | `rr`          | 이러한 함수는 관찰된 상대 위험을 지정합니다.                                                                                                                                                                                                                     |
+|            | `or`          | 이러한 함수는 관찰된 오즈비를 지정합니다.                                                                                                                                                                                                                        |
+|            | `hr`          | 이러한 함수는 관찰된 위험비를 지정합니다.                                                                                                                                                                                                                      |
+| **대상**   | `continuous`  | 이러한 함수는 측정되지 않은 표준화된 정규 분포 교란 변수를 지정합니다. 이러한 함수에는 `exposure_confounder_effect` 및 `confounder_outcome_effect` 매개변수가 포함됩니다.                                                                          |
+|            | `binary`      | 이러한 함수는 측정되지 않은 이진 교란 변수를 지정합니다. 이러한 함수에는 `exposed_confounder_prev`, `unexposed_confounder_prev` 및 `confounder_outcome_effect` 매개변수가 포함됩니다.                                                                          |
+|            | `r2`          | 이러한 함수는 측정되지 않은 교란 변수에 의해 설명되는 노출/결과 변동의 백분율을 지정하여 매개변수화된 측정되지 않은 교란 변수를 지정합니다. 이러한 함수에는 `confounder_exposure_r2` 및 `outcome_exposure_r2` 매개변수가 포함됩니다. |
+
+: `tipr` 함수 문법. {#tbl-sens}
+
+전체 문서는 [r-causal.github.io/tipr/](https://r-causal.github.io/tipr/)에서 찾을 수 있습니다.
+
+#### 예시
+
+자, 이제 민감도 분석을 수행하는 데 필요한 모든 것을 갖추었습니다.
+@tbl-sens는 필요한 것을 제공합니다. {tipr} R 패키지를 사용하여 이를 적용할 수 있습니다. `adjust_coef` 함수를 사용할 것입니다.
+세 가지 매개변수, 즉 `effect_observed`, `exposure_confounder_effect` 및 `confounder_outcome_effect`에 대해 위에서 설정한 양을 연결해 보겠습니다.
+
+```{r}
+library(tipr)
+adjust_coef(
+  effect_observed = 6.58,
+  exposure_confounder_effect = -.17,
+  confounder_outcome_effect = -2.3
+)
+```
+
+이 출력을 살펴보면 위에서 지정한 것과 같은 측정되지 않은 교란 변수가 있다면 관찰된 효과 6.58이 6.19로 약화될 것임을 알 수 있습니다.
+즉, 엑스트라 매직 모닝 시간이 오전 9시 평균 게시 대기 시간을 6.58분 증가시키는 효과 대신, 측정되지 않은 교란 변수에 대한 사양이 정확하다고 가정하면 실제 효과는 6.19분이 될 것입니다.
+@tbl-alt-sets를 살펴보십시오. 이 숫자는 익숙해 보일 것입니다.
+
+이 경우 측정되지 않은 교란 변수와 노출 및 결과 간의 관계에 대한 "추측"은 실제로 측정되었기 때문에 정확했습니다!
+실제로는 이러한 추측을 하기 위해 다른 기법을 사용해야 하는 경우가 많습니다.
+때로는 다른 데이터나 이전 연구에 접근하여 이러한 효과를 정량화할 수 있습니다.
+때로는 효과 중 하나에 대한 정보는 있지만 다른 효과에 대한 정보는 없는 경우도 있습니다(즉, 과거 최고 기온이 평균 게시 대기 시간에 미치는 영향에 대한 추측은 있지만 엑스트라 매직 모닝 시간이 있는지 여부에 대한 추측은 없음).
+이러한 경우 한 가지 해결책은 확신하는 효과를 지정하고 확신하지 못하는 효과를 변경하는 *배열* 기반 접근 방식입니다.
+예를 살펴보겠습니다.
+이 배열을 그려 이 잠재적인 교란 변수의 영향을 확인할 수 있습니다.
+@fig-sens-array를 살펴보면 예를 들어, 엑스트라 매직 모닝 시간이 엑스트라 매직 모닝 시간이 없는 날보다 평균적으로 9도 더 시원한 과거 최고 기온의 1 표준 편차 차이가 있다면 엑스트라 매직 모닝 시간이 오전 9시 평균 게시 대기 시간에 미치는 실제 인과 효과는 관찰된 6.58분 대신 4.28분이 될 것입니다.
+
+```{r}
+#| label: fig-sens-array
+#| fig-cap: >
+#|   가정된 교란 변수-결과 효과가 -2.3인 정규 분포 측정되지 않은 교란 변수가 관찰된 계수 6.58(점선)에 미치는 영향.
+#|   x축은 노출과 측정되지 않은 교란 변수 간의 가정된 관계를 보여줍니다.
+#|   y축은 측정되지 않은 교란 변수를 조정한 후 노출과 결과 간의 해당 관계를 보여줍니다.
+
+library(tipr)
+adjust_df <- adjust_coef(
+  effect_observed = 6.58,
+  exposure_confounder_effect = seq(0, -1, by = -0.05),
+  confounder_outcome_effect = -2.3,
+  verbose = FALSE
+)
+
+ggplot(
+  adjust_df,
+  aes(
+    x = exposure_confounder_effect,
+    y = effect_adjusted
+  )
+) +
+  geom_hline(yintercept = 6.58, lty = 2) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "노출 - 측정되지 않은 교란 변수 효과",
+    y = "조정된 효과"
+  )
+```
+
+많은 경우 잠재적인 측정되지 않은 교란 변수가 노출과 결과에 미치는 영향에 대해 확신이 없습니다.
+한 가지 접근 방식은 검토할 *두 가지* 값의 범위를 결정하는 것입니다.
+@fig-sens-array-2는 이에 대한 예입니다.
+이 그래프를 보면 알 수 있는 한 가지는 과거 최고 기온의 1 표준 편차 변화가 평균 게시 대기 시간을 최소 약 7분 변경하고 엑스트라 매직 모닝 날과 그렇지 않은 날의 평균 과거 기온 간에 약 1 표준 편차 차이가 있을 때 조정된 효과가 귀무 가설을 넘어선다는 것입니다.
+이를 *티핑 포인트*라고 합니다.
+
+```{r}
+#| label: fig-sens-array-2
+#| fig-cap: >
+#|   관찰된 계수가 6.58(점선)인 정규 분포 측정되지 않은 교란 변수의 영향.
+#|   점선은 효과가 *귀무 가설*을 넘어선 지점, 즉 조정된 효과가 실제로 0인 지점을 보여줍니다.
+#|   x축은 노출과 측정되지 않은 교란 변수 간의 가정된 관계를 보여줍니다. 각 선은 왼쪽에 레이블이 지정된 대로 -1에서 -7까지 변경된 측정되지 않은 교란 변수와 결과 간의 다른 관계를 나타냅니다.
+#|   y축은 각 측정되지 않은 교란 변수를 조정한 후 노출과 결과 간의 해당 관계를 보여줍니다.
+
+library(tipr)
+adjust_df <- adjust_coef(
+  effect_observed = 6.58,
+  exposure_confounder_effect = rep(seq(0, -1, by = -0.05), each = 7),
+  confounder_outcome_effect = rep(seq(-1, -7, by = -1), times = 21),
+  verbose = FALSE
+)
+
+ggplot(
+  adjust_df,
+  aes(
+    x = exposure_confounder_effect,
+    y = effect_adjusted,
+    group = confounder_outcome_effect
+  )
+) +
+  geom_hline(yintercept = 6.58, lty = 2) +
+  geom_hline(yintercept = 0, lty = 3) +
+  geom_point() +
+  geom_line() +
+  geom_label(
+    data = adjust_df[141:147, ],
+    aes(
+      x = exposure_confounder_effect,
+      y = effect_adjusted,
+      label = confounder_outcome_effect
+    )
+  ) +
+  labs(
+    x = "노출 - 측정되지 않은 교란 변수 효과",
+    y = "조정된 효과"
+  )
+```
+
+#### 티핑 포인트 분석
+
+티핑 포인트 민감도 분석은 관찰된 효과를 특정 값, 종종 귀무 가설로 변경하는 측정되지 않은 교란 변수의 특성을 결정하는 것을 목표로 합니다.
+알 수 없는 민감도 매개변수에 대한 값 범위를 탐색하는 대신 관찰된 효과를 "기울이는" 값을 식별합니다.
+이 접근 방식은 점 추정치 또는 신뢰 구간 경계에 적용할 수 있습니다.
+분석은 이러한 기울임을 유발하는 측정되지 않은 교란 변수의 가능한 가장 작은 효과를 계산합니다.
+방정식을 재정렬하고 조정된 결과를 귀무 가설(또는 관심 있는 모든 값)로 설정하면 다른 매개변수가 주어졌을 때 단일 민감도 매개변수에 대해 풀 수 있습니다.
+{tipr} R 패키지는 다양한 효과 측정값, 교란 변수 유형 및 알려진 관계를 포함한 다양한 시나리오에 대해 이러한 계산을 수행하는 함수도 제공합니다.
+
+위의 예를 사용하여 `tip_coef` 함수를 사용하여 관찰된 계수를 기울이는 것을 살펴보겠습니다.
+이를 위해서는 노출-측정되지 않은 교란 변수 효과 *또는* 측정되지 않은 교란 변수-결과 효과 중 하나만 지정하면 함수가 관찰된 효과를 귀무 가설로 "기울이는" 다른 효과를 계산합니다.
+먼저 @fig-sens-array-2에서 본 것을 복제해 보겠습니다.
+측정되지 않은 교란 변수 효과-결과 효과를 -7분으로 지정해 보겠습니다.
+아래 출력은 측정되지 않은 교란 변수가 결과에 -7분의 효과를 미친다면 관찰된 효과 6.58분을 기울이기 위해 -0.94의 차이가 필요함을 알려줍니다.
+
+```{r}
+tip_coef(
+  effect_observed = 6.58,
+  confounder_outcome_effect = -7
+)
+```
+
+대신 위에서 가정한 측정되지 않은 교란 변수-결과 효과 -2.3에 대해서는 상당히 확신하지만 과거 최고 기온과 해당 날짜에 엑스트라 매직 모닝 시간이 있었는지 여부 간의 관계 측면에서 무엇을 기대해야 할지 확신이 없다고 가정해 보겠습니다.
+관찰된 효과 6.58분을 0분으로 기울이기 위해 이러한 교란 변수가 얼마나 큰 차이를 가져야 하는지 살펴보겠습니다.
+
+```{r}
+tip_coef(
+  effect_observed = 6.58,
+  confounder_outcome_effect = -2.3
+)
+```
+
+이는 노출과 교란 변수 사이에 -2.86의 효과가 필요함을 보여줍니다.
+즉, 이 특정 예에서는 효과를 귀무 가설로 변경하려면 과거 기온의 평균 차이가 약 25도(-2.86 곱하기 표준 편차 9)여야 합니다.
+이것은 매우 크고 잠재적으로 타당하지 않은 효과입니다.
+과거 최고 기온이 누락되었고 -2.3 추정치가 정확하다고 가정하면 이 변수가 누락되어 결과가 방향적으로 잘못될 정도로 왜곡되지 않는다고 상당히 확신할 수 있습니다.
+
+### 기타 QBA 유형

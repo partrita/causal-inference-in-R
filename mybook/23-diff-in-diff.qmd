@@ -1,0 +1,17 @@
+# 차이 속 차이 {#sec-did}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("unstarted")
+```
+
+## 차이 속 차이
+
+```{r}
+rnorm(5)
+```
+
+## 합성 대조군

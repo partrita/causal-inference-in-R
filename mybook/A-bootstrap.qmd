@@ -1,0 +1,472 @@
+# 부트스트랩 {#sec-appendix-bootstrap}
+
+{{< include ../chapters/00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 에디션 완료 시 제거
+status("polishing")
+```
+
+## 개요 {#sec-boot-alg}
+
+부트스트랩은 복원 추출을 사용하여 통계량을 계산하는 간단하지만 유연한 알고리즘입니다.
+인과 추론(특히 표준 오차의 경우)에서 흔히 볼 수 있듯이 통계량을 계산하기 위한 폐쇄형 해법이 존재하지 않거나, 모수적 접근 방식에 사용된 가정이 특정 상황에 유효하지 않다고 의심될 때 유용합니다.
+
+R에서의 부트스트랩은 고전적인 boot 패키지부터 시작하여 관심 있는 통계량을 계산하는 함수를 작성하는 오랜 전통을 가지고 있습니다.
+이 책 전체에서 우리는 리샘플링을 위한 보다 현대적인 대안인 rsample을 사용하지만, 일반적으로 관심 있는 추정치를 계산하는 함수를 작성하는 것부터 시작합니다.
+
+`this_data`에 대해 `some_statistic()`을 계산한다고 가정해 보겠습니다.
+*R*개의 리샘플에 대해 부트스트랩을 수행하려면 다음을 수행합니다.
+
+1. `this_data`를 복원 추출합니다.
+    동일한 행이 특정 부트스트랩 리샘플에 여러 번 (또는 전혀) 나타나지 않을 수 있으며, 이는 기본 모집단에서의 샘플링 과정을 시뮬레이션합니다.
+
+    ```r
+    indices <- sample(
+      # 인덱스 벡터 생성:
+      # 1부터 행 수까지
+      seq_len(nrow(this_data)),
+      # `this_data`와 동일한 길이의
+      # 인덱스 벡터 샘플링
+      size = nrow(this_data),
+      replace = TRUE
+    )
+    bootstrap_resample <- this_data[indices, ]
+    ```
+
+2.  `bootstrap_resample`에 `some_statistic()`을 적용합니다.
+
+    ```r
+    estimate <- some_statistic(bootstrap_resample)
+    ```
+
+3.  *R*번 반복합니다.
+
+그러면 점 추정치, 표준 오차, 신뢰 구간과 같은 모집단 통계량을 계산할 수 있는 `estimate`의 분포를 얻게 됩니다.
+
+## rsample을 이용한 부트스트랩
+
+rsample은 tidymodels 프레임워크의 리샘플링 패키지이지만, tidymodels 외부의 문제에도 잘 작동합니다.
+boot 패키지보다 약간의 오버헤드가 있지만, 결과적으로 더 유연합니다.
+
+세 개의 변수 `x`, `z`, `y`를 가진 샘플링된 데이터가 있고, 결과 변수가 `y`인 선형 회귀에서 `x`와 `z`의 계수에 대한 신뢰 구간을 계산하고 싶다고 가정해 보겠습니다.
+(R에서 제공하는 폐쇄형 해법 외에도) 부트스트랩을 사용하여 계산할 수 있습니다.
+
+```{r}
+library(tidyverse)
+library(rsample)
+set.seed(1)
+n <- 1000
+sampled_data <- tibble(
+  z = rnorm(n),
+  x = z + rnorm(n),
+  y = x + z + rnorm(n)
+)
+
+lm(y ~ x + z, data = sampled_data)
+```
+
+먼저 `bootstraps()` 함수를 사용하여 각 리샘플링된 데이터셋을 `rsplit` 객체로 저장하는 중첩된 데이터셋을 만듭니다.
+
+```{r}
+bootstrapped_resamples <- bootstraps(sampled_data, times = 10)
+
+bootstrapped_resamples$splits[[1]]
+```
+
+여기서 첫 번째 부트스트랩된 데이터셋에는 원본 행의 `r n_distinct(bootstrapped_resamples$splits[[1]]$in_id)`개가 포함되어 있고, `r n - n_distinct(bootstrapped_resamples$splits[[1]]$in_id)`개는 포함되지 않았습니다.
+결과 데이터 프레임을 보면 원본 데이터셋과 동일한 `r n`개의 행이 있음을 알 수 있습니다.
+이는 포함된 행 중 일부가 두 번 이상 존재한다는 의미입니다. 각 행은 *복원 추출*됩니다.
+이 분포는 평균적으로 예상하는 것과 가깝습니다. 원본 데이터셋의 약 2/3가 각 부트스트랩된 데이터셋에 포함됩니다.
+
+```{r}
+boot_resample <- bootstrapped_resamples$splits[[1]] |>
+  as.data.frame()
+
+boot_resample
+```
+
+@sec-boot-alg의 알고리즘에서 설명한 대로 각 부트스트랩된 데이터셋에 모델을 적합시킵니다.
+
+```{r}
+lm(y ~ x + z, data = boot_resample)
+```
+
+이것을 함수로 표현해 봅시다.
+
+```{r}
+fit_lm <- function(.split) {
+  .df <- as.data.frame(.split)
+  lm(y ~ x + z, data = .df)
+}
+
+bootstrapped_resamples$splits[[1]] |>
+  fit_lm()
+```
+
+하나씩 수행하는 대신 반복을 사용하여 각 리샘플에 대해 회귀를 실행합니다.
+`bootstrapped_resamples$splits`는 리스트이므로 `map()`을 사용하여 반복하고 리스트를 다시 받을 수 있습니다.
+`bootstrapped_resamples$splits`는 특히 리스트-열, 즉 데이터 프레임의 열인 리스트입니다.
+`bootstrapped_resamples`의 기존 구조를 활용하여 결과를 다른 리스트-열로 저장합니다.
+
+```{r}
+bootstrapped_resamples <- bootstrapped_resamples |>
+  mutate(lm_results = map(splits, fit_lm))
+```
+
+이제 `lm_results`의 각 요소는 `lm` 객체, 즉 부트스트랩된 리샘플에 적합된 회귀입니다.
+다음은 마지막 리샘플의 모델입니다.
+
+```{r}
+bootstrapped_resamples$lm_results[[10]]
+```
+
+이제 모델의 세 가지 계수(절편, `x`, `z`) 각각에 대해 10개의 추정치를 얻었습니다.
+@fig-r-10은 이들의 분포를 보여줍니다.
+
+```{r}
+library(broom)
+bootstrapped_resamples <- bootstrapped_resamples |>
+  mutate(tidy_results = map(lm_results, tidy))
+
+unnested_results <- bootstrapped_resamples |>
+  select(id, tidy_results) |>
+  unnest(tidy_results)
+
+unnested_results
+```
+
+```{r}
+#| label: fig-r-10
+#| fig-cap: "모델 `lm(y ~ x + z, data = .df)`의 계수에 대한 부트스트랩 분포. 분포는 10개의 부트스트랩된 리샘플로 계산되었습니다."
+unnested_results |>
+  ggplot(aes(estimate)) +
+  geom_density(fill = "steelblue", color = NA) +
+  facet_wrap(~term, scales = "free")
+```
+
+리샘플링 횟수가 많을수록 추정치 분포가 더 부드러워집니다.
+다음은 1000번 리샘플링한 결과입니다(@fig-r-1000).
+
+```{r}
+#| label: fig-r-1000
+#| fig-cap: "모델 `lm(y ~ x + z, data = .df)`의 계수에 대한 부트스트랩 분포. 분포는 1000개의 부트스트랩된 리샘플로 계산되었습니다."
+bootstrapped_resamples_1k <- bootstraps(
+  sampled_data,
+  times = 1000
+) |>
+  mutate(
+    lm_results = map(splits, fit_lm),
+    tidy_results = map(lm_results, tidy)
+  )
+
+bootstrapped_resamples_1k |>
+  select(id, tidy_results) |>
+  unnest(tidy_results) |>
+  ggplot(aes(estimate)) +
+  geom_density(fill = "steelblue", color = NA) +
+  facet_wrap(~term, scales = "free")
+```
+
+rsample의 신뢰 구간 함수를 사용하여 이러한 계수의 산포에 대한 정보를 계산할 수 있으며, 이 함수는 `int_*(nested_results, list_column_name)` 패턴을 따릅니다.
+rsample은 결과가 `broom::tidy()`의 결과이거나 유사한 열을 가진 데이터 프레임일 것으로 예상합니다.
+
+`int_pctl()`을 사용하여 간단한 백분위수 기반 신뢰 구간을 구해 보겠습니다.
+이는 하위 2.5%와 상위 97.5% 분위수를 얻습니다.
+
+```{r}
+int_pctl(bootstrapped_resamples_1k, tidy_results)
+```
+
+이제 각 추정치와 부트스트랩된 신뢰 구간이 포함된 데이터 프레임을 얻었습니다.
+부트스트랩의 놀라운 점은 이 레시피를 놀라울 정도로 다양한 통계 문제에 적용할 수 있다는 것이며, 여기에는 그렇지 않으면 해결할 수 없는 문제도 포함됩니다.
+
+## 왜 작동하는가?
+
+왜 이 놀랍도록 간단한 알고리즘이 이렇게 많은 문제에 대해 잘 작동하는 것일까요?
+기술적인 세부 사항은 부트스트랩에 대한 원본 논문과 책[@efron1979; @EfroTibs93]을 참조하십시오.
+하지만 무슨 일이 일어나고 있는지에 대한 직관을 키워 봅시다.
+
+우리가 이해하고 싶은 모집단을 생각해 봅시다.
+때로는 모집단의 모든 관측치에 대한 데이터를 가지고 있지만, 필요성이나 효율성 때문에 모집단을 샘플링해야 하는 경우가 많습니다.
+
+```{r}
+library(tidyverse)
+n <- 1000000
+population <- tibble(
+  z = rnorm(n),
+  x = z + rnorm(n),
+  y = x + z + rnorm(n)
+)
+```
+
+`population`은 백만 개의 관측치를 가지고 있지만, 전체 모집단에서 200개의 관측치를 무작위로 샘플링할 것입니다.
+더 많은 샘플링이 필요한 경우 원본 샘플과 독립적으로 수행합니다.
+특정 관측치는 둘 이상의 연구에 포함될 수 있습니다.
+동일한 모집단에서 20개의 그러한 연구가 수행되었다고 가정해 봅시다.
+
+```{r}
+samples <- map(1:20, ~ population[sample(n, size = 200), ]) |>
+  bind_rows(.id = "sample") |>
+  mutate(sample = as.numeric(sample))
+```
+
+무작위 샘플링 변동으로 인해 각 샘플의 `x` 평균은 `population`의 평균인 `r mean(population$x)`와 약간 다릅니다.
+이러한 각 샘플 추정치는 모집단 추정치 주변을 맴돕니다(@fig-pop-samples).
+
+```{r}
+#| label: fig-pop-samples
+#| fig-cap: "20개 샘플에 대한 `x`의 샘플 평균 분포. 각 샘플은 `population`에서 샘플링되었으며 샘플 크기는 200입니다."
+#| warning: false
+sample_means <- samples |>
+  group_by(sample) |>
+  summarize(across(everything(), mean))
+
+samples |>
+  ggplot(aes(x = x)) +
+  geom_histogram() +
+  geom_vline(
+    data = sample_means,
+    aes(xintercept = x),
+    color = "firebrick"
+  ) +
+  facet_wrap(~sample)
+```
+
+모집단에서 샘플링하는 것이 부트스트랩에서 수행하는 샘플링과 유사하다는 것을 알 수 있습니다.
+우리는 리샘플을 그것이 나온 모집단을 대표하는 것으로 취급합니다.
+이는 우리가 보는 분포를 원본 모집단의 관점에서 해석하는 데 도움이 되며, 이는 모수적 신뢰 구간을 사용할 때와 매우 유사합니다.
+모집단 샘플링과의 주요 차이점은 부트스트랩이 모집단 추정치가 아닌 *샘플* 추정치 주변의 산포를 결정한다는 것입니다.
+샘플 8을 좀 더 자세히 살펴보겠습니다.
+
+```{r}
+sample_8 <- samples |>
+  filter(sample == "8")
+
+sample_8 |>
+  summarize(across(everything(), mean))
+```
+
+`x`의 샘플 평균은 `r round(mean(sample_8$x), 2)`입니다.
+이제 이 샘플을 부트스트랩하고 각 부트스트랩된 리샘플에 대해 `x`의 평균을 계산해 보겠습니다.
+@fig-boot-x의 부트스트랩된 추정치 분포는 샘플 평균을 중심으로 대칭적으로 나타납니다.
+
+```{r}
+#| label: fig-boot-x
+#| fig-cap: "단일 샘플에 대한 x의 부트스트랩 분포. 기본 모집단에서 샘플링 과정을 시뮬레이션하고 있지만 분포는 모집단 평균이 아닌 샘플 평균을 중심으로 합니다."
+#| warning: false
+calculate_mean <- function(.split, what = "x", ...) {
+  .df <- as.data.frame(.split)
+  t <- t.test(.df[[what]])
+
+  tibble(
+    term = paste("mean of", what),
+    estimate = as.numeric(t$estimate),
+    std.error = t$stderr
+  )
+}
+
+s8_boots <- bootstraps(sample_8, times = 1000, apparent = TRUE)
+s8_boots <- s8_boots |>
+  mutate(boot_mean_x = map(splits, calculate_mean))
+
+s8_boots |>
+  mutate(boot_mean_x = map_dbl(boot_mean_x, \(.df) .df$estimate)) |>
+  ggplot(aes(x = boot_mean_x)) +
+  geom_histogram() +
+  geom_vline(
+    data = sample_means |> filter(sample == "8"),
+    aes(xintercept = x),
+    color = "firebrick"
+  )
+```
+
+추정치 분포가 샘플 평균을 중심으로 하더라도 부트스트랩은 모집단에서 샘플링하는 과정을 시뮬레이션함으로써 신뢰 구간에 대한 모집단 해석을 제공합니다.
+신뢰 구간은 동일한 모집단에서 여러 번 샘플링하는 것과 관련된 빈도주의적 개념입니다.
+95% 신뢰 구간의 경우 샘플에서 추정된 신뢰 구간의 95%가 실제 모집단 추정치를 포함합니다.
+이것이 사실일 때(예: 모집단에서 샘플링된 100개 연구 중 95개가 모집단 추정치를 포함하는 신뢰 구간을 추정하는 경우) 신뢰 구간이 *명목* 포함 범위를 갖는다고 말합니다.
+
+예를 들어, `x`의 모집단 평균을 포함하는 신뢰 구간의 비율을 구해 보겠습니다.
+또한 포함 범위를 더 잘 근사하기 위해 리샘플 수를 늘릴 것입니다.
+(샘플 수를 늘릴수록 95%에 더 가까워집니다.)
+
+```{r}
+n_samples <- 1000
+
+samples <- map(seq_len(n_samples), ~ population[sample(n, size = 200), ]) |>
+  bind_rows(.id = "sample") |>
+  mutate(sample = as.numeric(sample))
+
+cis <- samples |>
+  group_by(sample) |>
+  group_modify(~ t.test(.x$x) |> tidy())
+
+between(
+  rep(mean(population$x), n_samples),
+  cis$conf.low,
+  cis$conf.high
+) |>
+  mean()
+```
+
+부트스트랩을 사용하면 위에서 본 잘 정의된 모수적 접근 방식과 마찬가지로 여러 상황에서 명목 포함 범위를 갖는 신뢰 구간을 얻을 수 있습니다.
+`r_bootstraps * n_samples` 계산이 필요하므로 실행하지 않겠지만 결과는 유사합니다.
+
+```{r}
+#| eval: false
+bootstrap_ci <- function(.sample_df, ...) {
+  sample_boots <- bootstraps(.sample_df, times = 1000)
+  sample_boots <- sample_boots |>
+    mutate(boot_mean_x = future_map(splits, calculate_mean))
+
+  sample_boots |>
+    int_pctl(boot_mean_x)
+}
+
+boot_cis <- samples |>
+  group_by(sample) |>
+  group_modify(bootstrap_ci)
+
+coverage <- between(
+  rep(mean(population$x), n_samples),
+  boot_cis$.lower,
+  boot_cis$.upper
+) |>
+  mean()
+```
+
+## 왜 복원 추출인가?
+
+부트스트랩을 처음 접하는 사람들은 우리가 복원 추출을 하고 동일한 관측치가 부트스트랩된 샘플에 두 번 이상 나타날 수 있다는 사실에 종종 놀랍니다.
+수학적 세부 사항은 위에서 인용한 출처에 있지만, 복원 추출이 작동하는 이유에 대한 직관을 키우는 데 도움이 되는 몇 가지 실용적인 이유가 있습니다.
+첫째, *비복원* 추출을 하면 매번 동일한 추정치를 얻게 되는데, 이는 단지 원본 데이터셋만 갖게 되기 때문입니다.
+샘플을 흔들면 추정치가 달라집니다.
+또한 하위 샘플링을 수행할 수도 있습니다. 즉, 원본 데이터셋보다 작은 데이터셋을 *비복원* 추출합니다.
+그러나 이것은 복원 추출만큼 잘 작동하지 않지만 다른 문제에는 유용할 수 있습니다.
+그 이유는 원본 모집단과 샘플링 방식과 관련이 있습니다.
+각 샘플은 서로 독립적이므로 개인이 둘 이상의 샘플에 포함될 수 있습니다.
+이전 샘플에 없었던 개인으로 샘플을 제한하면 샘플링 방식이 더 이상 독립적이지 않게 됩니다. 각 샘플은 이전 샘플에 의존하게 됩니다.
+리샘플링에서 각 관측치가 독립적이도록 허용하면 역확률 가중치([Chapter -@sec-using-ps] 참조)에서 샘플을 상향 가중치할 때와 마찬가지로 원본 모집단에서 유사한 다른 관측치를 나타낼 수 있습니다.
+
+## 부트스트랩 리샘플은 몇 개나 필요한가?
+
+이 책에서는 안정성과 계산 속도의 균형을 맞추기 위해 대부분의 문제에 대해 1000개의 부트스트랩된 리샘플을 사용합니다.
+실제 분석에서는 몇 개를 사용해야 할까요?
+
+수십 또는 수백 개의 리샘플에 대한 오래된 권장 사항을 종종 볼 수 있지만, 이는 처리 능력이 더 제한되었던 시대의 것입니다.
+현대 컴퓨터(개인용 노트북 포함)에서는 훨씬 더 많은 작업을 수행하는 것이 실용적입니다.
+@Hesterberg2015는 대략적인 추정치에는 1000개의 리샘플을, 정확도가 중요한 경우에는 10,000~15,000개의 리샘플을 제안합니다.
+"정확도"란 부트스트랩 시뮬레이션 자체로 인한 분산을 최소화하는 것을 의미합니다.
+이에 대한 실용적인 테스트는 `R`개의 리샘플을 두 번 이상 시도하고 결과의 안정성 정도에 만족할 때까지 `R`을 늘리는 것입니다.
+
+::: callout-tip
+각 부트스트랩 계산은 다른 계산과 독립적이므로 많은 수의 리샘플에 대해 병렬 처리를 사용할 수 있습니다.
+우리가 보여준 rsample 접근 방식을 사용하면 `map()`의 병렬화된 드롭인 대체물로 furrr를 사용할 수 있습니다.
+furrr는 future 프레임워크에 대한 purrr와 유사한 API입니다.
+
+```{r}
+#| eval: false
+library(future)
+library(furrr)
+n_cores <- availableCores() - 1
+plan(multisession, workers = n_cores)
+
+s8_boots <- s8_boots |>
+  mutate(boot_mean_x = future_map(splits, calculate_mean))
+```
+:::
+
+## 어떤 신뢰 구간을 사용해야 하는가?
+
+지금까지 우리는 백분위수 기반 신뢰 구간을 사용해 왔습니다.
+이는 말 그대로 부트스트랩된 추정치 분포의 2.5%와 97.5% 백분위수입니다.
+빠르고 간단하며 직관적입니다.
+그러나 몇 가지 다른 유형의 부트스트랩 신뢰 구간이 존재하며, 일부 상황에서는 더 나은 명목 포함 범위를 가질 수 있습니다.
+rsample에는 이 글을 쓰는 시점에서 `int_t()`와 `int_bca()`라는 두 가지 다른 유형이 포함되어 있습니다.
+`int_t()`는 부트스트랩된 T-통계량에서 신뢰 구간을 계산합니다.
+`int_bca()`는 편향 수정 및 가속 신뢰 구간을 계산합니다.
+
+이러한 유형의 신뢰 구간에는 원본 데이터셋의 추정치가 필요합니다.
+`bootstraps(data, times = 1000, apparent = TRUE)`를 사용하여 원본 데이터셋을 포함하도록 rsample에 지시할 수 있습니다(`s8_boots`에 대해 이미 수행했습니다).
+그러면 원본 데이터셋과 1000개의 부트스트랩된 데이터셋을 합쳐 1001개의 데이터셋이 생성됩니다.
+`int_bca()`의 경우 추정치를 계산하는 데 사용한 함수(이 경우 `calculate_mean`)를 `.fn` 인수에 제공해야 합니다.
+
+```{r}
+ints <- bind_rows(
+  int_pctl(s8_boots, boot_mean_x),
+  int_t(s8_boots, boot_mean_x),
+  int_bca(s8_boots, boot_mean_x, .fn = calculate_mean)
+)
+
+ints
+```
+
+이 경우 신뢰 구간은 매우 가깝습니다.
+이는 모두 `x`와 같이 정규 분포를 따르는 데이터에 대해 잘 수행되기 때문입니다.
+
+신뢰 구간의 명목 포함 범위에 대한 미묘한 세부 사항은 구간 외부로 벗어나는 추정치의 비율이 신뢰 구간의 양쪽에서 거의 동일해야 한다는 것입니다.
+예를 들어 `x`에 대한 전통적인 t-검정의 신뢰 구간에서 이를 확인할 수 있습니다.
+
+```{r}
+c(
+  mean(mean(population$x) < cis$conf.low),
+  mean(mean(population$x) > cis$conf.high)
+)
+```
+
+이 대칭성은 데이터가 왜곡된 경우 많은 유형의 신뢰 구간에 대해 유지되지 않습니다.
+예를 들어, 오른쪽으로 치우친 분포는 구간에 대해 95%의 명목 포함 범위를 가질 수 있지만, 값의 1%는 하한(분포의 왼쪽) 아래에 있고 4%는 상한(분포의 오른쪽) 위에 있을 수 있습니다.
+
+BCa 구간과 부트스트랩 t-통계량 구간은 왜곡된 데이터에서 더 잘 작동합니다.
+특히 평균은 중심 극한 정리에 따라 데이터 분포에 관계없이 표본 크기가 증가함에 따라 정규 분포에 접근합니다(단, 왜곡된 분포의 경우 필요한 표본 크기는 일반적으로 언급되는 30개가 아니라 수천 개일 수 있음).
+이는 조건부 평균인 회귀 모델의 계수에서도 마찬가지입니다.
+중심 극한 정리가 적용된 경우 백분위수 및 기타 유형의 신뢰 구간도 포함 범위가 좋을 가능성이 높습니다.
+
+::: callout-tip
+부트스트랩된 분포가 특정 모양을 가져야 한다고 생각되는 결과(예: 평균이 정규 분포를 따르는 경우)가 있는 경우 분석에 대한 잠재적인 진단을 제공합니다. 예를 들어 인과 추론에서 왜곡되거나 다른 예상치 못한 분포를 가진 계수를 발견하면 양성성 가정 위반의 징후일 수 있습니다([Chapter -@sec-counterfactuals] 참조). 부트스트랩된 리샘플 간의 예상치 못한 불안정성에 주의하십시오.
+:::
+
+백분위수 및 BCa 구간은 변환 불변이므로 부트스트랩한 추정치를 변환하고 변환을 부트스트랩한 것과 동일한 결과를 얻을 수 있습니다.
+이에 대한 예는 로그 오즈비 대 오즈비입니다.
+부트스트랩된 t-통계량 구간을 사용하면 실제로 부트스트랩한 항목에 따라 다른 결과를 얻을 수 있습니다.
+따라서 둘 이상의 척도로 보고 싶은 데이터로 작업하는 경우 이러한 것 중 하나를 사용하고 싶을 수 있습니다.
+
+마지막으로 고려해야 할 사항은 계산 속도입니다.
+백분위수는 매우 빠르며 추가 정보가 필요하지 않습니다.
+부트스트랩 t-구간과 BCa 구간은 원본 데이터셋의 정보가 필요합니다.
+BCa는 세 가지 중 계산 집약도가 가장 높습니다.
+많은 문제의 경우 현대 컴퓨터에서는 속도 차이가 미미하지만, 잘 작동할 것이라고 생각되고 BCa가 특히 오래 걸리는 경우 백분위수 신뢰 구간을 사용하는 것이 유용할 수 있습니다.
+
+## 부트스트랩이 즉시 작동하지 않는 경우는 언제인가?
+
+여기서 제시한 알고리즘은 많은 계산에 대해 간단하고 강력하지만, 일부 유형의 추정치는 부트스트랩과 함께 작동하지 않거나 명목 신뢰 구간을 계산하기 위해 알고리즘의 변형이 필요한 것으로 알려져 있습니다.
+이에 대한 일반적인 예는 최솟값이나 최댓값과 같은 극단값입니다.
+예를 들어, `x`의 최솟값을 부트스트랩하면 이상한 분포가 생성됩니다.
+
+```{r}
+#| label: fig-boot-min
+#| fig-cap: "`x`의 샘플 최솟값에 대한 부트스트랩 분포. 부트스트랩은 극단값에 대한 분포를 계산하는 데 어려움을 겪습니다."
+#| warning: false
+calculate_min <- function(.split, what = "x", ...) {
+  .df <- as.data.frame(.split)
+
+  tibble(
+    term = paste("min of", what),
+    estimate = min(.df[[what]])
+  )
+}
+
+s8_boots <- s8_boots |>
+  mutate(boot_min_x = map(splits, calculate_min))
+
+s8_boots |>
+  mutate(boot_min_x = map_dbl(boot_min_x, \(.df) .df$estimate)) |>
+  ggplot(aes(x = boot_min_x)) +
+  geom_histogram()
+```
+
+부트스트랩이 즉시 작동하지 않는 다른 일반적인 상황은 정규화된 회귀(예: 라쏘 회귀) 및 시계열과 같이 상관 관계 구조가 강한 데이터입니다.
+종종 특정 문제에 대해 작동하는 수정된 버전의 부트스트랩이 존재합니다.
+survey 패키지의 저자이자 R Core 회원인 Thomas Lumley는 부트스트랩이 즉시 작동하지 않는 일반적인 상황(및 해당 시나리오에서 작동하는 수정된 부트스트랩의 몇 가지 예)에 대한 훌륭한 요약을 제공합니다[@Lumley_2017].
+@Hesterberg2015도 참조하십시오.

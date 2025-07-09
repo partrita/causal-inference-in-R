@@ -1,0 +1,6 @@
+# 참고문헌 {.unnumbered}
+
+{{< include 00-setup.qmd >}}
+
+::: {#refs}
+:::

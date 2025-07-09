@@ -1,0 +1,831 @@
+# 질문에서 답변으로: 계층화 및 결과 모델 {#sec-strat-outcome}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("complete")
+```
+
+이제 드디어 책의 나머지 부분의 주제인 인과적 질문에 답하는 방법에 주목해 보겠습니다.
+잠재적 결과, 반사실적 상황 및 DAG를 통해 인과 효과를 추정할 수 있는 조건을 설정할 수 있습니다.
+이제 이를 추정하기 위한 도구가 필요합니다.
+이 장은 인과 추론을 더 실현 가능하게 만드는 모델을 탐구하면서 전환점입니다.
+
+하지만 모델 없이 시작해 보겠습니다.
+
+## `group_by()` 및 `summarize()`를 사용한 인과 추론 {#sec-group-sum}
+
+소프트웨어를 만드는 회사의 데이터를 분석하고 있다고 가정해 보겠습니다.
+소프트웨어 업데이트 빈도가 고객 만족도(모집단 평균 0, 표준 편차 1인 표준화된 점수로 측정)에 미치는 인과 효과를 추정하려고 합니다.
+고객은 개별 사용자가 있는 조직이며, 조직 전체는 주간 또는 일일 업데이트를 받습니다.
+업데이트 빈도는 무작위가 아니며, @fig-satisfaction-dag1에서 보듯이 노출과 결과에는 공통 원인, 즉 교란 변수인 고객 유형이 있습니다.
+무료 고객은 주간 업데이트를 받을 가능성이 더 높고, 프리미엄 고객은 일일 업데이트를 받을 가능성이 더 높습니다.
+프리미엄 고객은 만족도가 더 높을 가능성이 높습니다.
+노출과 결과 사이에 관계가 없음에도 불구하고 `customer_type`을 통해 `updates`와 `satisfaction` 사이의 열린 백도어 경로에서 교란이 발생할 것으로 예상합니다.
+**단일 이진 교란 변수**에 의한 교란이 있습니다.
+
+```{r}
+#| label: fig-satisfaction-dag1
+#| code-fold: true
+#| warning: false
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 간의 관계에 대한 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 관계는 공통 원인인 고객 유형에 의해 교란됩니다."
+
+library(ggdag)
+
+coords1 <- list(
+  x = c(customer_type = 1, updates = 2, satisfaction = 3),
+  y = c(customer_type = 0, updates = 0, satisfaction = 0)
+)
+
+dag1 <- dagify(
+  satisfaction ~ customer_type,
+  updates ~ customer_type,
+  coords = coords1,
+  labels = c(
+    customer_type = "고객 유형",
+    updates = "업데이트\n빈도",
+    satisfaction = "고객\n만족도"
+  )
+)
+
+ggdag(dag1, use_text = FALSE, use_edges = FALSE) +
+  geom_dag_text(aes(label = label), nudge_y = c(-.05, -.05, -.05), color = "black") +
+  geom_dag_edges_arc(curvature = c(0.07, 0)) +
+  theme_dag() +
+  ylim(c(.2, -.2))
+```
+
+이 데이터 생성 과정과 일치하는 일부 데이터를 시뮬레이션해 보겠습니다.
+이 시뮬레이션에서는 `satisfaction(weekly)` 및 `satisfaction(daily)`에 대한 잠재적 결과를 생성합니다.
+이 책의 많은 시뮬레이션은 이 단계를 건너뛰고 관찰된 결과를 직접 시뮬레이션합니다. 그러나 인과적 질문에 답하는 것으로 전환함에 따라 추론을 하기 위해 충족해야 하는 가정을 기억하는 것이 유용합니다.
+
+```{r}
+set.seed(1)
+n <- 10000
+satisfaction1 <- tibble(
+  # 무료 (0) 또는 프리미엄 (1)
+  customer_type = rbinom(n, 1, 0.5),
+  p_exposure = case_when(
+    # 프리미엄 고객은 일일 업데이트를 받을 가능성이 더 높습니다.
+    customer_type == 1 ~ 0.75,
+    # 무료 고객은 주간 업데이트를 받을 가능성이 더 높습니다.
+    customer_type == 0 ~ 0.25
+  ),
+  # 주간 (0) 대 일일 (1)
+  update_frequency = rbinom(n, 1, p_exposure),
+  # "실제" 평균 치료 효과 0 생성
+  # 이를 위해 잠재적 결과를 생성할 것입니다.
+  # 먼저 노출 = 0인 경우
+  # `y0` = `만족도(주간)`
+  # 아래 방정식에 `update_frequency`가 없는 것을 확인하십시오.
+  # 평균 0, 표준 편차 1인 정규 분포를 따르는
+  # 무작위 오차 항을 추가하기 위해 rnorm(n)을 사용합니다.
+  y0 = customer_type + rnorm(n),
+  # 실제 효과가 0이므로 잠재적 결과는
+  # 노출 = 1인 경우 동일합니다.
+  y1 = y0,
+  # 실제로 이 중 하나만 볼 수 있습니다.
+  # 관찰됨
+  satisfaction = (1 - update_frequency) * y0 +
+    update_frequency * y1,
+  observed_potential_outcome = case_when(
+    update_frequency == 0 ~ "y0",
+    update_frequency == 1 ~ "y1"
+  )
+) |>
+  mutate(
+    satisfaction = as.numeric(scale(satisfaction)),
+    update_frequency = factor(
+      update_frequency,
+      labels = c("주간", "일간")
+    ),
+    customer_type = factor(
+      customer_type,
+      labels = c("무료", "프리미엄")
+    )
+  )
+```
+
+```{r}
+satisfaction1 |>
+  select(update_frequency, customer_type, satisfaction)
+```
+
+이제 두 노출 그룹이 교환 가능하다고 가정하고 `update_frequency`가 `satisfaction`에 미치는 영향을 추정해 보겠습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction1 |>
+  group_by(update_frequency) |>
+  summarise(avg_satisfaction = mean(satisfaction))
+```
+
+물론 DAG와 잠재적 결과를 시뮬레이션한 방식에서 두 그룹이 교환 가능하지 않다는 것을 알고 있습니다.
+업데이트 빈도 그룹 간의 실제 차이는 0이지만 평균 만족도에는 차이가 있습니다.
+그러나 @sec-counterfactuals에서 논의한 바와 같이 여전히 다른 옵션이 있습니다. 즉, 교란 변수 수준 내에서의 교환 가능성입니다.
+다시 말해, 유효한 조정 집합 수준 내에서 교환 가능성이 필요합니다.
+이 경우 그러한 집합은 단 하나뿐입니다. 즉, `customer_type`입니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction_strat <- satisfaction1 |>
+  group_by(customer_type, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  )
+
+satisfaction_strat
+```
+
+고객 유형 수준 내에서 업데이트 빈도가 만족도에 미치는 영향을 추정하기 위해 약간의 조작을 해보겠습니다.
+이제 올바른 답에 훨씬 더 가까워졌습니다. 즉, 고객 유형 수준 내에서는 업데이트 빈도에 따른 만족도 차이가 없습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction_strat_est <- satisfaction_strat |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = daily - weekly)
+
+satisfaction_strat_est
+```
+
+이제 전체 평균을 취하여 0에 가까운 효과를 얻을 수 있습니다.
+
+```{r}
+satisfaction_strat_est |>
+  # 참고: 교란 변수 그룹의 크기가 같지 않으면
+  # 가중치를 부여해야 합니다.
+  summarise(estimate = mean(estimate))
+```
+
+이제 **두 개의 이진 교란 변수**를 사용하여 이 접근 방식을 고려해 보겠습니다.
+두 번째 교란 변수가 있다고 가정해 보겠습니다. 즉, 영업 시간인지 여부입니다.
+주간 업데이트는 영업 시간 내에 발생할 가능성이 더 높고, 일일 업데이트는 영업 시간 이후에 발생할 가능성이 더 높습니다.
+일부 고객은 회사의 영업 시간과 잘 겹치지만 일부는 그렇지 않습니다. 그렇지 않은 고객은 근무 시간 동안 고객 서비스 이용 불가로 인해 만족도가 낮습니다.
+
+```{r}
+#| label: fig-satisfaction-dag2
+#| code-fold: true
+#| warning: false
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 간의 관계에 대한 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 관계는 공통 원인인 고객 유형 및 영업 시간에 의해 교란됩니다. 영업 시간이 고객 만족도에 미치는 영향은 전적으로 고객 서비스 이용 가능성에 의해 매개됩니다."
+dag2 <- dagify(
+  satisfaction ~ customer_service + customer_type,
+  customer_service ~ business_hours,
+  updates ~ customer_type + business_hours,
+  coords = time_ordered_coords(),
+  labels = c(
+    customer_type = "고객\n유형",
+    business_hours = "영업\n시간",
+    updates = "업데이트\n빈도",
+    customer_service = "고객\n서비스",
+    satisfaction = "고객\n만족도"
+  )
+)
+
+ggdag(dag2, use_text = FALSE) +
+  geom_dag_text(
+    aes(label = label),
+    nudge_y = c(-.35, -.35, .35, .35, .35),
+    color = "black"
+  ) +
+  theme_dag()
+```
+
+이 데이터를 시뮬레이션해 보겠습니다.
+
+```{r}
+satisfaction2 <- tibble(
+  # 무료 (0) 또는 프리미엄 (1)
+  customer_type = rbinom(n, 1, 0.5),
+  # 영업 시간 (예: 1, 아니요: 0)
+  business_hours = rbinom(n, 1, 0.5),
+  p_exposure = case_when(
+    customer_type == 1 & business_hours == 1 ~ 0.75,
+    customer_type == 0 & business_hours == 1 ~ 0.9,
+    customer_type == 1 & business_hours == 0 ~ 0.2,
+    customer_type == 0 & business_hours == 0 ~ 0.1
+  ),
+  # 주간 (0) 대 일일 (1)
+  update_frequency = rbinom(n, 1, p_exposure),
+  # 영업 시간 동안 더 가능성이 높음
+  customer_service_prob = business_hours * 0.9 +
+    (1 - business_hours) * 0.2,
+  customer_service = rbinom(n, 1, prob = customer_service_prob),
+  satisfaction = 70 + 10 * customer_type +
+    15 * customer_service + rnorm(n),
+) |>
+  mutate(
+    satisfaction = as.numeric(scale(satisfaction)),
+    customer_type = factor(
+      customer_type,
+      labels = c("무료", "프리미엄")
+    ),
+    business_hours = factor(
+      business_hours,
+      labels = c("아니요", "예")
+    ),
+    update_frequency = factor(
+      update_frequency,
+      labels = c("주간", "일간")
+    ),
+    customer_service = factor(
+      customer_service,
+      labels = c("아니요", "예")
+    )
+  )
+```
+
+이제 두 교란 변수 수준 내에서 교환 가능성이 필요합니다.
+이 경우 `customer_type + business_hours`와 `customer_type + customer_service`라는 두 개의 최소 조정 집합이 있습니다.
+각각을 살펴보겠습니다.
+
+`customer_type`과 `business_hours`의 조합 내에서 업데이트 빈도 그룹은 매우 가깝습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction2_strat <- satisfaction2 |>
+  group_by(customer_type, business_hours, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  )
+
+satisfaction2_strat |>
+  select(avg_satisfaction, everything())
+```
+
+이전보다 약간 더 많은 조작을 통해 전체 추정치를 계산할 수 있습니다.
+
+```{r}
+satisfaction2_strat |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+`customer_type`과 `customer_service` 수준 내에서도 조건부 교환 가능성을 달성할 수 있습니다.
+설명하기로 선택한 변수 간의 우연한 차이 때문에 답은 약간 다르지만 두 접근 방식 모두 귀무 가설에 가깝습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction2 |>
+  group_by(customer_type, customer_service, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+데이터가 충분하다면 이 접근 방식은 범주형 교란 변수를 포함하여 많은 교란 변수와 잘 확장됩니다.
+**연속형 교란 변수**는 어떻습니까?
+
+이진 교란 변수 대신 @fig-satisfaction-dag3에서와 같이 조직 내 사용자 수라는 하나의 연속형 교란 변수가 있다고 가정해 보겠습니다.
+
+```{r}
+#| label: fig-satisfaction-dag3
+#| code-fold: true
+#| warning: false
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 간의 관계에 대한 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 관계는 공통 원인인 고객당 사용자 수에 의해 교란됩니다."
+
+coords3 <- list(
+  x = c(num_users = 1, updates = 2, satisfaction = 3),
+  y = c(num_users = 0, updates = 0, satisfaction = 0)
+)
+
+dag3 <- dagify(
+  satisfaction ~ num_users,
+  updates ~ num_users,
+  coords = coords3,
+  labels = c(
+    num_users = "사용자 수",
+    updates = "업데이트\n빈도",
+    satisfaction = "고객\n만족도"
+  )
+)
+
+ggdag(dag3, use_text = FALSE, use_edges = FALSE) +
+  geom_dag_text(aes(label = label), nudge_y = c(-.05, -.05, -.05), color = "black") +
+  geom_dag_edges_arc(curvature = c(0.07, 0)) +
+  theme_dag() +
+  ylim(c(.2, -.2))
+```
+
+사용자가 더 많은 조직은 업데이트를 더 많이 받고 만족도 점수가 약간 낮습니다.
+
+```{r}
+satisfaction3 <- tibble(
+  # 사용자 수
+  num_users = runif(n, min = 1, max = 500),
+  # 대규모 고객은 일일 업데이트를 받을 가능성이 더 높음
+  update_frequency = rbinom(n, 1, plogis(num_users / 100)),
+  # 사용자가 많을수록 만족도가 낮아짐
+  satisfaction = 70 + -0.2 * num_users + rnorm(n)
+) |>
+  mutate(
+    satisfaction = as.numeric(scale(satisfaction)),
+    update_frequency = factor(
+      update_frequency,
+      labels = c("주간", "일간")
+    )
+  )
+```
+
+여전히 `group_by`와 `summarize()`를 사용하고 싶다면 예를 들어 5분위수를 사용하여 연속형 교란 변수를 구간화하고 각 구간 내에서 인과 효과를 추정할 수 있습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction3_strat <- satisfaction3 |>
+  mutate(num_users_q = ntile(num_users, 5)) |>
+  group_by(num_users_q, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  )
+
+satisfaction3_strat
+```
+
+구간화된 사용자 수준 내에서 올바른 답에 근접합니다.
+전체 평균을 구해 보겠습니다.
+
+```{r}
+#| message: false
+#| warning: false
+satisfaction3_strat |>
+  ungroup() |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+이진 및 범주형 교란 변수와 달리 연속형 교란 변수를 구간별로 그룹화하면 변수가 완전히 설명되지 않습니다. 구간이 거칠수록 잔여 교란이 더 많아지고 구간이 미세할수록 연속 버전에 더 가까워집니다(그러나 구간당 값이 적어짐, @tip-bins 참조).
+
+::: {#tip-bins .callout-tip}
+
+## 구간 수를 변경하면 어떻게 될까요?
+
+구간 수를 늘리면 어떻게 되는지 살펴보겠습니다. 아래 그림에서는 텍스트 예제의 구간 수를 5개에서 3개에서 20개 범위로 변경했습니다. 구간 수를 늘리면 편향이 감소하는 것을 알 수 있습니다.
+
+```{r}
+#| code-fold: true
+update_bins <- function(bins) {
+  satisfaction3 |>
+    mutate(num_users_q = ntile(num_users, bins)) |>
+    group_by(num_users_q, update_frequency) |>
+    summarise(
+      avg_satisfaction = mean(satisfaction),
+      .groups = "drop"
+    ) |>
+    ungroup() |>
+    pivot_wider(
+      names_from = update_frequency,
+      values_from = avg_satisfaction
+    ) |>
+    summarise(
+      bins = bins,
+      estimate = mean(daily - weekly)
+    )
+}
+
+map(3:20, update_bins) |>
+  bind_rows() |>
+  ggplot(aes(x = bins, y = abs(estimate))) +
+  geom_point() +
+  geom_line() +
+  labs(y = "편향", x = "구간 수")
+```
+
+예를 들어, 아래 출력을 보면 20개 구간이 있을 때 추정치가 5개 구간에 비해 실제 값(0)에 훨씬 더 가깝다는 것을 알 수 있습니다.
+
+```{r}
+satisfaction3 |>
+  mutate(num_users_q = ntile(num_users, 20)) |>
+  group_by(num_users_q, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  ) |>
+  ungroup() |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+그러나 많은 좋은 것들과 마찬가지로 구간 수를 늘리는 것의 유용성에는 한계가 있습니다. 예를 들어, 30개 구간을 가지려고 하면 어떻게 되는지 살펴보겠습니다.
+
+```{r}
+satisfaction3 |>
+  mutate(num_users_q = ntile(num_users, 30)) |>
+  group_by(num_users_q, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  ) |>
+  ungroup() |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+추정치는 `NA`입니다. 왜냐하면 일부 구간에는 노출 그룹 중 하나에 아무도 없었기 때문에 차이를 추정할 수 없었기 때문입니다. 이제 이 분석은 *양성성* 가정을 위반합니다. 이것은 확률적 위반입니다. 즉, 표본 크기 `r scales::comma(n)`와 구간 수 30과 관련이 있습니다. 우연히 30개 구간 중 적어도 하나에는 노출 그룹 중 하나에 아무도 없었으므로 인과 효과를 추정할 수 없었습니다. 이 비모수적 방법은 유연하지만 표본 크기로 인해 한계가 있습니다. 모수적 모델은 특정 가정 하에서 외삽할 수 있기 때문에 유용하며, 이는 더 효율적입니다(가정이 사실이라고 가정하고 @sec-parametric에서 자세히 알아보겠습니다).
+
+
+:::
+
+`group_by()`와 `summarize()`를 사용하여 사용해 온 접근 방식은 종종 **계층화**라고 불립니다.
+또한 비모수적 접근 방식의 한 유형으로 생각할 수 있습니다.
+선형 회귀와 같이 변수의 형태를 제한하기 위해 통계 모델의 매개변수화를 사용하지 않습니다.
+(연속형 교란 변수의 모든 값으로 계층화하는 것이 현실적이지 않기 때문에 연속형 교란 변수의 경우 부분적으로만 해당됩니다.)
+
+
+
+계층화는 간단한 문제나 데이터가 많을 때 강력할 수 있습니다. 왜냐하면 때때로 모델 오지정 문제를 피할 수 있기 때문입니다.
+그러나 많은 교란 변수(특히 연속형 변수)가 있는 경우 교란 변수 수준의 조합별로 관찰이 너무 적기 때문에 비현실적이 되는 차원의 저주에 빠르게 직면하게 됩니다.
+
+## 모수적 결과 모델 {#sec-parametric}
+
+계층화를 조건부 평균 계산으로 생각할 수 있습니다.
+조건부 평균의 더 일반적인 확장은 다변량 선형 회귀입니다.
+`outcome ~ exposure + confounder1 + confounder2 + ...` 형식의 변수로 `lm()`을 적합시키면 **결과 모델**이라고 부르는 것을 적합시키는 것입니다. 결과가 종속 변수인 노출과 교란 변수를 적합시키기 때문입니다.
+이를 **직접 조정** 또는 **회귀 조정**이라고도 합니다. 회귀 모델에서 교란 변수를 직접 조정하기 때문입니다.
+두 개의 이진 교란 변수가 있는 예에서 `lm()`을 사용하여 효과를 계산해 보겠습니다.
+
+```{r}
+library(broom)
+lm(
+  satisfaction ~ update_frequency + customer_type + business_hours,
+  data = satisfaction2
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "update_frequencydaily") |>
+  select(estimate, starts_with("conf"))
+```
+
+또한 연속형 교란 변수에도 잘 작동합니다. 올바른 답을 얻기 위해 더 이상 구간화할 필요가 없기 때문입니다.
+
+```{r}
+lm(
+  satisfaction ~ update_frequency + num_users,
+  data = satisfaction3
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "update_frequencydaily") |>
+  select(estimate, starts_with("conf"))
+```
+
+그러나 이 일반화는 공짜로 얻어지는 것이 아닙니다. 이제 데이터의 희소 영역에 걸쳐 추정치를 만들기 위해 모수적 통계 모델을 도입했습니다.
+`satisfaction ~ update_frequency + num_users`에 대해 얻는 추정치는 `lm()`의 기본 통계 모델이 시뮬레이션과 완벽하게 일치하기 때문에 정확히 올바른 답을 제공합니다.
+예를 들어, `satisfaction`과 `num_users` 간의 관계는 선형이므로 이 모델을 적합시키면 차원성 문제로 어려움을 겪지 않습니다(선형 회귀에는 행과 열 수 측면에서 자체 한계가 있지만).
+즉, 이제 올바른 **함수 형태**, 즉 모델의 변수 간 관계의 수학적 표현에 의존하게 됩니다(@tip-functional-form에서 자세한 내용 참조).
+노출과 교란 변수 모두에 대해 올바른 함수 형태가 필요합니다.
+이를 잘 모델링하려면 이러한 변수와 결과 간의 관계의 성격에 대한 이해가 필요합니다.
+
+::: {#tip-functional-form .callout-warning}
+
+## 모수적 모델의 함수 형태
+
+텍스트에서 결과와 교란 변수 간의 관계를 선형으로 시뮬레이션했습니다. 즉, `lm()`의 기본 가정을 정확히 충족했으므로 모수적 모델을 적합시켰을 때 올바른 답을 얻었습니다. 시뮬레이션이 `lm()`의 기본 가정을 충족하지 않으면 어떻게 될까요? 살펴보겠습니다.
+
+```{r}
+set.seed(11)
+satisfaction4 <- tibble(
+  # 사용자 수
+  num_users = runif(n, 1, 500),
+  # 대규모 고객은 일일 업데이트를 받을 가능성이 더 높음
+  update_frequency = rbinom(n, 1, plogis(num_users / 100)),
+  # 만족도와 사용자 수 간의 비선형 관계
+  satisfaction = 70 - 0.001 * (num_users-300)^2 - 0.001 * (num_users - 300)^3
+) |>
+  mutate(
+    satisfaction = as.numeric(scale(satisfaction)),
+    update_frequency = factor(
+      update_frequency,
+      labels = c("주간", "일간")
+    )
+  )
+ggplot(satisfaction4, aes(x = num_users, y = satisfaction)) +
+  geom_line()
+```
+
+위 그림에서 이제 교란 변수인 사용자 수와 결과인 만족도 사이에 비선형 관계가 있음을 알 수 있습니다. 이 데이터에 (잘못된) 모수적 모델을 적합시키면 어떻게 되는지 살펴보겠습니다.
+
+```{r}
+lm(
+  satisfaction ~ update_frequency + num_users,
+  data = satisfaction4
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "update_frequencydaily") |>
+  select(estimate, starts_with("conf"))
+```
+
+
+추정치는 실제 값(0이어야 함)에서 멀리 떨어져 있습니다. 실제 값은 신뢰 구간에 포함되지도 않습니다. 무엇이 잘못되었을까요? 모수적 모델은 사용자 수와 만족도 간의 관계의 함수 형태가 선형이라고 가정했지만 비선형으로 생성했습니다. 모수적 모델을 여전히 사용할 수 있는 해결책이 있습니다. 실제 함수 형태를 알고 있다면 그것을 사용할 수 있습니다. 어떻게 보이는지 살펴보겠습니다.
+
+```{r}
+lm(
+  satisfaction ~ update_frequency + poly(num_users, 3),
+  data = satisfaction4
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "update_frequencydaily") |>
+  select(estimate, starts_with("conf"))
+```
+
+아름답습니다! 이제 이 모델은 데이터가 생성된 방식과 *정확히* 일치하도록 적합되었으며 다시 정확히 올바른 답을 얻었습니다. 실제 세계에서는 데이터 생성 메커니즘을 모르는 경우가 많지만 여전히 유연한 모수적 모델을 적합시킬 수 있습니다. 이를 수행하는 좋은 방법은 자연 입방 스플라인을 사용하는 것입니다.
+
+```{r}
+lm(
+  satisfaction ~ update_frequency + splines::ns(num_users, 3),
+  data = satisfaction4
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "update_frequencydaily") |>
+  select(estimate, starts_with("conf"))
+```
+원래의 비모수적 방법을 사용할 수도 있습니다. 20개 구간으로 계층화하면 편향이 적은 추정치를 얻을 수 있습니다(즉, 실제 값 0에 매우 가깝습니다).
+
+```{r}
+satisfaction4_strat <- satisfaction4 |>
+  mutate(num_users_q = ntile(num_users, 20)) |>
+  group_by(num_users_q, update_frequency) |>
+  summarise(
+    avg_satisfaction = mean(satisfaction),
+    .groups = "drop"
+  )
+
+satisfaction4_strat |>
+  ungroup() |>
+  pivot_wider(
+    names_from = update_frequency,
+    values_from = avg_satisfaction
+  ) |>
+  summarise(estimate = mean(daily - weekly))
+```
+
+
+:::
+
+또한 나중에 기계 학습과 같은 데이터 적응 방법을 사용하여 이 가정을 줄이는 방법을 살펴볼 것입니다(@sec-causal-ml).
+
+<!-- TODO: 모델 검사에 대한 부록 링크 -->
+
+결과 회귀는 모델에 사용하는 추정기의 가정을 충족할 때 매우 잘 작동할 수 있습니다.
+예를 들어 OLS는 결과와 회귀의 변수 간의 관계를 이해하고 모델의 가정, 특히 선형성을 믿는다면 매우 유용할 수 있습니다.
+통계적으로 매우 효율적입니다(즉, 표준 오차가 작아짐).
+또한 부트스트랩할 필요 없이 명목상 올바른 신뢰 구간을 얻을 수 있습니다(@sec-appendix-bootstrap).
+과학자 및 기타 데이터 분석가도 일반적으로 선형 회귀에 익숙하므로 많은 사람이 인과 효과를 계산하기 위해 수행한 작업을 더 쉽게 이해할 수 있습니다. 실제로 결과와 노출 간에 선형 관계가 있고 @sec-assump에 설명된 인과적 가정을 충족하면 *상관 관계는 인과 관계*라고 말할 수 있습니다.
+
+그렇다면 왜 항상 결과 모델을 사용하여 인과 효과를 계산하지 않을까요?
+첫째, 결과 대신 노출을 모델링하는 데 더 자신감이 있을 수 있습니다(예: 역확률 모델).
+@sec-g-comp 및 @sec-dr에서 이 아이디어를 더 자세히 살펴볼 것입니다.
+관련하여 이진 결과가 있는 경우 사건 수에 따라 하나를 다른 것보다 선택하는 것이 합리적일 수 있습니다.
+예를 들어, 결과가 드물지만 노출이 드물지 않은 경우 성향 점수 방법을 사용하는 것이 통계적으로 더 효율적일 수 있습니다.
+둘째, 때때로 결과 모델로 목표로 하는 추정치, 즉 정확한 질문에 대한 답을 얻기가 어려울 수 있으며, 이는 @sec-estimands에서 더 자세히 살펴볼 것입니다.
+
+관련하여 결과 모델은 **조건부 효과**를 제공합니다.
+즉, 추정된 계수를 설명할 때 종종 "노출의 한 단위 변화는 모델의 다른 모든 변수를 일정하게 유지하면서 결과의 `계수` 변화를 초래합니다"와 같이 말합니다. 인과 추론에서는 종종 **주변 효과**에 관심이 있습니다. 수학적으로 이는 인과 효과를 추정하려는 특정 모집단의 요인 분포에 걸쳐 관심 있는 효과를 평균화하고 싶다는 것을 의미합니다. 결과가 연속적이고 효과가 선형이며 노출 효과와 모집단에 대한 다른 요인 간에 상호 작용이 없는 경우 조건부 효과와 주변 효과의 구분은 대체로 의미론적입니다. 추정치는 동일합니다.
+
+모델에 상호 작용이 *있는* 경우, 즉 노출이 다른 요인에 따라 결과에 다른 영향을 미치는 경우 더 이상 해석할 단일 계수가 없습니다.
+관심 모집단의 해당 요인 분포를 고려하여 주변 효과를 추정하고 싶을 수 있습니다.
+왜 그럴까요?
+궁극적으로 대상 모집단에 노출을 제안해야 하는지 여부를 결정하려고 하므로 평균적으로 유익할지 여부를 알고 싶습니다.
+
+@fig-satisfaction-dag1의 변형을 고려해 보십시오. 여기서 업데이트 빈도는 인과적 효과를 *갖지만* 해당 효과는 고객 유형에 따라 다릅니다.
+프리미엄 고객의 경우 일일 업데이트는 만족도를 5점 *증가*시킵니다.
+무료 고객의 경우 일일 업데이트는 만족도를 5점 *감소*시킵니다.
+업데이트 빈도 변경의 효과는 고객 유형에 따라 이질적입니다.
+모든 사람에 대해 업데이트 빈도를 매일로 늘리는 것이 유익한지 여부는 프리미엄 고객 대 무료 고객의 분포에 따라 다릅니다.
+
+-   고객의 50%가 프리미엄이고 50%가 무료인 경우 일일 업데이트로 전환하는 것의 평균 효과는 다음과 같습니다.
+
+    $(0.5 * 5) + (0.5 * -5) = 0$
+
+-   고객의 100%가 프리미엄인 경우 평균 효과는 다음과 같습니다.
+
+    $(1 * 5) + (0 * -5) = 5$
+
+-   고객의 100%가 무료인 경우 평균 효과는 다음과 같습니다.
+
+    $(0 * 5) + (1 * -5) = -5$
+
+주변화는 데이터의 공변량 분포에 대한 평균 효과를 알려줍니다.
+물론 고객 유형*별* 인과 효과를 추정하고 싶을 수 있습니다. @sec-interaction에서 상호 작용 효과에 대해 자세히 논의할 것입니다.
+
+::: callout-note
+조건부 효과는 로지스틱 및 콕스 회귀 모델에서 훨씬 더 복잡합니다. @sec-non-collapse에서 보게 되겠지만, 이러한 모델의 조건부 계수는 모델의 변수에 따라 완전히 다른 질문에 대한 답을 추정합니다.
+:::
+
+결과 모델을 사용할 수 *없는* 경우도 있습니다.
+첫 번째는 비교란성 방법에 대한 가정을 충족할 수 없다고 생각하는 경우입니다.
+이 경우 역확률 가중치 및 유사한 방법도 사용할 수 없습니다.
+그러나 도구 변수 분석, 회귀 불연속성 또는 차이 속 차이와 같은 다른 방법을 사용할 수 있습니다(@sec-iv-friends 및 @sec-did, 아래에서 이러한 방법도 요약할 예정).
+두 번째는 시간 변화 노출 및 교란이 있는 경우입니다.
+선형 회귀는 이러한 유형의 효과를 편향 없이 추정할 수 없으므로 올바르게 계산하려면 역확률 가중치 또는 g-계산과 같은 방법이 필요합니다.
+책의 대부분에서 간단한 사전-사후 데이터를 분석할 것입니다. 즉, 기준선 데이터, 단일 시점에 발생하는 노출 및 노출 후 발생하는 결과가 있습니다.
+@sec-longitudinal 및 기타 장에서는 더 복잡한 질문과 데이터를 다룰 것입니다.
+
+## 인과 추론을 위한 추정량 개요
+
+보았듯이 계층화 및 다변량 선형 회귀와 같은 간단한 방법으로 인과 추론을 수행할 수 있습니다.
+그러나 책의 나머지 부분에서는 묻고 싶은 질문에 답하는 데 더 많은 유연성을 제공하는 다른 인과적 방법에 초점을 맞출 것입니다.
+다음은 우리가 다룰 비교란성 방법 중 일부와 그 기능에 대한 간략한 요약입니다.
+
+-   *비교란성 방법*
+    -   **역확률 가중치**(성향 점수 가중치): 성향 점수(예측된 치료 확률)를 사용하여 교환 가능성이 유지되는 유사 모집단을 만들기 위해 단위를 재가중합니다. 시간 변화 치료로 확장됩니다.
+    -   **매칭**(성향 점수 매칭 및 기타 방법): 유사한 성향 점수(또는 기타 유사성 측정값)를 가진 치료군 및 비치료군 단위를 찾아 매칭하여 교환 가능성이 유지되는 하위 모집단을 만듭니다.
+    -   **G-계산**(표준화 또는 주변 효과라고도 함): 결과 모델을 적합시키지만 주변 효과 추정치를 얻기 위해 주변화합니다. 시간 변화 치료로 확장됩니다.
+    -   **이중 강건 방법**: 결과와 치료 모두에 대한 모델을 적합시킵니다. 이중 강건 방법을 사용하면 추정치가 올바르려면 이러한 모델 중 하나만 올바르면 됩니다. 이중 강건 방법은 또한 기계 학습 알고리즘을 사용할 수 있도록 합니다. **표적 학습(TMLE)** 및 **증강 성향 점수**에 대해 논의할 것입니다.
+
+이 책은 주로 비교란성 방법에 초점을 맞추지만 나중에 다른 가정을 하는 방법을 다룹니다(@sec-iv-friends 및 @sec-did).
+교환 가능성을 달성하려고 하는 대신 이러한 방법을 탐색하고 싶을 수 있는 경우에 대한 간략한 요약은 다음과 같습니다.
+
+-   **도구 변수**: 치료에 영향을 미치지만 치료를 통하지 않고는 결과에 직접적인 영향을 미치지 않는 변수(도구)가 있습니다. 사실상 무작위이므로 일종의 인과 효과를 추정하는 데 사용할 수 있습니다.
+-   **회귀 불연속성**: 누가 치료를 받는지 결정하는 절단점 또는 임계값이 있으며, 임계값 바로 위 또는 아래에 있는 개인은 비교 가능합니다. 회귀 불연속성은 도구와 밀접하게 관련되어 있습니다.
+-   **차이 속 차이**: 치료군과 비치료군은 치료가 없을 경우 시간 경과에 따라 동일한 추세를 따랐을 것입니다(즉, *평행 추세*를 가짐). 치료가 없었다면 두 그룹이 동일했을 것이므로 비치료군을 치료군의 반사실적 상황으로 사용할 수 있습니다.
+-   **합성 대조군**: 비치료 단위의 가중 조합은 치료 없이 치료 단위의 결과를 면밀히 근사할 수 있습니다. 합성 대조군은 차이 속 차이와 밀접하게 관련되어 있습니다.
+
+### 무작위 시험의 인과적 방법 {#sec-ci-rct}
+
+무작위 시험은 인과 추론을 위해 만들어야 하는 많은 가정을 완화합니다.
+무작위화가 성공하면 교란 변수가 존재하지 않으므로 통제할 필요가 없습니다.
+그러나 인과적 방법은 여전히 무작위 노출에 유용할 수 있습니다.
+
+업데이트 빈도가 각 고객에게 무작위로 지정되는 @fig-satisfaction-dag2의 변형을 고려해 보겠습니다. 고객 유형과 영업 시간은 여전히 고객 만족도의 원인입니다.
+즉, 결과를 유발하지만 노출은 유발하지 않습니다.
+유효한 효과를 얻기 위해 조정되지 않은 회귀 모델이나 평균의 단순 차이를 사용할 수 있습니다.
+그러나 @sec-dags에서 논의한 바와 같이 노출의 원인이 아닌 결과의 원인을 포함하면 추정치의 통계적 정밀도를 향상시킬 수 있습니다.
+세 가지 접근 방식을 살펴보겠습니다. 즉, 조정되지 않은 OLS 결과 모델, 조정된 OLS 결과 모델(직접 조정) 및 역확률 가중 모델입니다.
+@fig-panel에서 세 가지 방법 모두 편향되지 않은 효과를 제공합니다.
+성향 점수의 효과는 주변적인 반면 결과 모델의 효과는 조건부입니다.
+데이터를 시뮬레이션한 방식 때문에 두 가지 유형의 효과는 동일합니다.
+그러나 조정되지 않은 방법은 신뢰 구간이 더 넓고 관련하여 표준 오차가 더 큽니다.
+직접 조정 방법과 역확률 가중치는 표준 오차가 더 작고 따라서 신뢰 구간이 더 좁습니다.
+이와 같이 성향 점수를 사용하여 무작위 시험에서 기준선 요인을 조정하면 조정되지 않은 추정치와 비교하여 *항상* 정밀도가 향상되며 직접 조정에서 얻는 정밀도와 동일하다는 것이 수학적으로 입증되었습니다[@williamson2014variance].
+
+```{r}
+#| label: fig-panel
+#| code-fold: true
+#| message: false
+#| warning: false
+#| fig-cap: "무작위 환경에서 인과 효과를 추정하는 세 가지 방법. 첫 번째 효과는 조정되지 않았습니다. 두 번째는 조정된 선형 모델(직접 조정)입니다. 세 번째는 역확률 가중 선형 모델입니다. 세 가지 모델 모두 편향되지 않은 답을 제공하지만 두 가지 조정 접근 방식은 더 정확한 답을 제공합니다. 표준 오차가 더 작고 따라서 신뢰 구간이 더 좁습니다."
+
+satisfaction_randomized <- tibble(
+  # 무료 (0) 또는 프리미엄 (1)
+  customer_type = rbinom(n, 1, 0.5),
+  # 영업 시간 (예: 1, 아니요: 0)
+  business_hours = rbinom(n, 1, 0.5),
+  # 주간 (0) 대 일일 (1), 이제 무작위
+  update_frequency = rbinom(n, 1, 0.5),
+  # 영업 시간 동안 더 가능성이 높음
+  customer_service_prob = business_hours *
+    0.9 + (1 - business_hours) * 0.2,
+  customer_service = rbinom(n, 1, prob = customer_service_prob),
+  satisfaction = 70 + 10 * customer_type +
+    15 * customer_service + rnorm(n),
+) |>
+  mutate(
+    satisfaction = as.numeric(scale(satisfaction)),
+    customer_type = factor(
+      customer_type,
+      labels = c("무료", "프리미엄")
+    ),
+    business_hours = factor(
+      business_hours,
+      labels = c("아니요", "예")
+    ),
+    update_frequency = factor(
+      update_frequency,
+      labels = c("주간", "일간")
+    ),
+    customer_service = factor(
+      customer_service,
+      labels = c("아니요", "예")
+    )
+  )
+
+plot_estimates <- function(d) {
+  unadj_model <- lm(satisfaction ~ update_frequency, data = d) |>
+    tidy(conf.int = TRUE) |>
+    mutate(term = if_else(
+      term == "update_frequencydaily",
+      "update_frequency",
+      term
+    )) |>
+    filter(term == "update_frequency") |>
+    mutate(model = "조정되지 않음")
+
+  adj_model <- lm(
+    satisfaction ~ update_frequency + business_hours +
+      customer_type,
+    data = d
+  ) |>
+    tidy(conf.int = TRUE) |>
+    mutate(term = if_else(
+      term == "update_frequencydaily",
+      "update_frequency",
+      term
+    )) |>
+    filter(term == "update_frequency") |>
+    mutate(model = "직접\n조정")
+
+  df <- d |>
+    mutate(across(where(is.factor), as.integer)) |>
+    mutate(update_frequency = update_frequency - 1) |>
+    as.data.frame()
+
+  x <- PSW::psw(
+    df,
+    "update_frequency ~ business_hours + customer_type",
+    weight = "ATE",
+    wt = TRUE,
+    out.var = "satisfaction"
+  )
+  psw_model <- tibble(
+    term = "update_frequency",
+    estimate = x$est.wt,
+    std.error = x$std.wt,
+    conf.low = x$est.wt - 1.96 * x$std.wt,
+    conf.high = x$est.wt + 1.96 * x$std.wt,
+    statistic = NA,
+    p.value = NA,
+    model = "역확률\n가중치"
+  )
+
+  models <- bind_rows(unadj_model, adj_model, psw_model) |>
+    mutate(model = factor(
+      model,
+      levels = c(
+        "조정되지 않음",
+        "직접\n조정",
+        "역확률\n가중치"
+      )
+    ))
+
+  models |>
+    select(model, estimate, std.error, starts_with("conf")) |>
+    pivot_longer(
+      c(estimate, std.error),
+      names_to = "statistic"
+    ) |>
+    mutate(
+      conf.low = if_else(statistic == "std.error", NA, conf.low),
+      conf.high = if_else(statistic == "std.error", NA, conf.high),
+      statistic = case_match(
+        statistic,
+        "estimate" ~ "추정치 (95% CI)",
+        "std.error" ~ "표준 오차"
+      )
+    ) |>
+    ggplot(aes(value, fct_rev(model))) +
+    geom_point() +
+    geom_errorbarh(
+      aes(xmin = conf.low, xmax = conf.high),
+      height = 0
+    ) +
+    facet_wrap(~statistic, scales = "free_x") +
+    theme(axis.title.y = element_blank())
+}
+
+plot_estimates(satisfaction_randomized)
+```
+
+그러나 두 가지 조정 접근 방식은 교란 변수를 조정하는 것이 아닙니다.
+대신 데이터의 무작위 변동을 통제합니다.
+직접 조정의 경우 결과의 변동을 설명하여 이를 수행합니다.
+역확률 가중치의 경우 결과와 관련된 변수에 걸쳐 치료 그룹의 우연한 불균형을 설명합니다.
+
+인과적 방법은 또한 @sec-designs에서 실제 무작위 시험에서 본 인과적 가정 위반 중 일부를 해결하는 데 도움이 될 수 있습니다.
+이러한 방법이 무작위 시험에서 일반적인 편향 원인인 비준수 및 추적 손실을 해결하는 데 어떻게 도움이 되는지 @sec-longitudinal 및 @sec-iv-friends에서 살펴볼 것입니다.
+
+## 설계 단계 진입
+
+이제 실제 데이터를 사용한 예에 주목해 보겠습니다.
+매칭 및 역확률 가중치와 같은 성향 점수 방법부터 시작할 것입니다. 왜냐하면 노출과 결과 간의 관계를 살펴보지 않고 노출과 교란 변수 간의 관계를 모델링할 수 있다는 특정 속성이 있기 때문입니다.
+
+인과적 질문에 답하기 위한 여정을 계속해 보겠습니다.

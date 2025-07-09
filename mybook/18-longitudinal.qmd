@@ -1,0 +1,17 @@
+# 시간에 따른 인과 추론 {#sec-longitudinal}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("unstarted")
+```
+
+## 추적 관찰 실패
+
+```{r}
+rnorm(5)
+```
+
+## 시간 변화 교란 및 노출

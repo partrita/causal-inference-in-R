@@ -1,0 +1,1685 @@
+# 잠재적 결과와 반사실적 상황 {#sec-counterfactuals}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("complete")
+```
+
+> | 노란 숲 속에 길이 두 갈래로 나 있었습니다,
+> | 그리고 미안하지만 두 길을 다 갈 수는 없었습니다
+> | 그리고 한 명의 여행자로서, 나는 오랫동안 서 있었습니다
+> | 그리고 덤불 속으로 굽어지는 곳까지
+> | 한 길을 최대한 멀리 바라보았습니다
+> | --- 로버트 프로스트
+
+2022년, 미국 래퍼이자 *로앤오더: SVU*의 핀으로 가장 잘 알려진 아이스-T는 *분할 결정: 삶의 이야기*라는 책을 공동 저술했습니다[@split].
+분할 결정에서 아이스-T는 범죄의 삶에서 명성과 성공으로 이어진 극적인 여정을 이야기하며, 이전 범죄 파트너이자 공동 저자인 스파이크의 운명과 대조합니다.
+두 사람 모두 로스앤젤레스의 갱단이 지배하는 동네에서 자랐고 함께 보석 강도를 저질렀습니다.
+아이스-T가 클럽에서 랩을 하는 것이 발견되면서 그들의 삶은 갈라졌습니다.
+이로 인해 그는 범죄 과거를 뒤로하고 음악, 영화, 텔레비전에서 성공적인 경력을 시작했습니다.
+한편, 스파이크는 보석 강도 사건에 휘말려 3년 동안 투옥되었습니다.
+그는 계속해서 범죄의 삶을 살았고, 결국 실패한 강도로 인해 35년에서 종신형을 선고받았습니다.
+책의 카피는 "매우 다른 삶을 가진 두 남자가 다른 선택을 했다면 그들의 길이 어떻게 완전히 뒤바뀔 수 있었는지 보여줍니다."라고 설명합니다.
+
+이 설득력 있는 전제는 우리가 **반사실적 상황**을 관찰하고 있음을 암시합니다. 즉, 한 가지 결정(한 번 더 강도질을 할 것인가 아니면 음악 경력을 추구할 것인가)이 그들을 갈라놓을 때까지 같은 궤적을 따르는 두 개의 삶입니다. 한 삶에서는 감옥에 가고 다른 삶에서는 성공과 명성을 얻습니다.
+이 책은 이 분기점 이전에 아이스-T와 그의 친구 스파이크가 얼마나 비슷했는지(예: 둘 다 로스앤젤레스 동네에서 자랐고, 갱단에 연루되었으며, 일련의 보석 강도를 조직하기 위해 함께 일했습니다)를 설명하는 것으로 시작합니다.
+그런 다음 무언가가 일어납니다. 아이스-T는 범죄 생활을 포기하고 스파이크는 반대 결정을 내립니다.
+아이스-T에게 다음에 일어나는 일은 명성과 부를 포함하는 반면, 스파이크는 35년에서 종신형을 선고받습니다.
+이 책은 사건 이전에는 같았지만 이후에는 달랐던 두 사람에 대한 작은 연구를 시도합니다.
+스파이크의 결과는 아이스-T의 반사실적 상황에 대한 대리 역할을 합니다.
+
+::: {#tbl-causal-map layout-ncol="1"}
+```{mermaid}
+%%| echo: false
+flowchart LR
+A{아이스-T} --> |관찰됨| B(범죄 생활 포기)
+A -.-> |누락된 반사실적 상황| C(한 번 더 강도질)
+C -.-> D[35년형]
+B --> E[명성과 부]
+
+classDef grey fill:#ddd
+class D,C grey
+```
+
+```{mermaid}
+%%| echo: false
+flowchart LR
+A{스파이크} -.-> |누락된 반사실적 상황| B(범죄 생활 포기)
+A --> |관찰됨| C(한 번 더 강도질)
+C --> D[35년형]
+B -.-> E[명성과 부]
+classDef grey fill:#ddd
+class E,B grey
+```
+
+아이스-T와 스파이크 인과 지도.
+두 남자에 대해 우리는 단 하나의 관찰된 결과만 가지고 있습니다.
+그들의 회고록은 각자가 서로에게 좋은 반사실적 상황임을 암시합니다.
+아이스-T가 계속 강도질을 했다면 감옥에 갔을까요?
+스파이크가 강도질을 그만두었다면 명성과 부를 얻었을까요?
+:::
+
+아이스-T가 스파이크와 계속 강도질을 했다면 어떻게 되었을지는 모릅니다.
+또한 스파이크가 아이스-T처럼 범죄를 피했다면 어떻게 되었을지도 모릅니다.
+우리는 아이스-T가 범죄를 떠났고 스파이크는 그렇지 않은 단일한 사실적 세계에 살고 있습니다.
+그러나 두 사람이 서로의 반사실적 결과에 대한 대리인이 될 수 있는 방법을 알 수 있습니다.
+인과 추론 기법에서는 관찰된 데이터를 사용하여 거의 같은 방식으로 반사실적 상황을 시뮬레이션하려고 합니다.
+무작위 시험조차도 단일한 사실적 세계에 국한되므로 서로 다른 노출을 가진 유사한 그룹의 평균 효과를 비교합니다.
+
+그럼에도 불구하고 즉시 볼 수 있는 몇 가지 문제가 있으며, 이는 그러한 추론을 도출하는 데 어려움을 강조합니다.
+첫째, 책은 두 개인이 운명을 가른 결정 이전에 비슷했다고 암시하지만, 그들이 어떻게 달랐을지 추측할 수 있습니다.
+한 번 더 강도질을 했다면 아이스-T가 감옥에 갔을까요?
+여기서는 스파이크를 좋은 반사실적 상황으로 보는 것이 더 쉽습니다.
+반대로 스파이크가 범죄를 그만두었다면 유명한 음악가이자 배우가 되었을까요?
+아이스-T는 범죄 생활을 떠나기로 결정했지만, 그것이 그의 성공의 유일한 요인은 아니었습니다. 그는 경력을 쌓을 만큼 충분한 음악적 재능을 가지고 있었습니다.
+스파이크는 아이스-T의 음악적 재능을 가지고 있었을까요?
+그가 같은 선택을 했다면 그의 삶이 아이스-T와 똑같이 되었을 것이라고 결론 내릴 수 있을까요?
+아이스-T가 범죄 생활을 떠나기로 한 결정이 그의 미래 결과에 미치는 인과적 효과를 진정으로 추정하려면 결정을 내리기 전과 후 모두 그의 궁극적인 과정을 관찰해야 합니다.
+마찬가지로 스파이크는 측정하기 어려운 방식으로 아이스-T와 다를 수 있으며, 이는 그를 처음 보이는 것보다 아이스-T의 반사실적 상황에 대한 더 나쁜 대리인으로 만듭니다.
+단일 개인에 의존하는 대신 종종 많은 개인에 의존합니다.
+많은 개인을 무작위로 범죄 생활을 떠나도록(또는 그렇지 않도록) 하는 실험을 수행하고 이것이 평균적으로 그들의 결과에 어떤 영향을 미치는지 볼 수 있습니다(물론 이 무작위 시험은 몇 가지 윤리적 문제를 제시하며, 이것이 아이스-T와 스파이크와 같은 관찰 데이터가 흥미로운 이유입니다).
+어쨌든 우리는 관찰된 데이터로부터 이러한 관찰 불가능한 반사실적 상황을 구성하는 데 도움이 되는 통계적 기법에 의존해야 합니다.
+
+## 잠재적 결과
+
+사실적 결과와 반사실적 결과는 **잠재적 결과**의 두 가지 실현입니다.
+어떤 원인이 발생하기 전에 잠재적 결과는 노출되는 것에 따라 일어날 수 있는 모든 것입니다.
+우리가 관심 있는 원인은 1980년대의 특정 순간이라고 가정해 보겠습니다. 그때 보석 강도를 그만두거나 계속하기로 결정합니다.
+우리가 관심 있는 결과는 개인이 감옥에 가는지 여부입니다.
+
+노출에 두 가지 수준이 있다고 가정해 보겠습니다.
+
+-   $X=계속$ 보석 강도를 계속하면
+
+-   $X=그만두기$ 보석 강도를 그만두면
+
+이 시나리오에서는 두 가지 잠재적 결과가 있습니다.
+
+-   $Y(계속)$, $X=계속$일 경우의 잠재적 결과
+
+-   $Y(그만두기)$, $X=그만두기$일 경우의 잠재적 결과
+
+이러한 잠재적 결과 중 *하나*만 실현될 것이며, 이는 실제로 발생한 노출에 해당하는 사실적 결과입니다.
+따라서 각 개인에 대해 하나의 잠재적 결과만 관찰할 수 있습니다.
+이러한 노출은 특정 시간(이 경우 아이스-T가 발견된 1980년대의 특정 순간)에 정의되므로 모든 개인에게 하나만 발생할 수 있습니다.
+이진 노출의 경우 이는 하나의 잠재적 결과를 *관찰 가능*하게 하고 하나를 *누락*하게 만듭니다. 실제로 초기 인과 추론 방법은 종종 누락된 데이터 문제로 구성되었습니다. 발생하지 않은 노출에 해당하는 잠재적 결과의 값인 누락된 반사실적 상황에 대해 특정 가정을 해야 합니다.
+
+우리가 관심 있는 인과 효과는 종종 $Y(계속) - Y(그만두기)$와 같은 잠재적 결과의 차이입니다(예: 강도를 계속하는 것과 그만두는 것의 다음 해 감옥에 갈 확률의 차이).
+아이스-T와 스파이크의 경우 개별적인 인과 효과에 관심이 있습니다.
+
+-   $Y_{아이스-T}(계속) - Y_{아이스-T}(그만두기)$
+-   $Y_{스파이크}(계속) - Y_{스파이크}(그만두기)$
+
+여기서는 $Y_{아이스-T}(계속)$과 $Y_{스파이크}(그만두기)$가 누락되어 이러한 값을 계산할 수 없습니다.
+실제로 누락된 잠재적 결과에 대한 대리인으로 관찰된 데이터를 사용해야 하며, 일반적으로 특정 모집단에 대해 평균을 냅니다.
+그러나 이를 위해서는 관찰된 데이터 더미에 통계를 던지는 것만으로는 충분하지 않습니다. 관찰된 데이터에 잠재적 결과의 의미와 인과 효과 분석을 부여할 수 있는 특정 **인과적 가정**을 충족해야 합니다.
+
+::: callout-note
+## 잠재적 결과로서의 반사실적 상황
+
+이 책에서는 잠재적 결과와 반사실적 상황이라는 용어를 거의 같은 의미로 사용하지만, 기술적으로 의미가 동일하지는 않습니다.
+반사실적 상황은 실현되지 않아 관찰할 수 없는 잠재적 결과의 한 유형입니다.
+반사실적 상황의 정의는 실제로 일어난 노출에 따라 달라집니다.
+그러나 잠재적 결과는 관찰된 노출에 관계없이 정의되며 종종 노출이 발생하기 전에도 잘 정의됩니다.
+그럼에도 불구하고 우리는 일반적으로 노출이 발생한 후의 데이터로 작업하므로 하나의 실현된 잠재적 결과와 사실에 반하는 적어도 하나의 잠재적 결과를 갖게 됩니다.
+일부 완고한 사람들은 한 용어 또는 다른 용어를 고집하지만 우리는 둘 다 유용하다고 생각합니다.
+:::
+
+다른 예를 생각해 보겠습니다. 아이스크림이 행복에 미치는 영향입니다.
+
+### 초콜릿 아이스크림이 바닐라보다 더 행복하게 만드는가? {#sec-po-sim}
+
+1-10 범위의 행복 지수가 있다고 가정해 보겠습니다.
+초콜릿 아이스크림을 먹는 것이 바닐라 아이스크림을 먹는 것보다 행복을 증가시키는지 평가하고 싶습니다.
+각각 두 가지 잠재적 결과를 가진 10명의 개인이 있습니다.
+하나는 초콜릿 아이스크림을 먹었을 때의 행복(아래 코드에서 `y_chocolate`로 정의됨)이고, 다른 하나는 바닐라 아이스크림을 먹었을 때의 행복(`y_vanilla`)입니다.
+각 개인에 대해 초콜릿 아이스크림을 먹는 것(바닐라와 비교하여)이 행복에 미치는 실제 개별 인과 효과를 두 가지의 차이로 정의할 수 있습니다(@tbl-po).
+
+```{r}
+data <- tibble(
+  id = 1:10,
+  y_chocolate = c(4, 4, 6, 5, 6, 5, 6, 7, 5, 6),
+  y_vanilla = c(1, 3, 4, 5, 5, 6, 8, 6, 3, 5)
+)
+
+data <- data |>
+  mutate(causal_effect = y_chocolate - y_vanilla)
+```
+
+```{r}
+#| label: tbl-po
+#| tbl-cap: "잠재적 결과 시뮬레이션: 초콜릿 아이스크림(바닐라 대비) 섭취가 행복에 미치는 인과적 효과. 이 시뮬레이션에서 각 개인은 각 노출에 대해 알려진 결과를 갖습니다. 각 잠재적 결과를 알고 있으므로 초콜릿 아이스크림 대 바닐라 아이스크림 섭취가 행복에 미치는 개별 인과적 효과를 계산할 수 있습니다."
+#| code-fold: true
+library(gt)
+data |>
+  gt() |>
+  cols_label(
+    id = "ID",
+    y_chocolate = md("$$Y_{\\text{id}}(\\text{초콜릿})$$"),
+    y_vanilla = md("$$Y_{\\text{id}}(\\text{바닐라})$$"),
+    causal_effect = md("$$Y_{\\text{id}}(\\text{초콜릿}) - Y_{\\text{id}}(\\text{바닐라})$$")
+  ) |>
+  fmt_markdown(
+    columns = c(y_chocolate, y_vanilla, causal_effect)
+  ) |>
+  tab_header(
+    title = md("**잠재적 결과 및 인과 효과**")
+  ) |>
+  tab_spanner(
+    label = "잠재적 결과",
+    columns = c(y_chocolate, y_vanilla)
+  ) |>
+  tab_spanner(
+    label = "인과 효과",
+    columns = causal_effect
+  )
+```
+
+예를 들어, @tbl-po를 살펴보면 개인 4의 경우 초콜릿 아이스크림(바닐라 대비) 섭취의 인과 효과는 `r data |> filter(id == 4) |> pull(causal_effect)`인 반면, 개인 9의 경우 인과 효과는 `r data |> filter(id == 9) |> pull(causal_effect)`입니다.
+
+초콜릿을 먹은 후의 평균 잠재적 행복은 `r mean(data |> pull(y_chocolate))`이고, 바닐라를 먹은 후의 평균 잠재적 행복은 `r mean(data |> pull(y_vanilla))`입니다.
+이 연구의 10명 개인 중 초콜릿 아이스크림(바닐라 대비) 섭취의 평균 치료 효과는 `r mean(data |> pull(y_chocolate))` - `r mean(data |> pull(y_vanilla))` = `r mean(data |> pull(causal_effect))`입니다.
+
+```{r}
+data |>
+  summarize(
+    avg_chocolate = mean(y_chocolate),
+    avg_vanilla = mean(y_vanilla),
+    avg_causal_effect = mean(causal_effect)
+  )
+```
+
+실제로 우리는 특정 순간에 두 가지 잠재적 결과를 모두 관찰할 수 없습니다. 연구가 수행될 때 우리 연구의 각 개인은 한 가지 맛의 아이스크림만 먹을 수 있습니다[^03-po-counterfactuals-1].
+각 참가자에게 한 가지 맛 또는 다른 맛을 무작위로 제공했다고 가정해 보겠습니다.
+이제 우리가 *관찰*하는 것은 @tbl-obs에 나와 있습니다. 우리는 참가자가 받은 노출과 관련된 하나의 잠재적 결과만 알고 있습니다.
+다른 하나는 모르고, 결과적으로 개별적인 인과 효과도 모릅니다.
+
+[^03-po-counterfactuals-1]: 아이스크림 소용돌이는 연구 프로토콜에 따라 금지되었습니다.
+
+```{r}
+## 우리는 *무작위* 작업을 수행하고 있으므로
+## 코드를 실행할 때마다 항상 동일한 결과를 관찰하도록
+## 시드를 설정하겠습니다.
+set.seed(11)
+data_observed <- data |>
+  mutate(
+    # 노출을 무작위로 변경하고,
+    # 어느 그룹에 속할 확률이 0.5인 이항 분포에서 생성합니다.
+    exposure = if_else(
+      rbinom(n(), 1, 0.5) == 1, "chocolate", "vanilla"
+    ),
+    observed_outcome = case_when(
+      exposure == "chocolate" ~ y_chocolate,
+      exposure == "vanilla" ~ y_vanilla
+    )
+  )
+```
+
+```{r}
+#| label: tbl-obs
+#| tbl-cap: "잠재적 결과 시뮬레이션: 관찰된 노출은 우리가 아는 유일한 잠재적 결과입니다. 누락된 잠재적 결과는 모르므로 개별 인과 효과를 계산할 수 없습니다. 초콜릿 아이스크림(바닐라 대비) 섭취가 행복에 미치는 영향을 추정하기 위해 관찰된 노출과 결과를 사용해야 합니다. 불행히도 개별 수준에서는 할 수 없습니다."
+#| code-fold: true
+avg_chocolate <- data_observed |>
+  filter(exposure == "chocolate") |>
+  pull(observed_outcome) |>
+  mean()
+
+avg_vanilla <- data_observed |>
+  filter(exposure == "vanilla") |>
+  pull(observed_outcome) |>
+  mean()
+
+data_observed |>
+  mutate(
+    y_chocolate = if_else(exposure == "chocolate", y_chocolate, NA),
+    y_vanilla = if_else(exposure == "vanilla", y_vanilla, NA),
+    causal_effect = NA_real_
+  ) |>
+  select(-observed_outcome, -exposure) |>
+  gt() |>
+  cols_label(
+    id = "ID",
+    y_chocolate = md("$$Y_{\\text{id}}(\\text{초콜릿})$$"),
+    y_vanilla = md("$$Y_{\\text{id}}(\\text{바닐라})$$"),
+    causal_effect = md("$$Y_{\\text{id}}(\\text{초콜릿}) - Y_{\\text{id}}(\\text{바닐라})$$")
+  ) |>
+  fmt_markdown(columns = c(y_chocolate, y_vanilla, causal_effect)) |>
+  sub_missing(
+    columns = c(y_chocolate, y_vanilla, causal_effect),
+    missing_text = md("---") # 누락된 값을 공백으로 형식 지정
+  ) |>
+  tab_header(
+    title = md("**잠재적 결과 및 숨겨진 인과 효과**")
+  ) |>
+  tab_spanner(
+    label = "잠재적 결과",
+    columns = c(y_chocolate, y_vanilla)
+  ) |>
+  tab_spanner(
+    label = "인과 효과",
+    columns = causal_effect
+  )
+```
+
+이제 초콜릿 아이스크림을 먹은 사람들의 관찰된 평균 결과는 `r round(avg_chocolate, 1)`이고, 바닐라 아이스크림을 먹은 사람들의 관찰된 평균 결과는 `r round(avg_vanilla, 1)`입니다.
+이제 반사실적 결과를 놓치고 있지만 실제 평균에 가깝습니다.
+추정된 평균 인과 효과는 `r round(avg_chocolate, 1)` - `r round(avg_vanilla, 1)` = `r round(avg_chocolate - avg_vanilla, 1)`입니다.
+표본 크기가 작기 때문에 약간 벗어났지만 표본 크기가 증가하면 더 정확한 답을 얻을 수 있습니다.
+
+```{r}
+data_observed |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+실제 인과 효과를 더 이상 계산할 수 없음에도 불구하고 이것이 작동하는 이유는 무엇일까요?
+무작위화는 관찰된 데이터에 대한 인과적 가정을 충족하는 데 필요한 속성을 가지고 있음이 밝혀졌습니다.
+이러한 가정이 충족되기 때문에 관찰된 평균을 두 잠재적 결과의 평균에 대한 대리인으로 사용할 수 있습니다.
+
+이것이 왜 그런지, 그리고 그러한 가정이 위반될 때 어떤 일이 발생하는지 살펴보겠습니다.
+
+## 인과적 가정 {#sec-assump}
+
+이 책 전체에서 많은 방법을 논의할 것입니다.
+각 방법에는 결과를 인과적으로 해석하는 데 필요한 검증 불가능한 가정이 따릅니다.
+이러한 가정에는 한 가지 목표가 있습니다. 즉, 관찰된 데이터를 사용하여 관찰 불가능한 반사실적 상황을 나타낼 수 있도록 하는 것입니다.
+이를 수행하려면 무엇이 필요할까요?
+
+::: callout-note
+## 사과 대 사과
+
+인과 추론을 위해 만들어야 하는 대부분의 가정은 사과 대 사과 비교를 하기 위한 것입니다. 즉, 서로의 반사실적 상황에 대한 합리적인 대리인 역할을 할 수 있는 유사한 개인을 비교하고 싶습니다.
+
+"사과 대 사과"라는 문구는 비교할 수 없는 두 가지를 비교하는 것을 의미하는 "사과와 오렌지 비교"라는 속담에서 유래했습니다.
+
+그것은 단지 한 가지 표현 방법일 뿐입니다.
+[전 세계적으로 많은 변형이 있습니다](https://en.wikipedia.org/wiki/Apples_and_oranges).
+다음은 사람들이 비교하려고 해서는 안 되는 다른 몇 가지 예입니다.
+
+-   치즈와 분필 (영국 영어)
+-   사과와 배 (독일어)
+-   감자와 고구마 (라틴 아메리카 스페인어)
+-   할머니와 두꺼비 (세르비아어)
+-   말과 당나귀 (힌디어)
+:::
+
+책의 처음 3/4 정도에서는 소위 **비교란** 방법을 다룰 것입니다.
+이러한 방법은 모두 **교환 가능성**, **양성성**, **일관성**이라는 세 가지를 가정합니다[^03-po-counterfactuals-2].
+지금은 이 세 가지 가정에 초점을 맞출 것이지만, 도구 변수 분석(@sec-iv-friends) 및 차이 속 차이(@sec-did)와 같은 다른 방법은 다른 인과적 가정을 합니다.
+방법의 가정을 아는 것은 올바르게 사용하는 데 필수적이지만, 해결하려는 문제에 대해 다른 방법의 가정이 더 타당한지 고려해 볼 가치가 있습니다.
+
+[^03-po-counterfactuals-2]: 이러한 *인과적* 가정은 우리가 사용하는 추정기가 요구하는 분포 가정과 같은 *통계적* 가정 외에 추가됩니다.
+
+::: callout-note
+이러한 가정은 인과적 추정치를 식별하기 위해 필요하기 때문에 때때로 **식별 가능성 조건**이라고 불립니다.
+마찬가지로 특정 인과 효과가 "식별 가능"한지 여부에 대해 논의하는 사람들을 때때로 볼 수 있습니다.
+:::
+
+### 교환 가능성
+
+교환 가능성 가정은 역확률 가중치 및 회귀 조정과 같은 비교란 방법의 특징입니다.
+여기서는 각 노출 그룹이 평균적으로 동일한 잠재적 결과를 갖는다고 가정합니다.
+따라서 "초콜릿" 아이스크림을 배정받은 그룹은 (만약 *그들이* 초콜릿을 배정받았다면) 바닐라 그룹과 초콜릿에 대한 행복에 대한 잠재적 결과가 동일합니다.
+수학적으로 교환 가능성은 $Y(x) \perp\!\!\!\perp X$로 작성됩니다.
+노출 상태는 잠재적 결과와 독립적입니다. 예를 들어 초콜릿 그룹에 속한다고 해서 바닐라 그룹에 속하는 것과 비교하여 잠재적 결과 `y(chocolate)`가 변경되지 않습니다.
+이 가정이 유지되면 @fig-po에서와 같이 바닐라 그룹을 초콜릿 그룹의 `y(vanilla)`에 대한 대리인으로, 그 반대의 경우도 마찬가지로 취급할 수 있습니다.
+
+```{r}
+#| include: false
+library(glue)
+
+prepare_plot_data <- function(
+  data,
+  pivot_prefix = "y_",
+  potential_outcome_transform = \(x) paste0("잠재적 결과: y(", x, ")"),
+  transform_exposure = identity,
+  id_assignment = TRUE
+) {
+  if (id_assignment && !"id" %in% names(data)) {
+    data <- data |> mutate(id = row_number())
+  }
+  data |>
+    pivot_longer(
+      cols = starts_with(pivot_prefix),
+      names_prefix = pivot_prefix,
+      names_to = "potential_outcome",
+      values_to = "happiness"
+    ) |>
+    mutate(observed = if_else(exposure == potential_outcome, "observed", "unobserved")) |>
+    mutate(
+      potential_outcome = potential_outcome_transform(potential_outcome),
+      exposure = transform_exposure(exposure)
+    ) |>
+    arrange(id) |>
+    mutate(y_id = dense_rank(id))
+}
+
+compute_avg_labels <- function(plot_data, group_vars) {
+  plot_data |>
+    group_by(across(all_of(group_vars))) |>
+    summarize(happiness = mean(happiness, na.rm = TRUE), .groups = "drop") |>
+    mutate(y_id = min(plot_data$y_id) - 1)
+}
+
+add_avg_layers <- function(avg_labels, observed_col = "grey50", unobserved_col = "grey50") {
+  list(
+    geom_point(
+      data = avg_labels |> filter(observed == "unobserved"),
+      mapping = aes(x = happiness, y = y_id),
+      size = 4,
+      shape = 23,
+      fill = "white",
+      color = unobserved_col,
+      inherit.aes = FALSE
+    ),
+    geom_point(
+      data = avg_labels |> filter(observed == "observed"),
+      mapping = aes(x = happiness, y = y_id),
+      size = 4,
+      shape = 23,
+      fill = observed_col,
+      color = observed_col,
+      inherit.aes = FALSE
+    )
+  )
+}
+
+po_theme <- theme(
+  panel.border = element_rect(color = "grey40", fill = NA, linewidth = 0.8),
+  axis.title.y = element_blank(),
+  coord_cartesian(clip = "off")
+)
+```
+
+
+```{r}
+#| label: fig-po
+#| fig-cap: "관찰된 노출 그룹별 평균 잠재적 결과. 교환 가능성 하에서는 노출 그룹이 잠재적 결과와 아무 관련이 없습니다. 바닐라 그룹이 초콜릿을 받았다면 잠재적 결과는 평균적으로 초콜릿 그룹과 거의 같았을 것이며 그 반대의 경우도 마찬가지입니다. 교환 가능성을 통해 각 그룹을 서로의 반사실적 상황으로 사용할 수 있습니다."
+#| message: false
+#| code-fold: true
+plot_data <- data_observed |>
+  select(starts_with("y"), exposure) |>
+  mutate(id = row_number()) |>
+  prepare_plot_data(
+    pivot_prefix = "y_",
+    potential_outcome_transform = \(x) paste0("잠재적 결과: y(", x, ")"),
+    transform_exposure = \(exp) if_else(exp == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음"),
+    id_assignment = FALSE
+  )
+
+# 그룹 평균 계산 및 레이블 텍스트 추가
+avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed")) |>
+  mutate(
+    exposure_lbl = str_replace_all(exposure, "실제로 먹음 ", ""),
+    po_lbl = str_replace_all(potential_outcome, "잠재적 결과: ", ""),
+    label = glue("평균 {po_lbl}\n({exposure_lbl} 그룹, {observed})") |> str_wrap(19)
+  )
+
+# ID 3에 대한 주석 준비
+id_annotation <- plot_data |>
+  filter(id == 3) |>
+  mutate(label = glue("ID 3의 잠재적 결과\n({observed})") |> str_wrap(15))
+
+# 그룹 평균 간의 교환 가능성 주석
+exchangeability_annotation <- tibble(
+  x = 5.43,
+  xend = 5.33,
+  y = 1,
+  yend = 0.5,
+  potential_outcome = "잠재적 결과: y(초콜릿)",
+  label = str_wrap("교환 가능성이 유지되려면 이러한\n그룹 평균이 유사해야 합니다.", 19)
+)
+
+ggplot(plot_data, aes(happiness, y_id, color = observed, shape = observed)) +
+  geom_point(aes(fill = observed), size = 3, alpha = 0.8) +
+  add_avg_layers(avg_labels, observed_col = ggokabeito::palette_okabe_ito(1), unobserved_col = ggokabeito::palette_okabe_ito(2)) +
+  geom_curve(
+    data = id_annotation,
+    mapping = aes(x = happiness + 2.5, xend = happiness + 0.5, y = y_id + 2, yend = y_id),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = id_annotation,
+    mapping = aes(x = happiness + 2, y = y_id + 1.5, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 3.75,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = exchangeability_annotation,
+    mapping = aes(x = x + 0.5, xend = xend + 0.2, y = y + 0.5, yend = yend),
+    curvature = 0.1,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = exchangeability_annotation,
+    mapping = aes(x = x + 0.05, y = y, label = label),
+    inherit.aes = FALSE,
+    hjust = "left",
+    nudge_x = 0.5,
+    color = "grey40",
+    size = 4,
+    label.size = NA
+  ) +
+  facet_wrap(~ potential_outcome) +
+  scale_y_continuous(
+    breaks = c(unique(plot_data$y_id), min(plot_data$y_id) - 1),
+    labels = c(unique(plot_data$id), expression(bold("평균")))
+  ) +
+  scale_shape_manual(
+    name = NULL,
+    values = c(19, 21)
+  ) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("observed" = ggokabeito::palette_okabe_ito(1), "unobserved" = "white")
+  ) +
+  scale_color_manual(
+    name = NULL,
+    values = c("observed" = ggokabeito::palette_okabe_ito(1), "unobserved" = ggokabeito::palette_okabe_ito(2))
+  ) +
+  scale_x_continuous(
+    breaks = seq(0, 12, by = 2.5),
+    limits = c(NA, 12)
+  ) +
+  po_theme
+```
+
+::: callout-note
+교환 가능성은 때때로 "교란 없음" 또는 "비교란성" 가정이라고 불립니다.
+또한 때때로 "무시 가능성"이라고도 불립니다.
+:::
+
+교환 가능성은 앞서 아이스크림 맛으로 했던 것처럼 노출을 무작위화할 때 극한에서 보장됩니다.
+무작위화 과정에서 교환 가능성을 고려하면 이름이 어디서 유래했는지 알 수 있습니다.
+어떤 맛을 누가 받았는지에 대한 레이블을 섞어서 실수로 "바닐라" 그룹에 초콜릿을, "초콜릿" 그룹에 바닐라를 주었다고 가정해 보겠습니다.
+맛 배정은 잠재적 결과와 독립적이므로 이 혼동은 중요하지 않습니다.
+배정을 뒤집어 그룹을 교환했지만 여전히 올바른 인과 효과를 감지할 수 있습니다[^03-po-counterfactuals-3].
+
+[^03-po-counterfactuals-3]: 표본 크기 때문에 숫자가 약간 다릅니다.
+    표본 크기가 증가하면 무작위화로 교환 가능성이 유지될 가능성이 높아지므로 충분히 큰 표본을 사용하면 동일한 답을 얻을 수 있습니다.
+
+```{r}
+set.seed(11)
+
+mix_up <- function(flavor) {
+  if_else(flavor == "chocolate", "vanilla", "chocolate")
+}
+
+data_observed <- data |>
+  mutate(
+    exposure = if_else(
+      rbinom(n(), 1, 0.5) == 1, "chocolate", "vanilla"
+    ),
+    exposure = mix_up(exposure),
+    observed_outcome = case_when(
+      exposure == "chocolate" ~ y_chocolate,
+      exposure == "vanilla" ~ y_vanilla
+    )
+  )
+
+data_observed |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+그렇다면 교환 가능성이 위반된다는 것은 무엇을 의미할까요?
+대신 각 참가자가 자신의 아이스크림 맛을 선택하도록 허용했다고 가정해 보겠습니다.
+참가자의 80%는 자신을 가장 행복하게 만드는 맛, 즉 자신의 선호도를 선택했습니다.
+
+```{r}
+set.seed(113)
+data_observed_exch <- data |>
+  mutate(
+    prefer_chocolate = y_chocolate > y_vanilla,
+    exposure = case_when(
+      # 초콜릿을 더 좋아하는 사람들은 80%의 확률로 그것을 선택했습니다.
+      prefer_chocolate ~ if_else(
+        rbinom(n(), 1, 0.8) == 1,
+        "chocolate",
+        "vanilla"
+      ),
+      # 바닐라를 더 좋아하는 사람들은 80%의 확률로 그것을 선택했습니다.
+      !prefer_chocolate ~ if_else(
+        rbinom(n(), 1, 0.8) == 1,
+        "vanilla",
+        "chocolate"
+      )
+    ),
+    observed_outcome = case_when(
+      exposure == "chocolate" ~ y_chocolate,
+      exposure == "vanilla" ~ y_vanilla
+    )
+  )
+```
+
+이제 바닐라가 당신을 더 행복하게 만드는 것 같습니다!
+
+```{r}
+data_observed_exch |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+왜 이런 일이 발생할까요?
+@sec-dags 등에서 이 문제를 더 깊이 탐구하겠지만, 가정의 관점에서 보면 교환 가능성이 더 이상 유지되지 않습니다.
+두 노출 그룹에 대해 평균적으로 잠재적 결과가 더 이상 동일하지 않습니다.
+`y(chocolate)`의 평균값은 여전히 상당히 가깝지만, `y(vanilla)`는 그룹별로 상당히 다릅니다.
+바닐라 그룹은 더 이상 초콜릿 그룹의 잠재적 결과에 대한 좋은 대리인 역할을 하지 못하며, 편향된 결과를 얻게 됩니다.
+여기서 우리가 보는 것은 실제로는 `y(flavor, preference)`에 대한 잠재적 결과입니다.
+개별 인과 효과가 0이 아닌 개인이 있기 때문에 이것은 항상 사실입니다.
+변경된 점은 잠재적 결과가 더 이상 사람이 어떤 `flavor`를 가졌는지와 독립적이지 않다는 것입니다. 즉, 선호도가 맛 선택과 잠재적 결과 모두에 영향을 미칩니다.
+@fig-po-confounding에서 보듯이 우리 그룹은 더 이상 교환 가능하지 않습니다. `y(vanilla)`에 대해 평균적으로 동일한 잠재적 결과를 갖지 않습니다.
+
+```{r}
+#| label: "fig-po-confounding"
+#| fig-cap: "교란이 있는 경우 관찰된 노출 그룹별 평균 잠재적 결과. 맛 배정이 더 이상 잠재적 결과와 독립적이지 않기 때문에 그룹은 더 이상 교환 가능하지 않습니다."
+#| code-fold: true
+#| message: false
+data_observed_exch |>
+  select(starts_with("y"), exposure) |>
+  pivot_longer(
+    starts_with("y"),
+    names_prefix = "y_",
+    names_to = "potential_outcome",
+    values_to = "happiness"
+  ) |>
+  mutate(
+    observed = if_else(exposure == potential_outcome, "observed", "unobserved"),
+    potential_outcome = paste0("잠재적 결과: y(", potential_outcome, ")"),
+    exposure = if_else(exposure == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음")
+  ) |>
+  ggplot(aes(happiness, exposure, color = observed, fill = observed, shape = observed)) +
+  stat_summary(
+    fun = "mean",
+    size = 3.5,
+    geom = "point",
+    shape = 23,
+    position = position_nudge(y = 0.033)
+  ) +
+  stat_summary(
+    fun = "mean",
+    geom = "text",
+    aes(label = round(after_stat(x), 1)),
+    vjust = 1.8,
+    show.legend = FALSE
+  ) +
+  facet_wrap(~ potential_outcome) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_rect(color = "grey40", fill = NA, linewidth = 0.8),
+    axis.title.y = element_blank()
+  ) +
+  labs(
+    y = "실제 노출",
+    color = NULL,
+    shape = NULL,
+    fill = NULL
+  ) +
+  coord_cartesian(clip = "off") +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_fill_manual(values = c(observed = ggokabeito::palette_okabe_ito(1), unobserved = "white")) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(-2, 12))
+```
+
+교환 가능성이 위반될 때 무엇을 할 수 있을까요?
+책 전체에서 이 문제에 많은 시간을 할애할 것입니다.
+그러나 해결책의 핵심은 때때로 다른 변수의 수준 내에서 여전히 교환 가능성을 달성할 수 있다는 것입니다.
+이를 **조건부 교환 가능성**이라고 합니다. $Y(x) \perp\!\!\!\perp X \mid Z$. 이 경우 `prefer_chocolate` 수준 내에서 교환 가능성이 필요합니다.
+
+```{r}
+#| label: fig-po-cond-exch
+#| fig-cap: "교란이 있는 경우 관찰된 노출 그룹별 평균 잠재적 결과. 교란 변수의 수준 내에서 여전히 *조건부* 교환 가능성을 달성할 수 있습니다. 여기서는 표본 크기의 한계도 보기 시작합니다. 더 많은 수에서는 유효할 잠재적 결과가 실패하기 시작합니다."
+#| code-fold: true
+#| message: false
+data_observed_exch |>
+  mutate(prefer_chocolate = if_else(
+    prefer_chocolate,
+    "초콜릿 선호",
+    "바닐라 선호"
+  )) |>
+  pivot_longer(
+    starts_with("y"),
+    names_prefix = "y_",
+    names_to = "potential_outcome",
+    values_to = "happiness"
+  ) |>
+  mutate(
+    observed = if_else(exposure == potential_outcome, "observed", "unobserved"),
+    potential_outcome = paste0("잠재적 결과: y(", potential_outcome, ")"),
+    exposure = if_else(exposure == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음")
+  ) |>
+
+  ggplot(aes(happiness, exposure, color = observed, fill = observed, shape = observed)) +
+  stat_summary(
+    fun = "mean",
+    size = 3.5,
+    geom = "point",
+    shape = 23,
+    position = position_nudge(y = 0.033)
+  ) +
+  stat_summary(
+    fun = "mean",
+    geom = "text",
+    aes(label = round(after_stat(x), 1)),
+    vjust = 1.8,
+    show.legend = FALSE
+  ) +
+  facet_grid(prefer_chocolate ~ potential_outcome) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_rect(color = "grey40", fill = NA, linewidth = 0.8),
+    axis.title.y = element_blank()
+  ) +
+  labs(
+    y = "실제 노출",
+    color = NULL,
+    shape = NULL,
+    fill = NULL
+  ) +
+  coord_cartesian(clip = "off") +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_fill_manual(values = c(observed = ggokabeito::palette_okabe_ito(1), unobserved = "white")) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(-2, 12))
+```
+
+::: callout-warning
+@fig-po-cond-exch에서는 이미 차원의 저주에 직면하기 시작했습니다. 표본 크기가 너무 작아서 노출과 선호도의 조합에 대한 값이 매우 적습니다.
+표본 크기가 증가하면 더 나은 교환 가능성을 달성할 수 있지만, 좋은 통계 모델 없이는 이것이 빠르게 어려워집니다.
+:::
+
+### 양성성
+
+양성성 가정은 모든 개인이 각 노출 수준을 받을 확률이 0이 아님을 명시합니다.
+수학적으로 이는 모든 $x$에 대해 $P(X = x) > 0$임을 의미합니다. 즉, 하나 이상의 노출 수준이 불가능한 사람은 없다고 가정합니다.
+이 가정이 필요한 이유는 특정 노출 수준에 대한 잠재적 결과를 정의하기 때문입니다.
+어떤 사람이 어떤 상황에서도 초콜릿에 노출되지 않으면 해당 사람에 대해 `y(chocolate)`에 대한 잠재적 결과가 정의되지 않습니다.
+이 잠재적 결과에 대한 정보를 제공하는 데 사용할 수 없습니다.
+무작위 시험에서는 노출 확률이 설계상 알려져 있습니다.
+아이스크림 예에서 모든 사람은 동일한 확률을 가졌습니다. 즉, 초콜릿을 받을 확률 50%와 바닐라를 받을 확률 50%입니다.
+이러한 가능성은 두 그룹 모두에 대한 두 가지 잠재적 결과를 정의합니다.
+
+::: callout-note
+때때로 양성성은 **확률적 가정**이라고 불립니다.
+:::
+
+양성성 위반은 확률적 위반과 구조적 위반의 두 가지 형태로 나타납니다.
+확률적 위반은 특정 노출 수준에 대한 관찰이 없는 우연한 발생입니다.
+참가자의 80%가 자신을 가장 행복하게 만드는 아이스크림을 선택한 예에서, 표본 크기가 작기 때문에 초콜릿만 선택하는 사람들로 끝날 가능성이 있습니다.
+당연히 바닐라 대 초콜릿의 효과는 바닐라 관찰이 있는 경우에만 계산할 수 있습니다.
+
+양성성의 미묘한 점은 교환 가능성에 필요한 모든 공변량 수준 내에서 유지되어야 한다는 것입니다. 즉, 모든 $x$와 $z$에 대해 $P(X = x \mid Z = z) > 0$입니다. 맛이 다르더라도 `prefer_chocolate` 수준 내에서도 변동성이 필요합니다.
+이것도 우연히 실패할 수 있습니다.
+
+```{r}
+set.seed(1)
+data_observed_pos <- data |>
+  mutate(
+    prefer_chocolate = y_chocolate > y_vanilla,
+    exposure = case_when(
+      prefer_chocolate ~ if_else(
+        rbinom(n(), 1, 0.8) == 1,
+        "chocolate",
+        "vanilla"
+      ),
+      !prefer_chocolate ~ if_else(
+        rbinom(n(), 1, 0.8) == 1,
+        "vanilla",
+        "chocolate"
+      )
+    ),
+    observed_outcome = case_when(
+      exposure == "chocolate" ~ y_chocolate,
+      exposure == "vanilla" ~ y_vanilla
+    )
+  )
+
+data_observed_pos |>
+  count(prefer_chocolate, exposure) |>
+  complete(
+    prefer_chocolate,
+    exposure = c("chocolate", "vanilla"),
+    fill = list(n = 0)
+  )
+```
+
+구조적 양성성 위반은 개인이 정의상 적어도 하나의 노출 수준을 받을 수 없는 경우입니다.
+참가자 중 일부가 바닐라 알레르기가 있다고 가정해 보겠습니다.
+무작위 환경에서도 이러한 참가자는 바닐라를 먹을 수 없습니다.
+이 경우 바닐라 알레르기가 있는 사람이 바닐라를 배정받으면 초콜릿으로 바꾼다고 가정해 보겠습니다.
+
+```{r}
+set.seed(11)
+data_observed_struc <- data |>
+  mutate(
+    exposure = if_else(
+      rbinom(n(), 1, 0.5) == 1,
+      "chocolate",
+      "vanilla"
+    )
+  )
+
+set.seed(1)
+data_observed_struc <- data_observed_struc |>
+  mutate(
+    # 알레르기 확률 30%
+    allergy = rbinom(n(), 1, 0.3) == 1,
+    # 이 경우 `y_vanilla`는 불가능합니다.
+    exposure = if_else(allergy, "chocolate", exposure),
+    y_vanilla = if_else(allergy, NA, y_vanilla),
+    observed_outcome = case_when(
+      # 알레르기가 있는 사람은 항상 초콜릿을 선택합니다.
+      allergy ~ y_chocolate,
+      exposure == "chocolate" ~ y_chocolate,
+      exposure == "vanilla" ~ y_vanilla
+    )
+  )
+```
+
+이제 추정치가 상당히 벗어났습니다.
+
+```{r}
+data_observed_struc |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+바닐라 알레르기가 있는 사람들의 경우 @fig-po-pos에서와 같이 `y_vanilla`가 정의되지 않습니다.
+
+```{r}
+#| label: "fig-po-pos"
+#| fig-cap: "구조적 양성성 위반이 있는 경우의 잠재적 결과. 잠재적 결과가 발생할 수 없는 경우 정의되지 않습니다. 바닐라 알레르기가 있는 사람들은 `y(vanilla)`에 해당하는 항목이 없습니다."
+#| code-fold: true
+#| warning: false
+plot_data <- data_observed_struc |>
+  mutate(is_missing_y_vanilla = is.na(y_vanilla)) |>
+  select(id, starts_with("y"), exposure, is_missing_y_vanilla) |>
+  prepare_plot_data(
+    pivot_prefix = "y_",
+    potential_outcome_transform = \(x) paste0("y(", x, ")"),
+    transform_exposure = \(exp) if_else(exp == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음"),
+    id_assignment = FALSE
+  )
+
+avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed")) |>
+  mutate(
+    exposure_lbl = str_replace_all(exposure, "실제로 먹음 ", ""),
+    po_lbl = str_replace_all(potential_outcome, "잠재적 결과: ", ""),
+    label = glue("평균 {po_lbl}\n({exposure_lbl} 그룹, {observed})") |> str_wrap(19)
+  )
+
+# 초콜릿 쪽에 누락된 y(vanilla) 점
+missing_points <- plot_data |>
+  filter(is_missing_y_vanilla, exposure == "실제로 초콜릿을 먹음") |>
+  select(happiness, y_id) |>
+  drop_na()
+
+# 누락된 점에 대한 주석
+missing_annotation <- tibble(
+  x = max(missing_points$happiness, na.rm = TRUE) + 1,
+  y = max(missing_points$y_id, na.rm = TRUE) - 1,
+  label = "누락된 y(vanilla)\n상대",
+  potential_outcome = "y(초콜릿)"
+)
+
+# 주석에서 누락된 점으로 향하는 화살표
+missing_arrows <- missing_points |>
+  mutate(
+    xend = happiness + 0.3,
+    yend = y_id - c(-0.3, 0, 0.3),
+    x = missing_annotation$x,
+    y = missing_annotation$y,
+    potential_outcome = "y(초콜릿)"
+  )
+
+ggplot(
+  plot_data,
+  aes(
+    x = happiness,
+    y = y_id,
+    color = is_missing_y_vanilla,
+    fill = is_missing_y_vanilla,
+    shape = observed
+  )
+) +
+  geom_point(
+    data = plot_data |> filter(observed == "observed"),
+    mapping = aes(fill = is_missing_y_vanilla),
+    size = 3,
+    shape = 21,
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(observed == "unobserved"),
+    mapping = aes(x = happiness, y = y_id),
+    size = 3,
+    shape = 21,
+    fill = "white",
+    color = "grey70",
+    alpha = 0.8,
+    inherit.aes = FALSE
+  ) +
+  add_avg_layers(avg_labels) +
+  geom_curve(
+    data = missing_arrows,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = 0,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = missing_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 4.5,
+    label.size = NA
+  ) +
+  facet_wrap(~ potential_outcome) +
+  scale_y_continuous(
+    breaks = c(unique(plot_data$y_id), min(plot_data$y_id) - 1),
+    labels = c(unique(plot_data$id), expression(bold("평균")))
+  ) +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("TRUE" = ggokabeito::palette_okabe_ito(7)),
+    labels = c("TRUE" = "누락된 y(vanilla) 상대"),
+    na.value = "grey80"
+  ) +
+  scale_color_manual(
+    name = NULL,
+    values = c("TRUE" = ggokabeito::palette_okabe_ito(7)),
+    labels = c("TRUE" = "누락된 y(vanilla) 상대"),
+    na.value = "grey80"
+  ) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
+  po_theme
+```
+
+양성성 문제를 개선하기 위해 할 수 있는 몇 가지 일이 있습니다.
+확률적 양성성 위반의 경우 더 많은 데이터를 수집할 수 있습니다.
+표본 크기를 늘리면 확률적 위반 가능성이 줄어듭니다.
+그러나 공변량의 각 조합에 대해 양성성이 필요하기 때문에 데이터의 차원성을 외삽하기 위해 종종 통계 모델을 사용해야 합니다.
+이 주제는 [Chapter -@sec-ps] 및 [Chapter -@sec-g-comp]에서 자세히 논의할 것입니다.
+또한 일부 노출 수준이 불가능한 사람들을 제외하기 위해 적격성 기준(@sec-target-trial에서 논의할 예정)을 지정할 수 있습니다.
+특정 교란 변수 내에서 양성성이 문제인 경우 교란 변수를 제거하는 것도 고려할 수 있습니다. 즉, 통제하지 않음으로써 유발되는 교란 편향이 양성성으로 인해 유발되는 편향보다 작다면 그만한 가치가 있을 수 있습니다.
+마지막으로 추정하려는 인과적 추정량을 수정할 수 있습니다.
+@sec-estimands에서 보게 되겠지만, 서로 다른 인과 효과는 인과적 가정을 충족하는 데 더 엄격합니다.
+
+### 일관성
+
+일관성은 주장하는 인과적 질문이 분석을 통해 *실제로* 답하고 있는 질문과 일치한다고 가정합니다.
+일관성을 통해 각 그룹에 대한 잠재적 결과 중 하나인 사실적 결과를 볼 수 있습니다.
+수학적으로 이는 $Y_{obs} = (X)Y(1) + (1 - X)Y(0)$임을 의미합니다.
+평이한 언어로 일관성 가정은 특정 치료 값의 잠재적 결과가 누군가가 해당 치료 값을 배정받았을 때 실제로 관찰하는 값과 동일하다고 말합니다.
+말하면 거의 어리석게 들립니다.
+그렇지 않다면 무엇일까요?
+그러나 이 문제를 자세히 생각해보면 이 가정이 특정 노출에 대해 쉽게 위반될 수 있음을 알 수 있습니다.
+두 가지 일반적인 경우를 고려해 보겠습니다.
+
+-   **잘못 정의된 노출**: 각 노출 값에 대해 해당 노출을 전달할 때 대상 간에 차이가 있습니다. 다시 말해, 여러 치료 버전이 존재합니다. 대신 *잘 정의된 노출*이 필요합니다.
+-   **간섭**: 모든 대상의 결과(관찰되었는지 여부에 관계없이 모든 잠재적 결과)는 다른 대상의 노출에 따라 달라집니다. 대신 *간섭 없음*이 필요합니다.
+
+::: callout-tip
+일관성은 때때로 **안정적인 단위-치료-가치 가정** 또는 **SUTVA**라고 불립니다[@imbens2015causal].
+그러나 인과적 일관성은 추정기가 표본 크기가 증가함에 따라 진실에 더 가까워지는 속성인 *통계적* 일관성과는 다른 아이디어입니다.
+:::
+
+#### 잘못 정의된 노출
+
+일관성 위반은 노출이 잘못 정의될 때 흔히 발생합니다.
+수술(예: 한 의사가 다른 의사보다 수술 절차에 더 경험이 많은 경우)에서 소득(모든 소득원이 달러 대 달러로 동일한가? 복권이 주급과 동일한가?)에서 교육(교육 연수가 학교 질에 따라 동일한 효과를 갖는가?)에 이르기까지 모든 것에서 발생하며, 그 외에도 많습니다[@Rehkopf2016].
+
+초콜릿 아이스크림 용기가 두 개 있었는데 그중 하나가 상했다고 가정해 보겠습니다.
+"초콜릿"에 대한 노출은 개인의 스쿱이 어디에서 왔는지(일반 초콜릿 아이스크림 또는 상한 초콜릿 아이스크림)에 따라 다른 것을 의미할 수 있습니다. 우리는 그것들을 모두 단일 용어 아래에 묶고 있습니다.
+상한 아이스크림을 먹으면 일반적으로 초콜릿 아이스크림에 대해 어떻게 생각하든 비참해지므로 동일한 잠재적 결과가 아닙니다.
+
+```{r}
+data <- tibble(
+  id = 1:10,
+  y_spoiled_chocolate = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+  y_chocolate = c(4, 4, 6, 5, 6, 5, 6, 7, 5, 6),
+  y_vanilla = c(1, 3, 4, 5, 5, 6, 8, 6, 3, 5)
+) |>
+  mutate(causal_effect = y_chocolate - y_vanilla)
+
+set.seed(11)
+data_observed_poorly_defined <- data |>
+  mutate(
+    exposure_unobserved = case_when(
+      rbinom(n(), 1, 0.25) == 1 ~ "chocolate (spoiled)",
+      rbinom(n(), 1, 0.25) == 1 ~ "chocolate",
+      .default = "vanilla"
+    ),
+    observed_outcome = case_match(
+      exposure_unobserved,
+      "chocolate (spoiled)" ~ y_spoiled_chocolate,
+      "chocolate" ~ y_chocolate,
+      "vanilla" ~ y_vanilla
+    ),
+    exposure = case_match(
+      exposure_unobserved,
+      c("chocolate (spoiled)", "chocolate") ~ "chocolate",
+      "vanilla" ~ "vanilla"
+    )
+  )
+```
+
+표본에서 (상하지 않은) 초콜릿의 *실제* 평균 인과 효과는 `r mean(data |> pull(causal_effect))`임을 알고 있습니다. 그러나 추정된 인과 효과는 `r data_observed |> group_by(exposure) |> summarise(avg_outcome = mean(observed_outcome)) |> mutate(exposure = c(1, 0)) |> pivot_wider(names_from = exposure, values_from = avg_outcome, names_prefix = "x_") |> summarise(estimate = x_1 - x_0) |> pull() |> round(1)`입니다.
+
+```{r}
+data_observed_poorly_defined |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+추정하고 있다고 생각하는 잠재적 결과는 관찰하고 있는 결과가 아닙니다.
+신선한 초콜릿 아이스크림과 상한 초콜릿 아이스크림을 동일한 노출로 취급하고 있지만, 잠재적 결과에 미치는 영향은 다릅니다.
+노출이 무작위이기 때문에 실제로는 `y(chocolate, spoiled = FALSE) | y(chocolate, spoiled = TRUE)`의 효과를 상당히 잘 추정하지만, 우리가 관심 있는 것은 아닙니다.
+우리는 단지 `y(chocolate, spoiled = FALSE)`를 원합니다.
+
+```{r}
+#| label: "fig-po-cons"
+#| fig-cap: "일관성 위반 하의 잠재적 결과. 일관성을 통해 관찰된 데이터를 사실적 결과로 취급할 수 있습니다. 여기서는 초콜릿 그룹을 `y(chocolate)`의 대표로 취급하고 있지만 이것은 사실이 아닙니다. 데이터는 서로 다른 잠재적 결과인 `y(chocolate, spoiled = FALSE)`와 `y(chocolate, spoiled = TRUE)`의 혼합을 나타냅니다."
+#| code-fold: true
+plot_data <- data_observed_poorly_defined |>
+  mutate(is_spoiled = exposure_unobserved == "chocolate (spoiled)") |>
+  pivot_longer(
+    cols = starts_with("y"),
+    names_prefix = "y_",
+    names_to = "potential_outcome",
+    values_to = "happiness"
+  ) |>
+  filter(
+    !(is_spoiled & potential_outcome == "chocolate"),
+    !(is_spoiled == FALSE & potential_outcome == "spoiled_chocolate")
+  ) |>
+  mutate(
+    potential_outcome = case_when(
+      potential_outcome == "spoiled_chocolate" ~ "chocolate",
+      TRUE ~ potential_outcome
+    ),
+    observed = if_else(exposure == potential_outcome, "observed", "unobserved"),
+    potential_outcome = paste0("y(", potential_outcome, ")")
+  ) |>
+  mutate(observed = factor(observed, levels = c("observed", "unobserved"))) |>
+  arrange(id) |>
+  mutate(y_id = dense_rank(id))
+
+avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed"))
+
+# 상한 초콜릿에 대한 주석
+spoiled_annotation <- plot_data |>
+  filter(is_spoiled, potential_outcome == "y(chocolate)") |>
+  slice(1) |>
+  mutate(label = "그들의 초콜릿은 상했습니다.")
+
+spoiled_arrows <- plot_data |>
+  filter(is_spoiled, potential_outcome == "y(chocolate)") |>
+  mutate(
+    xend = happiness + c(0.35, 0.05),
+    yend = y_id - c(0, 0.2),
+    x = spoiled_annotation$happiness + 1.9,
+    y = spoiled_annotation$y_id + 0.5
+  )
+
+flawed_avg_annotation <- avg_labels |>
+  filter(potential_outcome == "y(chocolate)", exposure == "chocolate", observed == "observed") |>
+  mutate(
+    label = "이것은 두 잠재적 결과의\n평균입니다.",
+    x = happiness + 2.25,
+    y = y_id + .9,
+    happiness = happiness + 0.25,
+    y_id = y_id + 0.15
+  )
+
+unspoiled_annotation <- plot_data |>
+  filter(!is_spoiled, exposure == "chocolate", potential_outcome == "y(chocolate)", observed == "observed") |>
+  slice(1) |>
+  mutate(
+    label = "하지만 그들의 것은\n아니었습니다.",
+    x = happiness + 2,
+    y = y_id
+  )
+
+unspoiled_arrows <- plot_data |>
+  filter(!is_spoiled, exposure == "chocolate", potential_outcome == "y(chocolate)", observed == "observed") |>
+  mutate(
+    xend = happiness + 0.35,
+    yend = y_id - c(0.1, 0.2),
+    x = unspoiled_annotation$x,
+    y = unspoiled_annotation$y
+  )
+
+ggplot(plot_data, aes(x = happiness, y = y_id)) +
+  geom_point(
+    data = plot_data |> filter(!is_spoiled, observed == "observed"),
+    size = 3,
+    shape = 21,
+    fill = "grey50",
+    color = "grey50",
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(!is_spoiled, observed == "unobserved"),
+    size = 3,
+    shape = 21,
+    fill = "white",
+    color = "grey50",
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(is_spoiled, potential_outcome == "y(chocolate)", observed == "observed"),
+    size = 3,
+    shape = 21,
+    fill = ggokabeito::palette_okabe_ito(7),
+    color = ggokabeito::palette_okabe_ito(7),
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(is_spoiled, potential_outcome == "y(chocolate)", observed == "unobserved"),
+    size = 3,
+    shape = 21,
+    fill = "white",
+    color = ggokabeito::palette_okabe_ito(7),
+    alpha = 0.8
+  ) +
+  add_avg_layers(avg_labels) +
+  geom_curve(
+    data = spoiled_arrows,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = spoiled_annotation,
+    mapping = aes(x = happiness + 2, y = y_id + 0.5, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 4,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = flawed_avg_annotation,
+    mapping = aes(x = x, xend = happiness, y = y, yend = y_id),
+    curvature = 0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = flawed_avg_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 4,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = unspoiled_arrows,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = unspoiled_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 4,
+    label.size = NA
+  ) +
+  facet_wrap(~ potential_outcome) +
+  scale_y_continuous(
+    breaks = c(unique(plot_data$y_id), min(plot_data$y_id) - 1),
+    labels = c(unique(plot_data$id), expression(bold("평균")))
+  ) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
+  labs(y = "실제 노출") +
+  po_theme
+```
+
+치료의 약간의 변형이 발생하는 다른 방법을 상상할 수 있습니다. 즉, 고품질 및 저품질 바닐라 아이스크림 브랜드가 "바닐라"로 분류됩니다. 한 사람은 아침에 먹고 다른 사람은 오후에 먹습니다.
+한 사람은 한 숟가락을 먹고 다른 사람은 세 그릇을 가득 채웁니다.
+이런 의미에서 거의 항상 *어떤* 일관성 위반이 있을 것입니다. 우리에게 중요한 질문은 해당 위반이 우리가 보는 잠재적 결과와 관련하여 의미가 있는지 여부입니다.
+두 브랜드의 아이스크림이 동일한 행복을 생성한다면 이 변형은 중요하지 않습니다.
+다르다면 얼마나 다를까요?
+
+일관성 위반을 해결하는 한 가지 방법은 더 구체적으로 하는 것 외에도 치료 수준 내에서 잠재적인 편차를 조사하는 것입니다.
+실험 후 아이스크림 용기를 테스트하고 데이터에 아이스크림의 상한 상태에 대한 데이터가 있다고 가정해 보겠습니다.
+이제 실제 노출별로 그룹화할 수 있습니다.
+
+```{r}
+data_observed_poorly_defined |>
+  group_by(exposure_unobserved) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+이제 @fig-po-const-defined에서와 같이 분석에서 잠재적 결과를 올바르게 분리했기 때문에 올바른 답으로 돌아왔습니다.
+
+```{r}
+#| label: "fig-po-const-defined"
+#| fig-cap: "일관성 위반 하의 잠재적 결과. 이제 관찰된 데이터를 기본 잠재적 결과에 올바르게 연결하여 일관성 있게 만들었습니다."
+#| code-fold: true
+plot_data <- data_observed_poorly_defined |>
+  pivot_longer(
+    cols = starts_with("y"),
+    names_prefix = "y_",
+    names_to = "potential_outcome",
+    values_to = "happiness"
+  ) |>
+  mutate(
+    potential_outcome = if_else(potential_outcome == "spoiled_chocolate", "chocolate (spoiled)", potential_outcome),
+    observed = if_else(exposure_unobserved == potential_outcome, "observed", "unobserved"),
+    potential_outcome = if_else(potential_outcome == "chocolate (spoiled)", "spoiled_chocolate", potential_outcome),
+    potential_outcome = paste0("y(", potential_outcome, ")")
+  ) |>
+  arrange(id) |>
+  mutate(y_id = dense_rank(id))
+
+avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure_unobserved", "observed"))
+
+ggplot(plot_data, aes(x = happiness, y = y_id, color = exposure_unobserved)) +
+  geom_point(
+    data = plot_data |> filter(observed == "observed"),
+    mapping = aes(fill = exposure_unobserved),
+    size = 3,
+    shape = 21,
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(observed == "unobserved"),
+    size = 3,
+    shape = 21,
+    fill = "white",
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = avg_labels |> filter(observed == "unobserved"),
+    aes(x = happiness, y = y_id, color = exposure_unobserved),
+    size = 4,
+    shape = 23,
+    fill = "white",
+    inherit.aes = FALSE
+  ) +
+  geom_point(
+    data = avg_labels |> filter(observed == "observed"),
+    aes(x = happiness, y = y_id, fill = exposure_unobserved, color = exposure_unobserved),
+    size = 4,
+    shape = 23,
+    inherit.aes = FALSE
+  ) +
+  facet_wrap(~ potential_outcome) +
+  scale_y_continuous(
+    breaks = c(unique(plot_data$y_id), min(plot_data$y_id) - 1),
+    labels = c(unique(plot_data$id), expression(bold("평균")))
+  ) +
+  scale_fill_manual(values = ggokabeito::palette_okabe_ito(c(1, 2, 7))) +
+  scale_color_manual(values = ggokabeito::palette_okabe_ito(c(1, 2, 7))) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
+  labs(
+    y = "실제 노출",
+    color = NULL,
+    fill = NULL
+  ) +
+  po_theme
+```
+
+#### 간섭
+
+간섭은 개인의 노출이 다른 사람의 잠재적 결과에 영향을 미치는 것을 의미합니다.
+백신이나 치료에 대한 누군가의 노출이 종종 다른 사람의 결과 위험에 영향을 미치는 전염병에서 매우 흔합니다.
+그러나 소셜 네트워크, 정책 개입, 치료 단위의 지리적 근접성 등 다양한 다른 환경에서도 발생할 수 있습니다.
+
+아이스크림 연구의 각 개인이 파트너가 있고 그들의 잠재적 결과가 자신이 먹은 아이스크림 맛과 파트너가 먹은 맛 모두에 따라 달라진다고 가정해 보겠습니다.
+아래 시뮬레이션에서는 *다른* 맛의 아이스크림을 받는 파트너가 있으면 행복이 2단위 증가합니다.
+
+```{r}
+data <- tibble(
+  id = 1:10,
+  partner_id = c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5),
+  y_chocolate_chocolate = c(4, 4, 6, 5, 6, 5, 6, 7, 5, 6),
+  y_vanilla_vanilla = c(1, 3, 4, 5, 5, 6, 8, 6, 3, 5)
+) |>
+  # 파트너가 다른 맛을 받으면
+  # 행복이 2 증가합니다.
+  mutate(
+    y_chocolate_vanilla = y_chocolate_chocolate + 2,
+    y_vanilla_chocolate = y_vanilla_vanilla + 2
+  )
+
+set.seed(37)
+data_observed_interf <- data |>
+  mutate(
+    exposure = if_else(
+      rbinom(n(), 1, 0.5) == 1, "chocolate", "vanilla"
+    ),
+    exposure_partner = if_else(
+      rbinom(n(), 1, 0.5) == 1, "chocolate", "vanilla"
+    ),
+    observed_outcome = case_when(
+      exposure == "chocolate" & exposure_partner == "chocolate" ~
+        y_chocolate_chocolate,
+      exposure == "chocolate" & exposure_partner == "vanilla" ~
+        y_chocolate_vanilla,
+      exposure == "vanilla" & exposure_partner == "chocolate" ~
+        y_vanilla_chocolate,
+      exposure == "vanilla" & exposure_partner == "vanilla" ~
+        y_vanilla_vanilla
+    )
+  )
+```
+
+잘못 정의된 노출과 마찬가지로 간섭 하에서는 올바른 답을 얻지 못합니다.
+
+```{r}
+data_observed_interf |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+마찬가지로 문제는 잘못된 잠재적 결과를 추정하고 있다는 것입니다(@fig-const-interf).
+간섭과 잘못 정의된 노출은 동일한 가정 위반의 다른 표현입니다.
+우리가 추정하는 잠재적 결과는 우리가 묻는 인과적 질문과 일치하지 않습니다.
+이 경우 세 가지 반사실적 상황이 있습니다. 즉, 파트너가 *받지 않은* 노출을 가진 개인이 가진 맛과 개인이 *받지 않은* 맛과 파트너가 가질 수 있었던 두 가지 맛입니다.
+우리가 계산한 평균은 이러한 조합 중 어느 것도 추정하지 않는 것 같습니다.
+
+
+```{r}
+#| label: "fig-const-interf"
+#| fig-cap: "일관성 위반 하의 잠재적 결과. 이번에는 바닐라 그룹의 `y(vanilla)`와 초콜릿 그룹의 `y(chocolate)`가 정확하지 않습니다. 즉, 파트너의 맛에 의한 간섭으로 인한 효과의 혼합입니다."
+#| code-fold: true
+plot_data <- data_observed_interf |>
+  pivot_longer(
+    cols = starts_with("y_"),
+    names_prefix = "y_",
+    names_to = "po_combination",
+    values_to = "happiness"
+  ) |>
+  mutate(
+    potential_outcome = paste0("y(", str_remove(po_combination, "_.*"), ")"),
+    observed = po_combination == paste0(exposure, "_", exposure_partner),
+    flavor_match = if_else(exposure == exposure_partner, "같은 맛", "다른 맛"),
+    y_id = dense_rank(id)
+  ) |>
+  filter(
+    observed | (potential_outcome != exposure)
+  )
+
+# 다른 맛 조합에 대한 두 개의 관찰된 점 선택 (초콜릿 패널)
+flavor_annotation <- plot_data |>
+  filter(observed, potential_outcome == "y(초콜릿)", id %in% c(3, 5)) |>
+  summarize(
+    x = max(happiness) + 0.5,
+    y = mean(y_id) - 2,
+    label = str_wrap("다른 노출 쌍은 다른 잠재적 결과를 산출합니다.", 20),
+    potential_outcome = "y(초콜릿)"
+  )
+
+# 맛 차이 주석에 대한 화살표 생성
+flavor_arrows <- plot_data |>
+  filter(observed, potential_outcome == "y(초콜릿)", id %in% c(3, 5)) |>
+  mutate(
+    xend = happiness,
+    yend = y_id - .3,
+    x = flavor_annotation$x,
+    y = flavor_annotation$y,
+    potential_outcome = "y(초콜릿)"
+  )
+
+# 두 개의 관찰되지 않은 잠재적 결과를 가진 단일 ID 선택 (바닐라 패널)
+unobserved_id <- 5
+
+unobserved_annotation <- plot_data |>
+  filter(!observed, id == unobserved_id, potential_outcome == "y(바닐라)") |>
+  summarize(
+    x = max(happiness) + 0.75,
+    y = mean(y_id) - 0.5,
+    label = str_wrap("반대 노출에 대해 두 개의 관찰되지 않은 잠재적 결과가 있습니다.", 20),
+    potential_outcome = "y(바닐라)"
+  )
+
+# 선택된 ID에 대한 관찰되지 않은 잠재적 결과에 대한 화살표 생성
+unobserved_arrows <- plot_data |>
+  filter(!observed, id == unobserved_id, potential_outcome == "y(바닐라)") |>
+  mutate(
+    xend = happiness + c(0.35, 0.15),
+    yend = y_id - c(0.1, 0.2),
+    x = unobserved_annotation$x,
+    y = unobserved_annotation$y,
+    potential_outcome = "y(바닐라)"
+  )
+
+# ID 6의 관찰되지 않은 초콜릿 잠재적 결과 주석 선택 (초콜릿 패널)
+chocolate_unobserved_annotation <- plot_data |>
+  filter(id == 6, potential_outcome == "y(초콜릿)", !observed) |>
+  summarize(
+    x = min(happiness) - 2.5,
+    y = mean(y_id) + .75,
+    label = str_wrap("파트너의 다른 맛에 대해 관찰되지 않은 잠재적 결과가 있습니다.", 15),
+    potential_outcome = "y(초콜릿)"
+  )
+
+# ID 6에 대한 관찰되지 않은 초콜릿 잠재적 결과를 가리키는 화살표 생성
+chocolate_unobserved_arrow <- plot_data |>
+  filter(id == 6, potential_outcome == "y(초콜릿)", !observed) |>
+  mutate(
+    xend = happiness - 0.25,
+    yend = y_id + 0.1,
+    x = chocolate_unobserved_annotation$x,
+    y = chocolate_unobserved_annotation$y,
+    potential_outcome = "y(초콜릿)"
+  )
+
+# 플롯 5 생성
+ggplot(plot_data, aes(x = happiness, y = y_id)) +
+  geom_point(
+    data = plot_data |> filter(observed),
+    mapping = aes(fill = flavor_match, color = flavor_match),
+    size = 3,
+    shape = 21,
+    alpha = 0.8
+  ) +
+  geom_point(
+    data = plot_data |> filter(!observed),
+    size = 3,
+    shape = 21,
+    fill = "white",
+    color = "grey70",
+    alpha = 0.8
+  ) +
+  geom_curve(
+    data = flavor_arrows,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = flavor_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 3,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = unobserved_arrows,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = unobserved_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 0,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 3,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = chocolate_unobserved_arrow,
+    mapping = aes(x = x, xend = xend, y = y, yend = yend),
+    curvature = -0.2,
+    arrow = arrow(length = unit(0.02, "npc")),
+    inherit.aes = FALSE,
+    color = "grey40"
+  ) +
+  geom_label(
+    data = chocolate_unobserved_annotation,
+    mapping = aes(x = x, y = y, label = label),
+    hjust = 1,
+    inherit.aes = FALSE,
+    color = "grey40",
+    size = 3,
+    label.size = NA
+  ) +
+  facet_wrap(~ potential_outcome) +
+  scale_y_continuous(
+    breaks = unique(plot_data$y_id),
+    labels = unique(plot_data$id)
+  ) +
+  scale_fill_manual(
+    values = c(
+      "같은 맛" = ggokabeito::palette_okabe_ito(3),
+      "다른 맛" = ggokabeito::palette_okabe_ito(5)
+    ),
+    name = NULL
+  ) +
+  scale_color_manual(
+    values = c(
+      "같은 맛" = ggokabeito::palette_okabe_ito(3),
+      "다른 맛" = ggokabeito::palette_okabe_ito(5)
+    ),
+    name = NULL
+  ) +
+  scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
+  labs(
+    x = "행복",
+    y = "ID"
+  ) +
+  po_theme
+```
+
+이전과 마찬가지로 잠재적 결과에 대해 더 구체적으로 설명할 수 있습니다.
+
+```{r}
+data_observed_interf |>
+  group_by(exposure, exposure_partner) |>
+  summarise(avg_outcome = mean(observed_outcome), .groups = "drop")
+```
+
+간섭을 해결하는 주요 방법 중 하나는 고려 중인 *단위*를 변경하는 것입니다.
+여기서는 각 개인, 각 고유 ID가 단위로 간주되며 단위(즉, 파트너) 간에 간섭이 있습니다.
+개인 대신 각 *파트너십*을 단위로 간주하고 파트너십을 무작위화한다고 가정해 보겠습니다.
+이 경우 다른 파트너 세트 간에 간섭이 없으므로 간섭 문제가 해결됩니다.
+이러한 유형의 무작위화는 때때로 클러스터 무작위 시험이라고 합니다.
+각 클러스터 내에서 무엇을 하기로 결정하는지는 당면한 인과적 질문에 따라 달라질 수 있습니다.
+예를 들어, 두 사람 모두 바닐라 아이스크림 대신 초콜릿 아이스크림을 먹으면 어떻게 될지 알고 싶다면 아래와 같이 두 파트너 모두 초콜릿 또는 바닐라에 무작위로 배정하고 싶을 것입니다.
+
+```{r}
+set.seed(11)
+
+## 이제 개인 대신 *파트너십*을 무작위화합니다.
+partners <- tibble(
+  partner_id = 1:5,
+  exposure = if_else(
+    rbinom(5, 1, 0.5) == 1, "chocolate", "vanilla"
+  )
+)
+partners_observed <- data |>
+  left_join(partners, by = "partner_id") |>
+  mutate(
+    # 모든 파트너십은 동일한 노출을 갖습니다.
+    exposure_partner = exposure,
+    observed_outcome = case_when(
+      exposure == "chocolate" & exposure_partner == "chocolate" ~
+        y_chocolate_chocolate,
+      exposure == "vanilla" & exposure_partner == "vanilla" ~
+        y_vanilla_vanilla
+    )
+  )
+```
+
+이제 올바른 인과 효과를 감지할 수 있습니다.
+
+```{r}
+partners_observed |>
+  group_by(exposure) |>
+  summarise(avg_outcome = mean(observed_outcome))
+```
+
+::: callout-note
+치료의 여러 버전이나 간섭이 있는 효과를 식별하는 방법도 있지만, 일관성 위반 하에서는 기술적이고 더 제한적입니다[@Tchetgen2012; @VanderWeele2013].
+:::
+
+마찬가지로 파트너에게 같은 맛 또는 다른 맛을 배정하여 교차 맛 효과를 계산할 수 있습니다.
+또 다른 옵션은 간섭 효과가 없도록 파트너를 제외하는 것입니다.
+핵심은 추정하려는 것을 생각하고 해당 질문에 대한 잠재적 결과를 가능한 한 정확하게 나타내려고 노력하는 것입니다.
+
+::: callout-note
+## 말라리아 그물, 재검토
+
+@sec-whole-game에서 모기장이 말라리아 위험에 미치는 인과 효과를 추정했습니다.
+이 질문에 대한 인과적 가정을 고려하고 실제 분석에서 어떻게 위반되었을 수 있는지 살펴보겠습니다.
+
+-   **교환 가능성**: 측정되지 않은 교란 변수(이 경우 말라리아에 대한 유전적 저항성)가 있을 때 이 문제로 어떤 일이 발생할 수 있는지 보았습니다. 교환 가능성에 대해 생각하는 것은 관찰 데이터를 사용한 인과 추론에서 더 까다롭고 더 일반적인 작업 중 하나입니다. @sec-dags에서 이에 대해 자세히 논의하고, 우리가 틀렸다고 생각하거나 알고 있는 경우 @sec-sensitivity에서 무엇을 해야 하는지 논의할 것입니다. 또한 필요한 공변량을 잘 측정하지 못했거나 값이 누락된 것에 대해서도 우려해야 합니다(@sec-missingness).
+-   **양성성**: 어떤 가구가 *항상* 또는 *절대* 모기장을 사용하지 않는 경우 양성성 위반이 발생합니다. 이러한 상황은 실제 생활에서 실현 가능합니다. 누군가가 재료에 알레르기가 있거나 한 가지 유형의 모기장이 특정 지역에서 승인되지 않았을 수 있습니다. 언급했듯이 분석에서 조합 교란 변수의 수준 내에서도 양성성이 유지되어야 합니다. 예를 들어, 모기가 그다지 활동적이지 않은 추운 날씨에 경제적 지위가 낮고 건강 상태가 좋은 사람이 비용 때문에 모기장을 전혀 사용하지 않을 가능성이 있습니까?
+-   **일관성**: 이미 잘 정의된 노출 문제의 예를 보았습니다. 즉, "모기장"은 여러 가지를 의미할 수 있습니다. 살충제 처리 모기장을 모기장 없음과 비교한다고 결정했지만 더 많은 것이 필요할 수 있습니다. 제조업체가 중요한가요? 살충제 유형은요? 살충제 양은요? 이러한 각 변형이 잠재적 결과에 미칠 수 있는 영향에 대해 생각해야 합니다. 간섭은 특히 살충제 그물에 대한 모기장 연구에서 실제적인 문제입니다. 특히, 우리는 관찰 단위로 가구를 사용했는데, 이는 일부 지역 간섭을 줄일 수 있습니다. 또한 지리적으로 서로 분산된 가구를 고려할 수도 있습니다.
+:::
+
+## 연구 설계가 인과 추론을 뒷받침하는 경우는 언제인가? {#sec-designs}
+
+교환 가능성, 양성성 및 일관성은 간단한 가정이지만 보았듯이 쉽게 위반될 수 있습니다.
+인과적 방법에 대한 가정이 충족되지 않으면 관찰된 데이터를 사용하여 반사실적 상황을 시뮬레이션하고 관찰된 결과와 비교할 수 없습니다.
+그러나 데이터 수집 전이든 "발견된" 관찰 데이터를 사용하든 신중한 연구 설계를 통해 잠재적인 위반 중 많은 부분을 해결할 수 있습니다.
+
+### 무작위 시험
+
+보았듯이 무작위 시험은 우리가 필요로 하는 인과적 가정을 충족하는 데 있어 훌륭한 속성을 가지고 있습니다.
+극한에서는 노출의 유일한 원인이 무작위화 과정 자체이기 때문에 교환 가능성을 기대합니다.
+무작위이기 때문에 연구 중인 잠재적 결과와 완전히 독립적입니다.
+마찬가지로 무작위화 과정은 아무도 결정론적 노출을 갖지 않는 한 양성성을 보장합니다. 우리는 노출을 배정하는 데 사용하는 확률을 알고 있습니다.
+무작위 시험은 또한 특히 잘 정의된 노출에 대해 일관성을 보장하지는 않지만 도움이 됩니다.
+노출은 관리되기 위해 정의되어야 합니다.
+그러나 간섭은 여전히 발생할 수 있습니다.
+예를 들어, 전염병에 대한 백신을 받도록 일부 사람들을 무작위화하면 백신을 받는 것이 주변 사람들의 감염 가능성을 낮출 수 있습니다. 왜냐하면 노출 확률이 변경되기 때문입니다.
+이는 위 예에서와 같이 클러스터 무작위화 또는 단위 분리와 같은 시험 설계에 추가적인 고려 사항이 필요합니다.
+
+::: callout-note
+노출이 무작위로 할당되는 분석을 *무작위 시험*이라고 합니다.
+때때로 이러한 유형의 무작위 설계를 A/B 테스트라고 합니다. 즉, "A와 B 중 어느 것이 더 나은가?"입니다.
+A/B 테스트는 예를 들어 서로 다른 웹사이트 UI 디자인을 테스트하는 등 업계에서 일반적입니다.
+그러나 본질적으로 무작위 실험이며 이 섹션의 모든 내용이 여전히 적용됩니다.
+:::
+
+그러나 이러한 속성은 *이상적인* 무작위 시험에 대한 것입니다.
+실제 무작위 시험에서는 문제가 발생할 수 있습니다.
+표본 크기가 너무 작으면 우연히 교환 가능성이 실패할 수 있습니다.
+또한 사람들은 반드시 지시받은 대로 행동하지 않습니다. 연구에 참여하는 많은 사람들이 배정된 노출을 따르지 않을 것입니다.
+종종 비준수의 이유는 교환 가능성 문제를 야기합니다.
+마찬가지로 사람들은 비 교환 가능성을 야기하는 방식으로 연구에서 중도 탈락할 수 있습니다.
+@sec-longitudinal 및 @sec-iv-friends에서 이러한 주제와 이에 대해 우리가 할 수 있는 일에 대해 더 자세히 다룰 것입니다.
+노출은 또한 위 수술 예에서와 같이 구현에 의해 또는 참가자에 의해 실제 시험에서 일관성이 없을 수 있습니다.
+예를 들어, 참가자는 하루에 두 알을 복용하도록 배정받았지만 하루에 한 알만 복용하기로 결정할 수 있습니다.
+간섭을 방지하려는 시도도 실패할 수 있습니다. 예를 들어, 잘못된 단위로 무작위화하거나 단위가 예기치 않게 서로 상호 작용하는 경우입니다.
+
+비무작위(관찰) 연구는 이상적인 연구조차도 이러한 보장을 제공하지 않습니다.
+현실적인 무작위 시험과 마찬가지로 관찰 연구는 인과 추론에 필요한 가정을 더 잘 충족하기 위해 신중한 설계와 실행이 필요합니다.
+@tbl-assump-solved는 이상적인 무작위 시험, 현실적인 무작위 시험 및 관찰 연구가 각각 교환 가능성, 양성성 및 일관성 기준을 얼마나 잘 충족하는지 요약합니다.
+
+| 가정                          | 이상적인 무작위 시험 | 현실적인 무작위 시험 | 관찰 연구  |
+|----------------------|-----------------|-----------------|-----------------|
+| 일관성 (잘 정의된 노출) | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+| 일관성 (간섭 없음)       | `r emo::ji("shrug")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+| 양성성                          | `r emo::ji("smile")`   | `r emo::ji("smile")`       | `r emo::ji("shrug")` |
+| 교환 가능성                     | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+
+: 연구 설계로 해결된 가정. `r emo::ji("smile")`은 기본적으로 해결되었음을 나타내고, `r emo::ji("shrug")`는 기본적으로 해결되지는 않았지만 *해결 가능*함을 나타냅니다. {#tbl-assump-solved}
+
+인과 분석의 설계에는 명확한 인과적 질문이 필요합니다.
+그런 다음 이 질문을 @hernan2016using에 의해 정의된 대상 시험 프레임워크를 구성하는 다음 7가지 요소로 구성된 *프로토콜*에 매핑할 수 있습니다.
+
+-   **적격성 기준**: 연구에 누가 또는 무엇을 포함해야 하는가?
+-   **노출 정의**: 적격한 경우 연구 대상 단위는 정확히 어떤 노출을 받게 되는가?
+-   **배정 절차**: 적격한 단위는 어떻게 노출에 배정되는가?
+-   **추적 기간**: 추적은 언제 시작하고 끝나는가?
+-   **결과 정의**: 정확히 어떤 결과를 측정할 것인가?
+-   **관심 있는 인과적 대조**: 어떤 인과적 추정량을 추정할 것인가?
+-   **분석 계획**: 관심 있는 인과적 대조를 추정하기 위해 데이터에 어떤 데이터 조작 및 통계 절차를 적용할 것인가?
+
+@sec-diag(@fig-diagram-4)의 다이어그램을 상기해 보십시오. 인과적 질문을 정의하려고 할 때 이러한 프로토콜 요소 중 일부를 이러한 다이어그램에 매핑할 수 있습니다.
+
+```{r}
+#| echo: false
+#| label: fig-diagram-4-again
+#| fig-height: 2
+#| fig-cap: "인과 분석 용어에 매핑된 예시 다이어그램"
+knitr::include_graphics("../images/sentence-diagram-4.png")
+```
+
+### 대상 시험 모방하기 {#sec-target-trial}
+
+무작위 시험은 인과적 가정을 충족하는 데 도움이 되지만, @sec-causal-question에서 논의한 바와 같이 시간, 비용 및 윤리적 고려 사항을 포함하여 여러 가지 이유로 무작위화할 수 없는 경우가 많습니다.
+또한 무작위 시험이 진행되는 동안 관찰 데이터를 사용하여 더 빨리 예비 답변을 얻을 수도 있습니다.
+
+무작위 시험을 수행하지 않는 경우에도 그러한 시험이 어떻게 진행될지 상상하면 관찰 데이터에서 추론의 질을 향상시킬 수 있습니다.
+이것이 대상 시험 모방의 아이디어입니다. 즉, 대상 시험(실행할 또는 이전에 실행된 무작위 시험)을 지정하고 관찰 데이터를 사용하여 이 설계를 모방하려고 합니다.
+
+설계가 무작위 시험이든 관찰 연구이든 프로토콜을 사용하면 인과적 가정을 충족할 가능성을 높일 수 있습니다.
+@tbl-protocol에서는 이러한 요소를 해결할 수 있는 해당 가정에 매핑합니다.
+
+| 가정                          | 적격성 기준            | 노출 정의             | 배정 절차           | 추적 기간                | 결과 정의              | 인과적 대조                 | 분석 계획                   |
+|---------|---------|---------|---------|---------|---------|---------|---------|
+| 일관성 (잘 정의된 노출) | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 |                                 | `r emo::ji("heavy_check_mark")` |
+| 일관성 (간섭 없음)       | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |
+| 양성성                          | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
+| 교환 가능성                     | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
+
+: 가정을 연구 프로토콜 요소에 매핑하기 {#tbl-protocol}
+
+-   **적격성 기준**: 적격성 기준은 양성성 위반을 방지하는 데 유용하지만(노출 중 하나를 절대 가질 수 없는 사람들을 제외함으로써) 일관성과 교환 가능성에도 도움이 됩니다. 예를 들어, 서로의 결과에 영향을 미칠 가능성이 있는 사람들을 제외하거나 극단적인 특성이 없는 사람들만 포함할 수 있습니다.
+-   **노출 정의**: 정확한 노출 정의는 잘 정의된 노출을 장려하고 간섭 가능성을 더 잘 통제할 수 있으므로 일관성을 개선하는 데 특히 유용합니다. 정확한 노출은 또한 교환 가능성 및 양성성과 관련된 요인을 식별하는 데 도움이 됩니다.
+-   **배정 절차**: 무작위 배정에서는 교환 가능성과 양성성이 충족됩니다. 노출이 어떻게 발생하는지 이해하면 비무작위 연구에서도 교환 가능성과 양성성이 향상됩니다. 보았듯이 간섭을 방지하기 위해 배정 절차를 사용할 수도 있으며, 마찬가지로 배정 메커니즘이 정확해야 하므로 잘 정의된 노출을 개선하는 데 도움이 될 수 있습니다.
+-   **추적 기간**: 추적 기간 정의가 해결하는 문제에 대해서는 @sec-longitudinal에서 자세히 논의하겠지만, 모든 노출 수준에 대해 추적 시간이 비교 가능하도록 보장함으로써 교환 가능성에 도움이 됩니다. 또한 잘 정의된 노출에는 시간 요소가 필요할 수 있으므로 일관성과 밀접하게 관련되어 있습니다.
+-   **결과 정의**: 결과를 정확하게 정의하면 예후 요인을 식별하는 데 도움이 되어 무작위 시험에서는 정밀도를 향상시키고 관찰 연구에서는 교환 가능성을 향상시킵니다.
+-   **관심 있는 인과적 대조**: @sec-estimands에서 보게 되겠지만, 일부 인과적 대조는 다른 것보다 교환 가능성과 양성성에 대해 덜 엄격합니다.
+-   **분석 계획**: 명확한 분석 계획은 관찰 연구에서 인과적 가정을 충족하는 모든 측면을 개선합니다. 예를 들어, 교환 가능성을 충족하기 위해 조정해야 하는 변수에 대해 명확해야 합니다. 또한 인과적 방법의 가정이 충족되었는지 확인할 수는 없지만 탐색적 분석(@sec-data-causal)을 통해 증거를 제공하거나 민감도 분석(@sec-sensitivity)을 통해 위반 결과를 조사할 수 있습니다.
+
+아이스크림 예에 대한 대상 시험과 모방은 어떻게 보일까요?
+필요한 모든 정보가 있는 데이터베이스가 있다고 상상해 보십시오.
+가게에서는 정확히 100g의 초콜릿 또는 바닐라 아이스크림을 제공하며, 둘 다 같은 브랜드입니다.
+이 데이터베이스 덕분에 참가자의 맛 선택과 다양한 기타 특성(위에서 사용한 것과 동일한 도구로 측정)에 대한 정보가 있으며, 문 앞(기준선)과 아이스크림을 먹은 후 30분(추적)에 측정이 이루어집니다.
+@tbl-target-trial에서는 이 질문에 대한 무작위 시험과 이 데이터베이스를 사용하여 이를 모방할 관찰 연구에 대한 몇 가지 아이디어를 간략하게 설명합니다.
+특히, 우리가 모방할 수 있는 대상 시험은 일반적으로 소위 실용적 시험, 즉 *맹검 없는* 시험입니다.
+이는 종종 누군가의 노출을 자신으로부터 맹검하는 것이 불가능하기 때문입니다.
+
+| 프로토콜 단계               | 설명                                                                                                                | 대상 시험                                                                                                                                                                                                                                      | 모방                                                                                                                                                                                                                                                                                                          |
+|-------------|-------------|--------------------|--------------------------|
+| 적격성 기준        | 연구에 누가 포함되어야 하는가?                                                                                       | 포함: 18세~65세. 제외: 유당 불내증 또는 성분에 대한 알레르기 없음, 연구 주간에 가게에 들어옴.                                                                                                             | 대상 시험과 동일.                                                                                                                                                                                                                                                                                              |
+| 노출 정의         | 적격한 경우 연구 대상 단위는 정확히 어떤 노출을 받게 되는가?                                                       | 그릇에 담긴 100g 바닐라 또는 초콜릿 아이스크림, 둘 다 돈 앤 저지 브랜드 아이스크림.                                                                                                                                                                | 대상 시험과 동일.                                                                                                                                                                                                                                                                                              |
+| 배정 절차       | 적격한 단위는 어떻게 노출에 배정되는가?                                                                        | 참가자는 각 맛에 대해 50% 확률로 무작위 배정됩니다. 배정은 비맹검입니다.                                                                                                                                               | 참가자는 데이터와 일치하는 맛, 즉 선택한 맛에 배정됩니다. 무작위화는 기준선 공변량을 사용하여 모방됩니다.                                                                                                                                                                 |
+| 추적 기간            | 추적은 언제 시작하고 끝나는가?                                                                                         | 시작: 적격성 기준이 충족되고 맛이 배정될 때, 종료: 맛 배정 후 30분.                                                                                                                                         | 대상 시험과 동일.                                                                                                                                                                                                                                                                                              |
+| 결과 정의          | 정확히 어떤 결과를 측정할 것인가?                                                                                    | 황금 표준 도구로 측정한 행복(1-10).                                                                                                                                                                                           | 대상 시험과 동일.                                                                                                                                                                                                                                                                                              |
+| 관심 있는 인과적 대조 | 어떤 인과적 추정량을 추정할 것인가?                                                                                   | 평균 치료 효과(ATE).                                                                                                                                                                                                                   | 대상 시험과 동일.                                                                                                                                                                                                                                                                                              |
+| 분석 계획               | 관심 있는 인과적 대조를 추정하기 위해 데이터에 어떤 데이터 조작 및 통계 절차를 적용할 것인가? | ATE는 기준선 행복, 연령, 소득, 교육, 신체 활동, 자가 평가 신체 건강, 자가 평가 정신 건강, 관계의 질 및 맛 선호도에 대해 가중치를 부여한 역확률 가중치를 사용하여 계산됩니다. | ATE는 교란 변수(기준선 행복, 연령, 맛 선호도) 및 추가 기준선 예후 변수(연령, 소득, 교육, 신체 활동, 자가 평가 신체 건강, 자가 평가 정신 건강 및 관계의 질)에 대해 가중치를 부여한 역확률 가중치를 사용하여 계산됩니다. |
+
+: 행복에 대한 아이스크림 맛의 대상 시험 프로토콜 및 대상 시험을 모방하는 관찰 연구에 대한 해당 프로토콜 {#tbl-target-trial}
+
+@tbl-target-trial의 프로토콜은 다양한 방식으로 인과적 가정을 충족하는 데 도움이 됩니다.
+예를 들어, 알레르기나 민감성이 있는 사람이 없으면 양성성을 가질 가능성이 더 높습니다.
+노출이 잘 정의되면 일관성을 가질 가능성이 더 높습니다.
+간섭이 문제라고 생각되면 클러스터 설계를 사용하거나 서로 간섭할 수 있다고 생각되는 사람들을 제외(예: 그룹당 한 명만 포함)하도록 무작위화 절차를 변경할 수도 있습니다.
+또한 IPW를 통해 무작위화를 복제하여 교환 가능성을 해결하려고 합니다.
+이 인과적 질문에서 우리는 맛 선택과 행복의 공통 원인이 기준선 행복, 연령 및 맛 선호도라고 믿습니다.
+행복의 추가 원인은 연령, 소득, 교육, 신체 활동, 자가 평가 신체 건강, 자가 평가 정신 건강 및 관계의 질이라고 생각합니다.
+@sec-dags에서 이 아이디어에 대해 자세히 논의할 것입니다.
+나중에 더 자세히 다룰 몇 가지 다른 요소가 있습니다.
+언급했듯이 @sec-longitudinal에서 추적을, @sec-estimands에서 추정량을 다룰 것이며, 여기에는 무작위 시험에 특정한 추정량이 포함됩니다.
+또한 무작위화하더라도 대상 시험에 IPW를 사용합니다.
+@sec-ci-rct에서 이에 대한 이점을 논의할 것입니다.

@@ -1,0 +1,19 @@
+# 도구 변수와 친구들 {#sec-iv-friends}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("unstarted")
+```
+
+## 도구 변수 분석
+
+```{r}
+rnorm(5)
+```
+
+## 회귀 불연속
+
+## 차이 속 차이

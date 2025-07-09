@@ -1,0 +1,706 @@
+# 인과 추론은 (단지) 통계 문제가 아니다 {#sec-quartets}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("complete")
+```
+
+## 인과적 사중주
+
+이제 이 책에서 지금까지 언급했던 것을 살펴볼 도구가 생겼습니다. 즉, 인과 추론은 (단지) 통계 문제가 아닙니다.
+물론 인과적 질문에 답하기 위해 통계를 사용합니다.
+통계가 기본적이더라도(무작위 설계에서 종종 그렇듯이) 대부분의 질문에 답하는 데 필요합니다.
+그러나 통계만으로는 인과 추론의 모든 가정을 해결할 수 없습니다.
+
+1973년 프랜시스 앤스콤은 **앤스콤의 사중주**라는 네 가지 데이터셋 집합을 소개했습니다.
+이 데이터는 중요한 교훈을 보여주었습니다. 즉, 요약 통계만으로는 데이터를 이해하는 데 도움이 될 수 없으며 데이터를 시각화해야 합니다.
+@fig-anscombe의 플롯에서 각 데이터셋은 거의 동일한 평균 및 상관 관계를 포함하여 놀랍도록 유사한 요약 통계를 갖습니다.
+
+```{r}
+#| label: fig-anscombe
+#| message: false
+#| fig-cap: "앤스콤의 사중주, 거의 동일한 요약 통계를 가진 네 가지 데이터셋 집합. 앤스콤의 요점은 데이터를 이해하려면 시각화해야 한다는 것이었습니다."
+library(quartets)
+
+anscombe_quartet |>
+  ggplot(aes(x, y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~dataset)
+```
+
+**데이터사우루스 12종**은 앤스콤의 사중주를 현대적으로 해석한 것입니다.
+각 데이터셋의 평균, 표준 편차 및 상관 관계는 거의 동일하지만 시각화는 매우 다릅니다.
+
+```{r}
+library(datasauRus)
+
+# 각 데이터셋에서 거의 동일한 상관 관계
+datasaurus_dozen |>
+  group_by(dataset) |>
+  summarize(cor = round(cor(x, y), 2))
+```
+
+```{r}
+#| label: fig-datasaurus
+#| message: false
+#| fig-cap: "데이터사우루스 12종, 거의 동일한 요약 통계를 가진 데이터셋 집합. 데이터사우루스 12종은 앤스콤의 사중주를 현대적으로 해석한 것입니다. 실제로는 13종이지만 누가 세고 있겠습니까?"
+#| fig-height: 8
+datasaurus_dozen |>
+  ggplot(aes(x, y)) +
+  geom_point() +
+  facet_wrap(~dataset)
+```
+
+그러나 인과 추론에서는 시각화만으로는 인과 효과를 풀기에 충분하지 않습니다.
+@sec-counterfactuals 및 @sec-dags에서 보았듯이 상관 관계에서 인과 관계를 추론하려면 배경 지식에 기반한 검증 불가능한 가정이 필요합니다[@onthei1999].
+
+앤스콤의 사중주에서 영감을 받은 **인과적 사중주**는 앤스콤의 사중주 및 데이터사우루스 12종과 많은 동일한 속성을 갖습니다. 즉, 데이터셋의 변수에 대한 수치적 요약이 동일합니다[@dagostinomcgowan2023].
+이러한 데이터와 달리 인과적 사중주는 서로 *모양도* 동일합니다.
+차이점은 각 데이터셋을 생성한 인과 구조입니다.
+@fig-causal_quartet_hidden은 `exposure`와 `outcome` 간의 관찰 관계가 거의 동일한 네 가지 데이터셋을 보여줍니다.
+
+```{r}
+#| label: fig-causal_quartet_hidden
+#| message: false
+#| fig-cap: "인과적 사중주, 거의 동일한 요약 통계와 시각화를 가진 네 가지 데이터셋. 각 데이터셋의 인과 구조는 다르며 데이터만으로는 어떤 것이 어떤 것인지 알 수 없습니다."
+causal_quartet |>
+  # 데이터셋 이름 숨기기
+  mutate(dataset = as.integer(factor(dataset))) |>
+  group_by(dataset) |>
+  mutate(exposure = scale(exposure), outcome = scale(outcome)) |>
+  ungroup() |>
+  ggplot(aes(exposure, outcome)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~dataset)
+```
+
+각 데이터셋에 대한 질문은 세 번째 변수인 `covariate`를 조정할지 여부입니다.
+`covariate`는 교란 변수인가요?
+매개 변수인가요?
+충돌자인가요?
+데이터를 사용하여 이 문제를 해결할 수는 없습니다.
+@tbl-quartet_lm에서는 어떤 효과가 올바른지 명확하지 않습니다.
+마찬가지로 `exposure`와 `covariate` 간의 상관 관계도 도움이 되지 않습니다. 모두 동일하기 때문입니다!
+
+```{r}
+#| label: tbl-quartet_lm
+#| code-fold: true
+#| tbl-cap: "`covariate` 조정 여부에 따른 `exposure`가 `outcome`에 미치는 추정 효과를 포함하는 인과적 사중주. 조정되지 않은 추정치는 네 가지 데이터셋 모두에 대해 동일하며 `exposure`와 `covariate` 간의 상관 관계도 마찬가지입니다. 조정된 추정치는 다양합니다. 배경 지식 없이는 어떤 것이 올바른지 명확하지 않습니다."
+library(gt)
+effects <- causal_quartet |>
+  nest_by(dataset = as.integer(factor(dataset))) |>
+  mutate(
+    ate_x = coef(lm(outcome ~ exposure, data = data))[2],
+    ate_xz = coef(lm(outcome ~ exposure + covariate, data = data))[2],
+    cor = cor(data$exposure, data$covariate)
+  ) |>
+  select(-data, dataset) |>
+  ungroup()
+
+gt(effects) |>
+  fmt_number(columns = -dataset) |>
+  cols_label(
+    dataset = "데이터셋",
+    ate_x = md("`covariate`를 조정하지 않음"),
+    ate_xz = md("`covariate`를 조정함"),
+    cor = md("`exposure`와 `covariate`의 상관 관계")
+  )
+```
+
+::: callout-warning
+## 10% 규칙
+
+10% 규칙은 역학 및 기타 분야에서 변수가 교란 변수인지 여부를 결정하는 일반적인 기법입니다.
+10% 규칙은 변수를 모델에 포함하면 효과 추정치가 10% 이상 변경되는 경우 해당 변수를 모델에 포함해야 한다고 말합니다.
+문제는 작동하지 않는다는 것입니다.
+인과적 사중주의 *모든* 예는 10% 이상의 변화를 유발합니다.
+알다시피 이것은 일부 데이터셋에서 잘못된 답으로 이어집니다.
+*10% 미만*일 때 변수를 *제외*하는 역 기법조차도 많은 사소한 교란 효과가 더 큰 편향으로 이어질 수 있기 때문에 문제를 일으킬 수 있습니다.
+
+```{r}
+#| label: tbl-quartet_ten_percent
+#| code-fold: true
+#| tbl-cap: "모델에 `covariate`를 포함할 때 `exposure`에 대한 계수의 백분율 변화."
+effects |>
+  mutate(percent_change = scales::percent((ate_x - ate_xz) / ate_x)) |>
+  select(dataset, percent_change) |>
+  gt() |>
+  cols_label(
+    dataset = "데이터셋",
+    percent_change = "백분율 변화"
+  )
+```
+:::
+
+`covariate`와 `exposure` 간의 시각적 관계는 데이터셋 간에 동일하지 않지만 모두 동일한 상관 관계를 갖습니다.
+@fig-causal_quartet_covariate에서 둘 사이의 표준화된 관계는 동일합니다.
+
+```{r}
+causal_quartet |>
+  # 데이터셋 이름 숨기기
+  mutate(dataset = as.integer(factor(dataset))) |>
+  group_by(dataset) |>
+  summarize(cor = round(cor(covariate, exposure), 2))
+```
+
+```{r}
+#| label: fig-causal_quartet_covariate
+#| message: false
+#| fig-cap: "`exposure`와 `covariate` 간의 조정된 관계. `covariate`가 교란 변수, 매개 변수 또는 충돌자인지 결정하기에 충분한 정보가 여전히 없습니다."
+causal_quartet |>
+  # 데이터셋 이름 숨기기
+  mutate(dataset = as.integer(factor(dataset))) |>
+  group_by(dataset) |>
+  mutate(covariate = scale(covariate), exposure = scale(exposure)) |>
+  ungroup() |>
+  ggplot(aes(covariate, exposure)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~dataset)
+```
+
+::: callout-tip
+## 왜 계수를 표준화했습니까?
+
+`scale()`에 구현된 것처럼 평균이 0이고 표준 편차가 1인 숫자 변수를 표준화하는 것은 통계에서 일반적인 기법입니다.
+다양한 이유로 유용하지만 여기서는 각 데이터셋에서 `covariate`와 `exposure` 간의 동일한 상관 관계를 강조하기 위해 변수를 조정하기로 결정했습니다.
+변수를 조정하지 않으면 상관 관계는 동일하지만 표준 편차가 다르기 때문에 플롯이 다르게 보일 것입니다.
+OLS 모델의 베타 계수는 공분산과 변수의 표준 편차에 대한 정보로 계산되므로 조정하면 계수가 피어슨 상관 관계와 동일해집니다.
+
+@fig-causal_quartet_covariate_unscaled는 `covariate`와 `exposure` 간의 조정되지 않은 관계를 보여줍니다.
+이제 몇 가지 차이점이 보입니다. 즉, 데이터셋 4는 `covariate`에 더 많은 분산이 있는 것처럼 보이지만 이는 실행 가능한 정보가 아닙니다.
+실제로 데이터 생성 과정의 수학적 인공물입니다.
+
+```{r}
+#| label: fig-causal_quartet_covariate_unscaled
+#| message: false
+#| fig-cap: "@fig-causal_quartet_covariate, 조정되지 않음"
+causal_quartet |>
+  # 데이터셋 이름 숨기기
+  mutate(dataset = as.integer(factor(dataset))) |>
+  ggplot(aes(covariate, exposure)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~dataset)
+```
+:::
+
+데이터셋의 레이블을 공개하여 데이터셋의 인과 구조를 나타내 보겠습니다.
+@fig-causal_quartet에서 `covariate`는 각 데이터셋에서 다른 역할을 합니다.
+1과 4에서는 충돌자입니다(조정해서는 *안 됩니다*).
+2에서는 교란 변수입니다(조정해야 *합니다*).
+3에서는 매개 변수입니다(연구 질문에 따라 다름).
+
+```{r}
+#| label: fig-causal_quartet
+#| message: false
+#| fig-cap: "인과적 사중주, 공개됨. 첫 번째와 마지막 데이터셋은 충돌자 편향 유형입니다. `covariate`를 통제해서는 *안 됩니다*. 두 번째 데이터셋에서 `covariate`는 교란 변수이므로 통제해야 *합니다*. 세 번째 데이터셋에서 `covariate`는 매개 변수이므로 직접 효과를 원하면 통제해야 하지만 전체 효과를 원하면 통제해서는 안 됩니다."
+causal_quartet |>
+  ggplot(aes(exposure, outcome)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~dataset)
+```
+
+데이터가 이러한 인과 구조를 구별할 수 없다면 무엇을 할 수 있을까요?
+가장 좋은 답은 데이터 생성 메커니즘을 잘 이해하는 것입니다.
+@fig-quartet-dag에서는 각 데이터셋에 대한 DAG를 보여줍니다.
+각 데이터셋에 대한 DAG를 컴파일하면 DAG가 올바르다고 가정하고 올바른 조정 집합에 대해 DAG를 쿼리하기만 하면 됩니다.
+
+```{r}
+#| label: fig-quartet-dag
+#| fig-width: 3
+#| fig-height: 3.5
+#| code-fold: true
+#| message: false
+#| warning: false
+#| layout-ncol: 2
+#| fig-cap: "인과적 사중주에 대한 DAG."
+#| fig-subcap:
+#|   - "`covariate` (c)가 충돌자인 데이터셋 1에 대한 DAG. `exposure` (e)와 `outcome` (o)의 후손인 `covariate`를 조정해서는 *안 됩니다*."
+#|   - "`covariate` (c)가 교란 변수인 데이터셋 2에 대한 DAG. `covariate`는 `exposure` (e)와 `outcome` (o)의 공통 원인이며 백도어 경로를 나타내므로 올바른 답을 얻으려면 조정해야 *합니다*."
+#|   - "`covariate` (c)가 매개 변수인 데이터셋 3에 대한 DAG. `covariate`는 `exposure` (e)의 후손이고 `outcome` (o)의 원인입니다. `covariate`를 통한 경로는 간접 경로이고 `exposure`를 통한 경로는 직접 경로입니다. 직접 효과를 원하면 `covariate`를 조정해야 하지만 전체 효과를 원하면 조정해서는 안 됩니다."
+#|   - "M-편향을 통해 `covariate` (c)가 충돌자인 데이터셋 4에 대한 DAG. `covariate`가 `outcome` (o)과 `exposure` (e) 모두 이전에 발생하지만 여전히 충돌자입니다. 특히 측정되지 않은 `u1`과 `u2`를 통한 편향을 통제할 수 없으므로 `covariate`를 조정해서는 *안 됩니다*."
+library(ggdag)
+
+coords <- list(
+  x = c(X = 1, Z = 3, Y = 2),
+  y = c(X = 1, Z = 1.1, Y = 1)
+)
+
+d_coll <- dagify(
+  Z ~ X + Y,
+  Y ~ X,
+  exposure = "X",
+  outcome = "Y",
+  labels = c(X = "e", Y = "o", Z = "c"),
+  coords = coords
+)
+coords <- list(
+  x = c(X = 2, Z = 1, Y = 3),
+  y = c(X = 1, Z = 1.1, Y = 1)
+)
+
+d_conf <- dagify(
+  X ~ Z,
+  Y ~ X + Z,
+  exposure = "X",
+  outcome = "Y",
+  labels = c(X = "e", Y = "o", Z = "c"),
+  coords = coords
+)
+
+coords <- list(
+  x = c(X = 1, Z = 2, Y = 3),
+  y = c(X = 1, Z = 1.1, Y = 1)
+)
+
+d_med <- dagify(
+  Z ~ X,
+  Y ~ Z,
+  exposure = "X",
+  outcome = "Y",
+  labels = c(X = "e", Y = "o", Z = "c"),
+  coords = coords
+)
+
+coords <- list(
+  x = c(u1 = 1, u2 = 2, X = 3, Z = 3, Y = 5),
+  y = c(u1 = 2, u2 = 4, X = 1, Z = 2, Y = 2)
+)
+
+d_mbias <- dagify(
+  Z ~ u1 + u2,
+  X ~ u1,
+  Y ~ X + u2,
+  exposure = "X",
+  outcome = "Y",
+  labels = c(X = "e", Y = "o", Z = "c"),
+  coords = coords
+)
+
+p_coll <- d_coll |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "bottom") +
+  ggtitle("(1) 충돌자") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
+
+
+p_conf <- d_conf |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "bottom") +
+  ggtitle("(2) 교란 변수") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
+
+p_med <- d_med |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "bottom") +
+  ggtitle("(3) 매개 변수") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
+
+
+p_m_bias <- d_mbias |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  geom_dag_text(
+    aes(label = name),
+    data = \(.df) filter(.df, name %in% c("u1", "u2"))
+  ) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  ggtitle("(4) M-편향") +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
+
+
+p_coll
+p_conf
+p_med
+p_m_bias
+```
+
+DAG의 데이터 생성 메커니즘[^06-not-just-a-stats-problem-1]은 데이터셋을 생성한 것과 일치하므로 DAG를 사용하여 올바른 효과를 결정할 수 있습니다. 즉, 데이터셋 1과 4에서는 조정되지 않고 데이터셋 2에서는 조정됩니다.
+데이터셋 3의 경우 원하는 매개 효과에 따라 다릅니다. 즉, 직접 효과에는 조정되고 전체 효과에는 조정되지 않습니다.
+
+[^06-not-just-a-stats-problem-1]: 데이터셋을 생성한 모델에 대해서는 @dagostinomcgowan2023을 참조하십시오.
+
+```{r}
+#| label: tbl-quartets_true_effects
+#| echo: false
+#| tbl-cap: "각 데이터셋의 데이터 생성 메커니즘 및 실제 인과 효과. 때로는 조정되지 않은 효과가 동일하고 때로는 메커니즘과 질문에 따라 동일하지 않습니다."
+tibble::tribble(
+  ~`데이터 생성 메커니즘`, ~`올바른 인과 모델`, ~`올바른 인과 효과`,
+  "(1) 충돌자", "outcome ~ exposure", "1",
+  "(2) 교란 변수", "outcome ~ exposure; covariate", "0.5",
+  "(3) 매개 변수", "직접 효과: outcome ~ exposure; covariate, 전체 효과: outcome ~ exposure", "직접 효과: 0, 전체 효과: 1",
+  "(4) M-편향", "outcome ~ exposure", "1"
+) |>
+  gt()
+```
+
+## 인과 구조의 휴리스틱으로서의 시간
+
+DAG의 유용성에 대해 확신을 드렸기를 바랍니다.
+그러나 올바른 DAG를 구성하는 것은 어려운 일입니다.
+인과적 사중주에서는 데이터를 생성했기 때문에 DAG를 알고 있었습니다.
+실제 생활에서는 후보 인과 구조를 조립하기 위해 배경 지식이 필요합니다.
+일부 질문의 경우 그러한 배경 지식을 사용할 수 없습니다.
+다른 질문의 경우 @fig-feedback-loop에서와 같이 변수가 서로 상호 진화할 때 특히 인과 구조의 복잡성에 대해 걱정할 수 있습니다.
+
+DAG가 불완전하거나 불확실할 때 특히 유용한 휴리스틱은 시간입니다.
+인과 관계는 시간적이므로 원인은 결과보다 먼저 발생해야 합니다.
+교란 변수를 조정해야 하는지 결정하는 문제 중 많은 부분은 단순히 변수를 시간순으로 정렬함으로써 해결됩니다.
+시간 순서는 DAG에서 시각화할 수 있는 가장 중요한 가정 중 하나이므로 DAG의 완전성에 관계없이 시작하기에 좋은 곳입니다.
+
+@fig-quartets-time-ordered-1을 고려해 보십시오. 즉, 공변량이 기준선과 추적 관찰 모두에서 측정되는 충돌자 DAG의 시간 순서 버전입니다.
+원래 DAG는 실제로 공변량이 결과와 노출 모두의 후손인 *두 번째* 측정을 나타냅니다.
+그러나 연구 시작 시점에 측정된 동일한 공변량을 통제하면(@fig-quartets-time-ordered-2) 아직 발생하지 않았으므로 추적 관찰 시 결과의 후손이 될 수 없습니다.
+따라서 공변량의 인과 구조에 대한 배경 지식이 없는 경우 시간 순서를 방어적인 조치로 사용하여 편향을 피할 수 있습니다.
+결과보다 먼저 발생하는 변수만 통제하십시오.
+
+```{r}
+#| label: fig-quartets-time-ordered
+#| fig-cap: "각 변수가 두 번 측정되는 충돌자 DAG의 시간 순서 버전. 추적 관찰 시 `covariate`를 통제하면 충돌자이지만 기준선에서 `covariate`를 통제하면 그렇지 않습니다."
+#| fig-subcap:
+#|   - "충돌자 DAG의 시간 순서 버전에서 추적 관찰 시 공변량을 통제하면 편향이 유발됩니다."
+#|   - "반대로 기준선에서 측정된 공변량을 통제하면 결과의 후손이 아니므로 편향이 유발되지 않습니다."
+#| layout-ncol: 2
+#| code-fold: true
+#| fig-width: 4
+#| fig-height: 3.75
+coords <- list(
+  x = c(
+    X_0 = 1, X_1 = 2, Z_1 = 2, Y_1 = 1.9, X_2 = 3, Y_2 = 2.9, Z_2 = 3,
+    X_3 = 4, Y_3 = 3.9, Z_3 = 4
+  ),
+  y = c(
+    X_0 = 1, Y_0 = 1.05,
+    X_1 = 1, Z_1 = 1.1, Y_1 = 1.05,
+    X_2 = 1, Z_2 = 1.1, Y_2 = 1.05,
+    X_3 = 1, Z_3 = 1.1, Y_3 = 1.05
+  )
+)
+d_coll <- dagify(
+  Y_2 ~ X_1,
+  Y_3 ~ X_2,
+  X_2 ~ X_1,
+  Z_2 ~ X_1 + Y_2,
+  Z_3 ~ X_2 + Y_3 + Z_2,
+  exposure = "X_2",
+  outcome = "Y_3",
+  labels = c(
+    X_0 = "e0",
+    X_1 = "e1",
+    X_2 = "e2",
+    Y_2 = "o1",
+    Y_3 = "o2",
+    Z_2 = "c1",
+    Z_3 = "c2"
+  ),
+  coords = coords
+)
+
+d_coll |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(name == "Z_3", "공변량\n(추적 관찰)", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "bottom") +
+  geom_vline(xintercept = c(2.6, 3.25, 3.6, 4.25), lty = 2, color = "grey60") +
+  annotate("label", x = 2.925, y = 0.97, label = "기준선", color = "grey50") +
+  annotate("label", x = 3.925, y = 0.97, label = "추적 관찰", color = "grey50") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량\n(추적 관찰)", na.value = "grey70")
+
+d_coll |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(name == "Z_2", "공변량\n(기준선)", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "bottom") +
+  geom_vline(xintercept = c(2.6, 3.25, 3.6, 4.25), lty = 2, color = "grey60") +
+  annotate("label", x = 2.925, y = 0.97, label = "기준선", color = "grey50") +
+  annotate("label", x = 3.925, y = 0.97, label = "추적 관찰", color = "grey50") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "공변량\n(기준선)", na.value = "grey70")
+```
+
+::: callout-warning
+시간 순서 휴리스틱은 간단한 규칙에 의존합니다. 즉, 미래를 조정하지 마십시오.
+:::
+
+사중주 패키지의 `causal_quartet_time`에는 네 가지 데이터셋에 대한 각 변수의 시간 순서 측정값이 있습니다.
+각각 `*_baseline` 및 `*_follow-up` 측정값이 있습니다.
+
+```{r}
+causal_quartet_time
+```
+
+`outcome_followup ~ exposure_baseline + covariate_baseline` 공식을 사용하면 네 가지 데이터셋 중 세 가지에 대해 작동합니다.
+`covariate_baseline`이 두 번째 데이터셋의 조정 집합에만 있지만 다른 두 데이터셋에서는 충돌자가 아니므로 문제가 되지 않습니다.
+
+```{r}
+#| label: tbl-quartet_time_adjusted
+#| code-fold: true
+#| tbl-cap: "각 데이터셋에서 `exposure_baseline`이 `outcome_followup`에 미치는 조정된 효과. `covariate_baseline`에 대해 조정된 효과는 네 가지 데이터셋 중 세 가지에 대해 정확합니다."
+causal_quartet_time |>
+  nest_by(dataset) |>
+  mutate(
+    adjusted_effect =
+      coef(
+        lm(
+          outcome_followup ~ exposure_baseline + covariate_baseline,
+          data = data
+        )
+      )[2]
+  ) |>
+  bind_cols(tibble(truth = c(1, 0.5, 1, 1))) |>
+  select(-data, dataset) |>
+  ungroup() |>
+  set_names(c("데이터셋", "조정된 효과", "실제 값")) |>
+  gt() |>
+  fmt_number(columns = -데이터셋)
+```
+
+실패하는 곳은 데이터셋 4, 즉 M-편향 예입니다.
+이 경우 `covariate_baseline`은 노출과 결과 모두 이전에 충돌이 발생하기 때문에 여전히 충돌자입니다.
+그러나 @sec-m-bias에서 논의한 바와 같이 어떤 것이 진정으로 M-편향인지 의심스러우면 조정하지 않는 것보다 조정하는 것이 좋습니다.
+교란 편향이 더 나쁜 경향이 있으며 의미 있는 M-편향은 실제 생활에서 드물 것입니다.
+실제 인과 구조가 완벽한 M-편향에서 벗어날수록 편향의 심각성은 감소하는 경향이 있습니다.
+따라서 명확하게 M-편향이라면 변수를 조정하지 마십시오.
+명확하지 않으면 조정하십시오.
+
+::: callout-tip
+충돌자를 조정함으로써 유발되는 편향은 특정 상황에서는 차단할 수 있다는 점도 기억하십시오. 왜냐하면 충돌자 편향은 단지 또 다른 열린 경로이기 때문입니다.
+`u1`과 `u2`가 있다면 잠재적인 충돌자 편향을 차단하면서 `covariate`를 통제할 수 있습니다.
+즉, 때로는 경로를 열면 다시 닫을 수 있습니다.
+:::
+
+## 인과 모델과 예측 모델, 재검토 {#sec-causal-pred-revisit}
+
+### 예측 지표
+
+예측 측정값도 네 가지 데이터셋을 구별하지 못합니다.
+@tbl-quartet_time_predictive에서는 모델에 `covariate`를 추가할 때 몇 가지 표준 예측 지표의 차이를 보여줍니다.
+각 데이터셋에서 `covariate`는 결과에 대한 연관 정보를 포함하므로 모델에 정보를 추가합니다[^06-not-just-a-stats-problem-2].
+RMSE는 감소하여 더 나은 적합도를 나타내고 R^2^는 증가하여 더 많은 분산이 설명되었음을 보여줍니다.
+`covariate`의 계수는 그것이 포함하는 `outcome`에 대한 정보를 나타냅니다. 즉, 해당 정보가 인과 구조의 어디에서 비롯되었는지는 알려주지 않습니다.
+상관 관계는 인과 관계가 아니며 예측도 마찬가지입니다.
+충돌자 데이터셋의 경우 노출과 결과 이후에 발생하므로 예측 시점에 `covariate`를 갖지 않으므로 유용한 예측 도구조차 아닙니다.
+
+[^06-not-just-a-stats-problem-2]: M-편향의 경우 모델에 `covariate`를 포함하는 것은 결과의 원인 중 하나인 `u2`에 대한 정보를 포함하는 한 유용합니다.
+    이 경우 데이터 생성 메커니즘은 `covariate`가 `u2`보다 `u1`에서 더 많은 정보를 포함하도록 되어 있으므로 예측 가치를 그다지 많이 추가하지 않습니다.
+    무작위 노이즈는 `u2`가 설명하지 않는 대부분을 나타냅니다.
+
+```{r}
+#| label: tbl-quartet_time_predictive
+#| code-fold: true
+#| tbl-cap: "`covariate` 유무에 따른 각 데이터셋의 `outcome`에 대한 예측 지표 차이. 각 데이터셋에서 `covariate`는 모델에 정보를 추가하지만 이는 적절한 인과 모델에 대한 지침을 거의 제공하지 않습니다."
+
+get_rmse <- function(data, model) {
+  sqrt(mean((data$outcome - predict(model, data))^2))
+}
+
+get_r_squared <- function(model) {
+  summary(model)$r.squared
+}
+
+causal_quartet |>
+  nest_by(dataset) |>
+  mutate(
+    rmse1 = get_rmse(
+      data,
+      lm(outcome ~ exposure, data = data)
+    ),
+    rmse2 =
+      get_rmse(
+        data,
+        lm(outcome ~ exposure + covariate, data = data)
+      ),
+    rmse_diff = rmse2 - rmse1,
+    r_squared1 = get_r_squared(lm(outcome ~ exposure, data = data)),
+    r_squared2 = get_r_squared(lm(outcome ~ exposure + covariate, data = data)),
+    r_squared_diff = r_squared2 - r_squared1
+  ) |>
+  select(dataset, rmse = rmse_diff, r_squared = r_squared_diff) |>
+  ungroup() |>
+  gt() |>
+  fmt_number() |>
+  cols_label(
+    dataset = "데이터셋",
+    rmse = "RMSE",
+    r_squared = md("R^2^")
+  )
+```
+
+### 표 2 오류[^06-not-just-a-stats-problem-3]
+
+[^06-not-just-a-stats-problem-3]: 기억하시겠지만, 표 2 오류는 건강 연구 저널에서 논문의 두 번째 표에 완전한 모델 계수 집합을 포함하는 경향에서 이름이 붙여졌습니다.
+    표 2 오류에 대한 자세한 논의는 @Westreich2013을 참조하십시오.
+
+관련하여 관심 있는 원인이 아닌 *다른* 변수에 대한 모델 계수는 해석하기 어려울 수 있습니다.
+`outcome ~ exposure + covariate` 모델에서 `exposure`뿐만 아니라 `covariate`의 계수도 제시하고 싶을 수 있습니다.
+@sec-pred-or-explain에서 논의한 바와 같이 문제는 `covariate`가 `outcome`에 미치는 영향에 대한 인과 구조가 `exposure`가 `outcome`에 미치는 영향에 대한 인과 구조와 다를 수 있다는 것입니다.
+다른 변수가 있는 사중주 DAG의 변형을 고려해 보겠습니다.
+
+먼저 교란 변수 DAG부터 시작하겠습니다.
+@fig-quartet_confounder에서 `covariate`가 교란 변수임을 알 수 있습니다.
+이 DAG가 `outcome`에 대한 완전한 인과 구조를 나타낸다면 모델 `outcome ~ exposure + covariate`는 모델링 과정의 다른 가정을 충족했다고 가정하고 `exposure`에 대한 `outcome`에 대한 편향되지 않은 추정치를 제공합니다.
+`covariate`가 `outcome`에 미치는 영향에 대한 조정 집합은 비어 있고 `exposure`는 충돌자가 아니므로 통제해도 편향이 유발되지 않습니다[^06-not-just-a-stats-problem-4].
+하지만 다시 보십시오.
+`exposure`는 `covariate`가 `outcome`에 미치는 영향에 대한 매개 변수입니다. 즉, 전체 효과 중 일부는 `outcome`을 통해 매개되는 반면 `covariate`가 `outcome`에 미치는 직접적인 영향도 있습니다. 두 추정치 모두 편향되지 않았지만 *유형*이 다른 추정치입니다. `exposure`가 `outcome`에 미치는 영향은 해당 관계의 *전체 효과*인 반면, `covariate`가 `outcome`에 미치는 영향은 *직접 효과*입니다.
+
+[^06-not-just-a-stats-problem-4]: 또한 OLS는 *축소 가능* 효과를 생성합니다.
+    오즈비 및 위험비와 같은 다른 효과는 *축소 불가능*합니다. 즉, 교란이 없더라도 조건부 오즈비 또는 위험비가 주변 버전과 다를 수 있습니다.
+    @sec-non-collapse에서 축소 불가능성에 대해 논의할 것입니다.
+
+```{r}
+#| label: fig-quartet_confounder
+#| code-fold: true
+#| fig-cap: "`covariate`가 교란 변수인 데이터셋 2에 대한 DAG. 자세히 보면 `covariate`가 `outcome`에 미치는 영향의 관점에서 `exposure`가 *매개 변수*임을 알 수 있습니다."
+#| fig-width: 3
+#| fig-height: 2.75
+p_conf +
+  ggtitle(NULL)
+```
+
+`covariate`와 `outcome`의 공통 원인인 `q`를 추가하면 어떻게 될까요?
+@fig-quartet_confounder_q에서 조정 집합은 여전히 다릅니다.
+`outcome ~ exposure`에 대한 조정 집합은 여전히 동일합니다. 즉, `{covariate}`입니다.
+`outcome ~ covariate` 조정 집합은 `{q}`입니다.
+즉, `q`는 `covariate`가 `outcome`에 미치는 영향에 대한 교란 변수입니다.
+모델 `outcome ~ exposure + covariate`는 `exposure`에 대한 올바른 효과를 생성하지만 `covariate`의 직접적인 효과에 대해서는 그렇지 않습니다.
+이제 `covariate`가 `exposure`와 다른 유형의 질문에 답할 뿐만 아니라 `q`의 부재로 인해 편향되는 상황이 발생했습니다.
+
+```{r}
+#| label: fig-quartet_confounder_q
+#| code-fold: true
+#| fig-cap: "`covariate`가 교란 변수인 데이터셋 2에 대한 DAG 수정. 이제 `covariate`와 `outcome` 간의 관계는 `exposure`가 `outcome`에 미치는 편향되지 않은 효과를 계산하는 데 필요하지 않은 변수인 `q`에 의해 교란됩니다."
+#| fig-width: 3.5
+#| fig-height: 3
+coords <- list(
+  x = c(X = 1.75, Z = 1, Y = 3, Q = 0),
+  y = c(X = 1.1, Z = 1.5, Y = 1, Q = 1)
+)
+
+d_conf2 <- dagify(
+  X ~ Z,
+  Y ~ X + Z + Q,
+  Z ~ Q,
+  exposure = "X",
+  outcome = "Y",
+  labels = c(X = "e", Y = "o", Z = "c", Q = "q"),
+  coords = coords
+)
+
+p_conf2 <- d_conf2 |>
+  tidy_dagitty() |>
+  mutate(covariate = if_else(name == "Q", "공변량", NA_character_)) |>
+  ggplot(
+    aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_dag_point(aes(color = covariate)) +
+  geom_dag_edges(edge_color = "grey70") +
+  geom_dag_text(aes(label = label)) +
+  theme_dag() +
+  coord_cartesian(clip = "off") +
+  theme(legend.position = "none") +
+  guides(color = guide_legend(
+    title = NULL,
+    keywidth = unit(1.4, "mm"),
+    override.aes = list(size = 3.4, shape = 15)
+  )) +
+  scale_color_discrete(breaks = "교란 변수", na.value = "grey70")
+
+p_conf2
+```
+
+단일 인과 모델을 지정하는 것은 매우 어렵습니다.
+단일 모델이 여러 인과적 질문에 답하도록 하는 것은 기하급수적으로 더 어렵습니다.
+그렇게 하려면 두 질문 모두에 대해 동일한 조사를 적용하십시오[^06-not-just-a-stats-problem-5].
+두 질문 모두에 답하는 단일 조정 집합을 가질 수 있습니까?
+그렇지 않은 경우 두 가지 모델을 지정하거나 질문 중 하나를 포기하십시오.
+그렇다면 추정치가 올바른 질문에 답하는지 확인해야 합니다.
+@sec-interaction에서 *공동* 인과 효과에 대해서도 논의할 것입니다.
+
+[^06-not-just-a-stats-problem-5]: *평상시* 추론을 하는 사람들은 이와 같이 단일 모델에서 *많은* 효과를 해석하겠지만, 우리는 이것을 허세의 행위로 간주합니다.
+
+불행히도 여러 노출 및 효과 유형에 대한 조정 집합을 감지하는 알고리즘은 잘 개발되지 않았으므로 조정 집합의 교차점을 결정하는 데 인과 구조에 대한 지식에 의존해야 할 수 있습니다.

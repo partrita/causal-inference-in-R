@@ -1,0 +1,306 @@
+# 성향 점수 모델 평가하기 {#sec-eval-ps-model}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("polishing")
+```
+
+성향 점수는 본질적으로 *균형* 점수입니다.
+목표는 교란 변수에 걸쳐 노출 그룹을 *균형* 있게 만드는 것입니다.
+
+## 표준화된 평균 차이 계산하기
+
+균형을 평가하는 한 가지 방법은 *표준화된 평균 차이*입니다.
+이 측정값은 교란 변수의 평균값이 노출 그룹 간에 균형을 이루는지 평가하는 데 도움이 됩니다.
+예를 들어, 연속형 교란 변수 $Z$가 있고, $\bar{z}_{노출됨} = \frac{\sum Z_i(X_i)}{\sum X_i}$가 노출된 그룹의 $Z$ 평균값이고, $\bar{z}_{노출되지 않음} = \frac{\sum Z_i(1-X_i)}{\sum 1-X_i}$가 노출되지 않은 그룹의 $Z$ 평균값이며, $s_{노출됨}$이 노출된 그룹의 $Z$ 표본 표준 편차이고 $s_{노출되지 않음}$이 노출되지 않은 그룹의 $Z$ 표본 표준 편차이면 표준화된 평균 차이는 다음과 같이 표현할 수 있습니다.
+
+$$
+d =\frac{\bar{z}_{노출됨}-\bar{z}_{노출되지 않음}}{\frac{\sqrt{s^2_{노출됨}+s^2_{노출되지 않음}}}{2}}
+$$ $Z$가 이진(두 수준만 있는 교란 변수)인 경우 $\bar{z}$는 각 그룹의 표본 비율(예: $\hat{p}_{노출됨}$ 또는 $\hat{p}_{노출되지 않음}$)로 대체되고 $s^2=\hat{p}(1-\hat{p})$입니다.
+$Z$가 두 개 이상의 범주를 가진 범주형인 경우 $\bar{z}$는 그룹 내 각 범주 수준의 비율 벡터이고 분모는 다항 공분산 행렬(아래 $S$)이며, 위는 다음과 같이 더 일반적으로 작성할 수 있습니다.
+
+$$
+d = \sqrt{(\bar{z}_{노출됨} - \bar{z}_{노출되지 않음})^TS^{-1}(\bar{z}_{노출됨} - \bar{z}_{노출되지 않음})}
+$$
+
+종종 전체, 조정되지 않은 데이터셋의 각 교란 변수에 대해 표준화된 평균 차이를 계산한 다음 이를 *조정된* 표준화된 평균 차이와 비교합니다.
+성향 점수가 *매칭*을 사용하여 통합된 경우 이 조정된 표준화된 평균 차이는 위와 정확히 동일한 방정식을 사용하지만 고려되는 표본을 일치된 항목으로만 제한합니다.
+성향 점수가 *가중치 부여*를 사용하여 통합된 경우 이 조정된 표준화된 평균 차이는 구성된 성향 점수 가중치를 사용하여 위의 각 구성 요소에 *가중치*를 부여합니다.
+
+R에서 `{halfmoon}` 패키지에는 데이터셋에 대해 이를 계산하는 `tidy_smd` 함수가 있습니다.
+
+```{r}
+#| eval: false
+library(halfmoon)
+
+smds <- tidy_smd(
+  df,
+  .vars = c(confounder_1, confounder_2, ...),
+  .group = exposure,
+  .wts = wts # 가중치는 선택 사항입니다.
+)
+```
+
+@sec-using-ps와 동일한 데이터를 사용한 예를 살펴보겠습니다.
+
+```{r}
+library(broom)
+library(touringplans)
+library(propensity)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |> filter(wait_hour == 9)
+
+seven_dwarfs_9_with_ps <-
+  glm(
+    park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+    data = seven_dwarfs_9,
+    family = binomial()
+  ) |>
+  augment(type.predict = "response", data = seven_dwarfs_9)
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+```
+
+이제 `tidy_smd` 함수를 사용하여 가중치 부여 전후의 표준화된 평균 차이를 검토할 수 있습니다.
+
+```{r}
+library(halfmoon)
+smds <-
+  seven_dwarfs_9_with_wt |>
+  mutate(park_close = as.numeric(park_close)) |>
+  tidy_smd(
+    .vars = c(park_ticket_season, park_close, park_temperature_high),
+    .group = park_extra_magic_morning,
+    .wts = w_ate
+  )
+smds
+```
+
+예를 들어, 위에서 티켓 시즌에 대한 *관찰된* 표준화된 평균 차이(성향 점수를 통합하기 전)는 `r smds |> filter(variable == "park_ticket_season" & method == "observed") |> pull(smd) |> round(2)`이지만, 성향 점수 가중치를 통합한 후에는 이것이 약화되어 이제 `r smds |> filter(variable == "park_ticket_season" & method == "w_ate") |> pull(smd) |> round(2)`입니다.
+
+이 지표의 한 가지 단점은 *평균*에 대한 균형만 정량화한다는 것입니다. 이는 연속형 교란 변수의 경우 평균에서는 균형을 이루지만 꼬리에서는 심하게 불균형을 이룰 수 있으므로 충분하지 않을 수 있습니다.
+이 장의 끝에서는 교란 변수의 전체 분포에 걸쳐 균형을 검토하기 위한 몇 가지 도구를 보여줄 것입니다.
+
+## 균형 시각화하기
+
+### 러브 플롯
+
+이러한 표준화된 평균 차이를 시각화하는 것부터 시작하겠습니다.
+이를 위해 *러브 플롯*(토마스 러브의 이름을 따서 명명되었으며, 그가 처음으로 대중화한 사람 중 하나이기 때문)을 사용하는 것을 선호합니다.
+`{halfmoon}` 패키지에는 이 구현을 단순화하는 `geom_love` 함수가 있습니다.
+
+```{r}
+ggplot(
+  data = smds,
+  aes(
+    x = abs(smd),
+    y = variable,
+    group = method,
+    color = method
+  )
+) +
+  geom_love()
+```
+
+### 상자 그림 및 eCDF 그림
+
+위에서 언급했듯이 표준화된 평균 차이의 한 가지 문제는 연속형 교란 변수(평균)에 대해 단일 지점에 대한 균형만 정량화한다는 것입니다.
+꼬리에 잔여 불균형이 없는지 확인하기 위해 전체 분포를 시각화하는 것이 도움이 될 수 있습니다.
+먼저 상자 그림을 사용해 보겠습니다.
+예를 들어 `park_temperature_high` 변수를 사용하겠습니다.
+상자 그림을 만들 때 마스킹 및 데이터 이상을 방지하기 위해 항상 위에 점을 지터링하는 것을 선호합니다. 이를 위해 `geom_jitter`를 사용합니다.
+먼저 가중되지 않은 상자 그림을 만들 것입니다.
+
+```{r}
+#| label: fig-boxplot
+#| fig.cap: "엑스트라 매직 아워가 있었던 날과 없었던 날 사이의 과거 최고 기온 차이를 보여주는 가중되지 않은 상자 그림."
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(
+    x = factor(park_extra_magic_morning),
+    y = park_temperature_high,
+    group = park_extra_magic_morning
+  )
+) +
+  geom_boxplot(outlier.color = NA) +
+  geom_jitter() +
+  labs(
+    x = "엑스트라 매직 모닝",
+    y = "최고 기온"
+  )
+```
+
+```{r}
+#| label: fig-weighted-boxplot
+#| fig.cap: "성향 점수 가중치(ATE 가중치)를 통합한 후 엑스트라 매직 아워가 있었던 날과 없었던 날 사이의 과거 최고 기온 차이를 보여주는 가중 상자 그림."
+#| warning: false
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(
+    x = factor(park_extra_magic_morning),
+    y = park_temperature_high,
+    group = park_extra_magic_morning,
+    weight = w_ate
+  )
+) +
+  geom_boxplot(outlier.color = NA) +
+  geom_jitter() +
+  labs(
+    x = "엑스트라 매직 모닝",
+    y = "과거 최고 기온"
+  )
+```
+
+마찬가지로 각 노출 그룹별로 계층화된 교란 변수에 대한 경험적 누적 분포 함수(eCDF)를 검토할 수도 있습니다.
+가중되지 않은 eCDF는 `geom_ecdf`를 사용하여 시각화할 수 있습니다.
+
+```{r}
+#| label: fig-ecdf
+#| fig.cap: "엑스트라 매직 모닝 시간이 있었던 날(보라색)과 없었던 날(녹색)의 과거 최고 기온 분포 차이를 조사하는 가중되지 않은 eCDF."
+
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(
+    x = park_temperature_high,
+    color = factor(park_extra_magic_morning)
+  )
+) +
+  geom_ecdf() +
+  scale_color_manual(
+    "엑스트라 매직 모닝",
+    values = c("#5154B8", "#5DB854"),
+    labels = c("예", "아니요")
+  ) +
+  labs(
+    x = "과거 최고 기온",
+    y = "비율 <= x"
+  )
+```
+
+`{halfmoon}` 패키지를 사용하면 가중 eCDF 그림을 표시하기 위해 `geom_ecdf`에 추가 `weight` 인수를 전달할 수 있습니다.
+
+```{r}
+#| label: fig-weighted-ecdf
+#| fig.cap: "성향 점수 가중치(ATE)를 통합한 후 엑스트라 매직 모닝 시간이 있었던 날(보라색)과 없었던 날(녹색)의 과거 최고 기온 분포 차이를 조사하는 가중 eCDF."
+
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(
+    x = park_temperature_high,
+    color = factor(park_extra_magic_morning)
+  )
+) +
+  geom_ecdf(aes(weights = w_ate)) +
+  scale_color_manual(
+    "엑스트라 매직 모닝",
+    values = c("#5154B8", "#5DB854"),
+    labels = c("예", "아니요")
+  ) +
+  labs(
+    x = "과거 최고 기온",
+    y = "비율 <= x"
+  )
+```
+
+@fig-weighted-ecdf를 살펴보면 몇 가지를 알 수 있습니다.
+첫째, @fig-ecdf와 비교하여 두 분포 간의 중첩이 개선되었습니다.
+@fig-ecdf에서는 녹색 선이 거의 항상 보라색 선보다 눈에 띄게 위에 있는 반면, @fig-weighted-ecdf에서는 두 선이 80도를 약간 넘을 때까지 대부분 중첩되는 것처럼 보입니다.
+80도 이후에는 가중 플롯에서 선이 갈라지는 것처럼 보입니다.
+이것이 단일 요약 측정값 대신 전체 분포를 검토하는 것이 유용할 수 있는 이유입니다.
+예를 들어 표준화된 평균 차이만 사용했다면 이 두 그룹이 균형을 이루고 있다고 말하고 넘어갔을 가능성이 높습니다.
+@fig-weighted-ecdf를 보면 엑스트라 매직 모닝이 있을 확률과 과거 최고 기온 사이에 비선형 관계가 있을 수 있음을 시사합니다.
+자연 스플라인을 사용하여 성향 점수 모델을 다시 적합시켜 보겠습니다.
+이를 위해 `splines::ns` 함수를 사용할 수 있습니다.
+
+<!-- TODO 여기에 자연 스플라인이 무엇인지 설명하는 콜아웃 상자를 넣으십시오. -->
+
+```{r}
+seven_dwarfs_9_with_ps <-
+  glm(
+    park_extra_magic_morning ~ park_ticket_season + park_close +
+      splines::ns(park_temperature_high, df = 5), # 스플라인으로 모델 다시 적합시키기
+    data = seven_dwarfs_9,
+    family = binomial()
+  ) |>
+  augment(type.predict = "response", data = seven_dwarfs_9)
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+```
+
+이제 이것이 가중 eCDF 그림에 어떤 영향을 미치는지 살펴보겠습니다.
+
+```{r}
+#| label: fig-weighted-ecdf-2
+#| fig.cap: "과거 최고 기온이 스플라인으로 유연하게 모델링된 성향 점수 가중치를 통합한 후 엑스트라 매직 모닝 시간이 있었던 날(보라색)과 없었던 날(녹색)의 과거 최고 기온 분포 차이를 조사하는 가중 eCDF."
+
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(
+    x = park_temperature_high,
+    color = factor(park_extra_magic_morning)
+  )
+) +
+  geom_ecdf(aes(weights = w_ate)) +
+  scale_color_manual(
+    "엑스트라 매직 모닝",
+    values = c("#5154B8", "#5DB854"),
+    labels = c("예", "아니요")
+  ) +
+  labs(
+    x = "과거 최고 기온",
+    y = "비율 <= x"
+  )
+```
+
+이제 @fig-weighted-ecdf-2에서 선이 전체 공간에 걸쳐 중첩되는 것처럼 보입니다.
+
+## 균형 개선하기
+
+### 인과 모델링에 예측 지표 사용하지 않기
+
+대체로 예측 모델을 구축하는 데 일반적으로 사용되는 지표는 인과 모델을 구축하는 데 적합하지 않습니다.
+연구자와 데이터 과학자는 종종 R^2^, AUC, 정확도 및 (종종 부적절하게) p-값과 같은 지표를 사용하여 모델에 대한 결정을 내립니다.
+그러나 인과 모델의 목표는 결과에 대해 가능한 한 많이 예측하는 것이 아닙니다[@hernan2021]. 목표는 노출과 결과 간의 관계를 정확하게 추정하는 것입니다.
+인과 모델은 편향되지 않기 위해 특별히 잘 예측할 필요는 없습니다.
+
+그러나 이러한 지표는 모델의 최상의 *함수 형태*를 식별하는 데 도움이 될 수 있습니다.
+일반적으로 DAG와 영역 지식을 사용하여 모델 자체를 구축합니다.
+그러나 교란 변수와 결과 또는 노출 간의 수학적 관계에 대해 확신이 없을 수 있습니다.
+예를 들어 관계가 선형인지 모를 수 있습니다.
+이 관계를 잘못 지정하면 잔여 교란이 발생할 수 있습니다. 즉, 해당 교란 변수를 부분적으로만 설명하여 추정치에 일부 편향이 남을 수 있습니다.
+예측 중심 지표를 사용하여 다른 함수 형태를 테스트하면 모델의 정확도를 향상시켜 잠재적으로 더 나은 제어를 허용할 수 있습니다.
+
+
+::: callout-note
+## 인과 모델을 과적합할 수 있습니까?
+
+예측 모델링에서 데이터 과학자들은 종종 데이터의 우연한 패턴에 모델을 과적합하는 것을 방지해야 합니다.
+모델이 이러한 우연한 패턴을 포착하면 다른 데이터셋에서는 잘 예측하지 못합니다.
+그렇다면 인과 모델을 과적합할 수 있을까요?
+
+간단한 대답은 '예'입니다. 로지스틱 회귀 및 유사한 방법보다 기계 학습 기법으로 수행하기가 더 쉽지만 말입니다.
+과적합된 모델은 본질적으로 잘못 지정된 모델입니다[@Gelman_2017].
+잘못 지정된 모델은 잔여 교란을 유발하고 따라서 편향된 인과 효과를 유발합니다.
+과적합은 또한 확률적 양성성 위반을 악화시킬 수 있습니다[@zivich2022positivity].
+올바른 인과 모델(데이터 생성 메커니즘과 일치하는 함수 형태)은 과적합될 수 없습니다.
+올바른 예측 모델도 마찬가지입니다.
+
+그러나 이 대답에는 약간의 미묘한 차이가 있습니다.
+인과 추론과 예측의 과적합은 다릅니다. 인과 추정치를 다른 데이터셋에 적용하지 않습니다(가장 가까운 것은 이동 가능성과 일반화 가능성이며, 이는 [Chapter -@sec-evidence]에서 논의할 문제입니다).
+인과 모델이 편향되지 않기 위해 특별히 잘 예측할 필요는 없다는 것은 여전히 사실입니다.
+
+예측 모델링에서 사람들은 종종 데이터 외부 예측을 개선하기 위해 편향-분산 트레이드오프를 사용합니다.
+요컨대, 표본에 대한 일부 편향은 모델 적합도의 분산을 개선하고 표본 외부에서 더 나은 예측을 하기 위해 도입됩니다.
+그러나 주의해야 합니다. 여기서 편향이라는 단어는 모델 추정치와 *데이터셋*의 종속 변수의 실제 값 간의 불일치를 나타냅니다.
+이를 통계적 편향이라고 부르겠습니다.
+이는 반드시 모델 추정치와 *모집단*의 실제 인과 효과 간의 차이와 동일하지는 않습니다.
+이를 인과적 편향이라고 부르겠습니다.
+인과 모델에 편향-분산 트레이드오프를 적용하면 인과적 편향을 줄이기 위해 통계적 편향을 도입합니다.
+또 다른 미묘한 점은 과적합이 표본의 추정치 표준 오차를 부풀릴 수 있다는 것입니다. 이는 편향-분산 트레이드오프의 분산과 동일하지 않습니다[@schuster2016].
+빈도주의적 관점에서 신뢰 구간은 추정치의 인과적 편향 때문에 명목 포함 범위도 갖지 않습니다(@sec-appendix-bootstrap 참조).
+
+실제로 과적합을 줄이는 기법인 교차 검증은 [Chapter -@sec-causal-ml]에서 논의할 것처럼 기계 학습을 사용하는 인과 모델에서 종종 사용됩니다.
+:::

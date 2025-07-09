@@ -1,0 +1,733 @@
+# 성향 점수 {#sec-ps}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("polishing")
+```
+
+@sec-data-causal에서 제시한 바와 같이, 우리가 답하고자 하는 인과적 질문은 다음과 같습니다. **2018년 매직 킹덤 아침에 "엑스트라 매직 아워"가 있었는지 여부와 당일 오전 9시에서 10시 사이 "일곱 난쟁이 광산 열차"라는 어트랙션의 평균 대기 시간 사이에 관계가 있는가?** 아래는 이 질문에 대해 제안된 DAG입니다.
+
+```{r}
+#| label: fig-dag-magic-hours-wait2
+#| code-fold: true
+#| message: false
+#| warning: false
+#| fig.cap: >
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 간의 관계에 대해 제안된 DAG.
+#|   여기서는 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐장 시간, 과거 최고 기온 및 티켓 시즌에 의해 결정된다고 믿습니다.
+
+library(tidyverse)
+library(ggdag)
+library(ggokabeito)
+
+coord_dag <- list(
+  x = c(Season = 0, close = 0, weather = -1, x = 1, y = 2),
+  y = c(Season = -1, close = 1, weather = 0, x = 0, y = 0)
+)
+
+labels <- c(
+  x = "엑스트라 매직 모닝",
+  y = "평균 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐장 시간"
+)
+
+dag <- dagify(
+  y ~ x + close + Season + weather,
+  x ~ weather + close + Season,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "x",
+  outcome = "y"
+) |>
+  tidy_dagitty() |>
+  node_status()
+
+dag_plot <- dag |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_point() +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off")
+
+dag_plot +
+  geom_dag_edges_arc(curvature = c(rep(0, 5), .3, 0)) +
+  geom_dag_label_repel(seed = 1630)
+```
+
+이제 이러한 데이터에 대한 탐색적 분석을 수행했으므로 이 질문에 어떻게 답해야 할까요? @sec-dags에서 닫아야 할 백도어 경로가 세 개 있다는 것을 알고 있습니다. 각 경로에는 하나의 변수가 있으며, 결과적으로 세 가지 교란 변수가 있습니다. 즉, 해당 날짜의 과거 최고 기온, 공원 폐장 시간 및 티켓 시즌(비수기, 일반 또는 성수기)입니다.
+
+또한 이러한 경로를 닫을 수 있는 여러 가지 방법이 있다는 것도 알고 있습니다. 계층화는 차원의 저주 때문에 여기서는 좋은 해결책이 아닙니다. 통계 모델을 사용하는 것이 좋습니다. 하지만 어떤 관계를 모델링해야 할까요? @fig-dag-close-paths-1, @fig-dag-close-paths-2 및 @fig-dag-close-paths-3을 고려해 보십시오.
+
+```{r}
+#| label: fig-dag-close-paths
+#| layout-ncol: 3
+#| code-fold: true
+#| fig-cap:
+#|   - "노출로 들어가는 경로를 닫아야 할까요?"
+#|   - "아니면 결과로 들어가는 경로를 닫아야 할까요?"
+#|   - "아니면 둘 다일까요?"
+dag_plot +
+  geom_dag_edges_arc(curvature = c(rep(0, 5), .3, 0), edge_color = "grey80") +
+  geom_dag_edges_arc(
+    data = \(.x) filter(.x, to == "x"),
+    curvature = c(0, 0, 0),
+    edge_width = 1.1
+  )
+
+dag_plot +
+  geom_dag_edges_arc(curvature = c(rep(0, 5), .3, 0), edge_color = "grey80") +
+  geom_dag_edges_arc(
+    data = \(.x) filter(.x, name != "x", to == "y"),
+    curvature = c(0, 0, .3),
+    edge_width = 1.1
+  )
+
+dag_plot +
+  geom_dag_edges_link(
+    data = \(.x) filter(.x, name == "x", to == "y"),
+    edge_color = "grey80"
+  ) +
+  geom_dag_edges_arc(
+    data = \(.x) filter(.x, name != "x"),
+    curvature = c(rep(0, 5), .3),
+    edge_width = 1.1
+  )
+```
+
+첫째, @fig-dag-close-paths-1에서와 같이 교란 변수와 노출 간의 관계를 모델링할 수 있습니다. **성향 점수**, 즉 노출 확률을 사용하는 기법 클래스를 통해 이를 수행할 수 있습니다. 둘째, @fig-dag-close-paths-2에서와 같이 교란 변수와 결과 간의 관계를 모델링할 수 있습니다. **결과 모델**을 사용하는 기법 클래스를 통해 이를 수행할 수 있습니다. @sec-strat-outcome에서 결과 모델을 보았고 @sec-g-comp에서 다른 접근 방식을 볼 것입니다. 올바른 DAG가 있고 관계를 올바르게 모델링했다면 성향 점수 및 결과 모델 접근 방식 모두 올바른 답을 얻을 수 있습니다. 또는 @fig-dag-close-paths-2에서와 같이 두 관계 집합을 모두 모델링할 수 있습니다. **이중 강건** 추정량이라고 하는 기법 클래스를 통해 이를 수행할 수 있으며, 이는 @sec-dr 및 @sec-causal-ml에서 다시 다룰 것입니다.
+
+다음 몇 장에서는 @fig-dag-close-paths-1을 통해 경로를 닫는 데 사용할 수 있는 기법 클래스인 성향 점수를 다룰 것입니다. 먼저 디즈니가 엑스트라 매직 모닝 배정을 무작위화했다면 어떻게 될지 생각해 보십시오. 각 날짜에 엑스트라 매직 모닝이 배정될 확률이 0.5라고 가정해 보겠습니다. 따라서 약 절반의 날짜에는 있었고 절반은 없었습니다. 이 경우 @fig-dag-close-paths-1에서 강조 표시된 화살표는 존재하지 않지만 @fig-dag-close-paths-2에서 강조 표시된 화살표는 존재합니다. 즉, 노출(날짜에 엑스트라 매직 아워가 있는지 여부)에 개입했으며 결과(게시된 대기 시간)에는 개입하지 않았습니다. 해당 날짜의 과거 최고 기온, 공원 폐장 시간 및 티켓 시즌은 여전히 게시된 대기 시간에 영향을 미치지만 엑스트라 매직 아워에는 영향을 미치지 않습니다. 여기서 노출 확률, 즉 성향 점수는 매일 0.5입니다. 즉, 실험에서 성향 점수는 알려져 있습니다. 특정 날짜는 `rbinom(1, 1, 0.5)`로 무작위로 배정됩니다.
+
+디즈니가 더 복잡한 실험을 수행했다고 가정해 보겠습니다. 즉, DAG의 세 가지 변수 수준 내에서 노출을 무작위화했습니다. 예를 들어, 매일 0.5의 기준 확률이 부여되었다고 가정해 보겠습니다. 이 실험에서 과거 기온이 화씨 80도 이상이면 노출 확률이 0.1 감소하고, 공원 폐장 시간이 오후 10시 미만이면 확률이 0.2 증가하며, 성수기 티켓 시즌이면 확률이 0.3 감소합니다. 과거 기온이 86도이고 오후 9시에 문을 닫으며 성수기 티켓 시즌인 날에는 해당 날짜에 아침에 엑스트라 매직 아워가 무작위로 배정될 확률은 $0.5 - 0.1 + 0.2 - 0.25 = 0.35$ 또는 `rbinom(1, 1, 0.35)`입니다. 이 설계는 여전히 무작위 실험이지만 공변량 수준 내에서 무작위화됩니다. 이는 비무작위 데이터에서 가정해야 하는 것과 마찬가지로 조건부 교환 가능성을 제공합니다. 즉, 날짜는 공변량 수준 내에서 교환 가능합니다.
+
+그러나 이 경우 이러한 확률은 알려져 있지 않습니다. 이 비무작위 데이터에서 "숨겨진 실험"을 찾을 수 있다면 어떨까요? 특정 날짜에 엑스트라 매직 아워를 넣기로 결정한 *누군가*가 있다는 것을 기억하십시오. 그 결정 과정은 무엇이었을까요? 영역 지식(치료 배정에 영향을 미치는 요인과 결과에도 영향을 미치는 요인을 이해하기 위해)과 통계(이러한 조건부 확률을 추정하기 위해)를 조합하여 사용할 수 있다면 아마도 이러한 확률을 사용하여 교환 가능성을 달성하고 편향되지 않은 인과 효과를 계산할 수 있을 것입니다. @rosenbaum1983central은 관찰 연구에서 성향 점수에 대한 조건화가 @sec-assump에서 논의된 가정이 유지되는 한 노출 효과의 편향되지 않은 추정치로 이어질 수 있음을 보여주었습니다.
+
+## 성향 점수 모델 구축하기 {#sec-building-models}
+
+성향 점수를 추정하는 방법은 여러 가지가 있습니다. 이진 노출의 경우 일반적으로 로지스틱 회귀가 사용되지만 다른 접근 방식도 사용됩니다.
+로지스틱 회귀의 추정치는 인과적 관점에서 해석하기 어려울 수 있지만(이에 대해서는 @sec-binary에서 자세히 다룰 예정), 잘 보정된 확률을 예측하는 데 탁월합니다.
+노출을 예측값으로, 교란 변수를 공변량으로 하는 로지스틱 회귀는 성향 점수를 시작하기에 좋은 곳입니다.
+
+아래는 로지스틱 회귀를 사용하여 성향 점수 모델을 적합시키기 위한 의사 코드입니다.
+첫 번째 인수는 모델이며, 왼쪽에는 노출이 있고 오른쪽에는 교란 변수가 있습니다.
+`data` 인수는 데이터 프레임을 사용하고, `family = binomial()` 인수는 모델이 로지스틱 회귀를 사용하여 적합되어야 함을 나타냅니다(다른 일반화 선형 모델과 달리, 성향 점수 모델링에서는 다른 링크가 때때로 사용되지만).
+이전에 이와 같은 모델을 적합시켜 본 적이 있을 수 있지만, 핵심 세부 사항은 노출 확률을 예측하고 있다는 것(결과 주변의 무언가 대신, 곧 다룰 예정!)과 예측 변수가 DAG에서 결정된 교란 변수라는 것입니다.
+@sec-ci-rct에서 보았듯이 노출과 관련 없는 결과 예측 변수가 있다면 정밀도를 위해 이를 포함하는 것이 좋습니다.
+
+```{r}
+#| eval: false
+glm(
+  # 치료 확률 예측
+  exposure ~ confounder_1 + confounder_2,
+  data = df,
+  # 로지스틱 회귀 사용
+  family = binomial()
+)
+```
+
+`predict()` 또는 `fitted()`를 사용하여 확률 척도에서 예측값을 추출하여 성향 점수를 추출할 수 있습니다. 그러나
+[{`broom`}](https://broom.tidymodels.org/) 패키지의 `augment()` 함수를 사용하면 이러한 성향 점수를 추출하여 한 단계로 원래 데이터 프레임에 추가할 수 있으므로 해당 접근 방식을 사용할 것입니다.
+예측은 기본적으로 *선형 로짓* 척도에 있습니다.
+`type.predict` 인수를 `"response"`로 설정하면 *확률* 척도에서 예측값을 추출하려고 함을 나타냅니다.
+`data` 인수에는 원래 데이터 프레임이 포함됩니다. 이를 비워두면 성향 점수 모델의 변수가 있는 데이터 프레임만 반환됩니다. 그러나 결과도 필요하므로 데이터셋에 새 날짜가 없더라도 전체 데이터 프레임을 사용하는 것이 편리합니다.
+이 코드는 `df`의 모든 구성 요소와 적합된 로지스틱 회귀 모델에 해당하는 6개의 추가 열로 구성된 새 데이터 프레임을 출력합니다.
+`.fitted` 열은 성향 점수입니다.
+broom의 편리한 세부 사항은 함수에서 반환된 열이 R의 모델 간에 일관되므로 이 장의 코드가 많은 유형의 broom 출력에 대해 작동한다는 것입니다.
+
+```{r}
+#| eval: false
+glm(
+  exposure ~ confounder_1 + confounder_2,
+  data = df,
+  family = binomial()
+) |>
+  # 예측된 확률이 포함된 원래 데이터 프레임 반환
+  # `.fitted` 열에
+  augment(type.predict = "response", data = df)
+```
+
+이 레시피를 예제에 적용해 보겠습니다.
+
+`{touringplans}` 패키지의 `seven_dwarfs_train_2018` 데이터셋을 사용하여 성향 점수 모델을 구축할 수 있습니다.
+먼저 오전 9시에서 10시 사이의 평균 대기 시간만 포함하도록 데이터를 하위 집합으로 만들어야 합니다.
+그런 다음 `glm()` 함수를 사용하여 위에서 지정한 세 가지 교란 변수를 사용하여 `park_extra_magic_morning`을 예측하는 성향 점수 모델을 적합시킵니다.
+`augment()`를 통해 데이터 프레임에 성향 점수를 추가합니다.
+
+```{r}
+library(broom)
+library(touringplans)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9)
+
+ps_mod <- glm(
+  park_extra_magic_morning ~ park_ticket_season + park_close +
+    park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+seven_dwarfs_9_with_ps <- ps_mod |>
+  augment(type.predict = "response", data = seven_dwarfs_9)
+```
+
+이러한 성향 점수를 살펴보겠습니다.
+@tbl-df-ps는 데이터셋의 처음 6일 동안의 성향 점수(`.fitted` 열)와 각 날짜의 노출, 결과 및 교란 변수 값을 보여줍니다.
+여기서 성향 점수는 특정 날짜에 엑스트라 매직 아워가 있을 확률이며, 관찰된 교란 변수, 이 경우 특정 날짜의 과거 최고 기온, 공원 폐장 시간 및 티켓 시즌이 주어집니다.
+예를 들어, 1월 1일에는 티켓 시즌(이 경우 성수기), 공원 폐장 시간(오후 11시) 및 해당 날짜의 과거 최고 기온(화씨 58.6도)을 고려할 때 매직 킹덤에 엑스트라 매직 아워가 있을 확률이 30.2%였습니다.
+이 특정 날짜에는 아침에 엑스트라 매직 아워가 *없었습니다*(`park_extra_magic_morning` 열의 첫 번째 행에 0으로 표시됨).
+마찬가지로 1월 5일에도 확률이 낮았지만(18.4%) 이 날에는 아침에 엑스트라 매직 아워가 *있었습니다*.
+
+```{r}
+#| label: tbl-df-ps
+#| tbl-cap: >
+#|   `.fitted` 열의 성향 점수를 포함하여 `seven_dwarfs_9_with_ps` 데이터셋의 처음 6개 관찰.
+#| code-fold: true
+library(gt)
+seven_dwarfs_9_with_ps |>
+  select(
+    park_date,
+    park_extra_magic_morning,
+    .fitted,
+    park_ticket_season,
+    park_close,
+    park_temperature_high
+  ) |>
+  head() |>
+  gt() |>
+  fmt_number(decimals = 3) |>
+  fmt_integer(park_extra_magic_morning) |>
+  cols_label(
+    .fitted = "P(EMM)",
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 모닝",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐장 시간",
+    park_temperature_high = "과거 기온"
+  )
+```
+
+### 인과적 가정, 재검토
+
+노출 그룹별 성향 점수 분포를 시각화하는 것이 유용합니다.
+이를 시각화하는 좋은 방법은 미러 히스토그램을 사용하는 것입니다.
+이를 만들려면 `{halfmoon}` 패키지의 `geom_mirror_histogram()`을 사용할 것입니다.
+아래 코드는 성향 점수의 두 가지 히스토그램을 만듭니다. 하나는 노출된 그룹(아침에 엑스트라 매직 아워가 있는 날짜)에 대한 "상단"이고 다른 하나는 노출되지 않은 그룹에 대한 "하단"입니다.
+또한 `scale_y_continuous(labels = abs)`를 통해 y축 레이블을 절대값(하단 히스토그램의 음수 값 대신)으로 조정합니다.
+
+```{r}
+#| label: fig-mirrored-ps
+#| fig.cap: >
+#|   엑스트라 매직 아워 날짜(노출 그룹, 상단)와 엑스트라 매직 아워가 없는 날짜(비노출 그룹, 하단)에 대한 추정된 성향 점수의 미러 히스토그램
+library(halfmoon)
+ggplot(
+  seven_dwarfs_9_with_ps,
+  aes(.fitted, fill = factor(park_extra_magic_morning))
+) +
+  geom_mirror_histogram(bins = 50) +
+  scale_y_continuous(labels = abs) +
+  labs(x = "성향 점수", fill = "엑스트라 매직 모닝")
+```
+
+@sec-eval-ps-model에서 방법(예: 가중치 부여 또는 매칭)을 적용한 후 성향 점수 모델을 평가하는 방법을 자세히 살펴볼 것이지만, 유효한 추론을 위해 만들어야 하는 인과적 가정의 관점에서 우리가 보고 있는 것을 생각해 보겠습니다. @sec-explore-assump에서 교환 가능성과 양성성 모두에 문제가 있을 수 있음을 보았습니다. 이 질문에 대해 인과적 일관성이 문제가 되지 않는다고 상당히 확신했지만, 원시 성향 점수(가중치 부여 또는 매칭을 적용하기 전)를 보면 다른 두 가지 가정에 대한 통찰력을 얻을 수 있습니다. 데이터는 결코 가정이 옳거나 그른지 증명할 수 없지만 일부 증거를 제공합니다.
+
+양성성과 교환 가능성의 경우 두 가지를 찾고 있습니다. 즉, **중첩**과 **균형**입니다. 중첩은 노출 그룹별 성향 점수의 중첩 범위를 나타내며, 때로는 **공통 지지**라고도 합니다. 중첩은 양성성과 관련이 있습니다. 즉, 하나의 노출 그룹만 관찰이 있는 성향 점수 영역이 있는 경우 양성성 위반이 있을 수 있습니다. 찾아야 할 다른 것은 모집단의 균형입니다. 무작위 환경에서는 노출 가능성이 기준선 공변량과 관련이 없으므로 두 그룹 간의 분포가 거의 동일할 것으로 예상합니다. 이 균형은 "교환 가능"이라는 단어 선택에 대한 또 다른 관점입니다. 즉, 두 그룹을 다른 노출에 다시 할당해도 여전히 올바른 답을 얻을 수 있어야 합니다.
+
+@fig-sim-ps는 양호, 보통 및 불량 중첩 및 균형으로 볼 수 있는 분포 유형의 시뮬레이션된 시나리오를 보여줍니다. 불량한 균형과 중첩은 편향과 분산을 악화시키고 우리가 만들어야 하는 인과적 가정에 대한 확신을 떨어뜨릴 수 있습니다.
+
+```{r}
+#| label: fig-sim-ps
+#| fig-cap: "성향 점수의 시뮬레이션된 분포. 미러 히스토그램에서 두 가지 특성, 즉 각각 양성성과 교환 가능성과 관련된 중첩과 균형을 찾습니다."
+#| code-fold: true
+library(patchwork)
+
+set.seed(2025)
+
+make_model <- function(n = 1000, intercept, slope) {
+  df <- tibble(
+    z = rnorm(n),
+    exposure = rbinom(n, 1, plogis(intercept + slope * z))
+  )
+  glm(exposure ~ z, data = df, family = binomial)
+}
+
+models_overlap <- list(
+  good = make_model(intercept = 0, slope = 0.5),
+  moderate = make_model(intercept = 0, slope = 1.5),
+  poor = make_model(intercept = 0, slope = 3.0)
+)
+
+plot_ps <- function(.x, .y, title = "중첩") {
+  .x |>
+    augment(type.predict = "response") |>
+    ggplot(aes(.fitted, fill = factor(exposure))) +
+    geom_mirror_histogram(bins = 50) +
+    scale_y_continuous(labels = abs) +
+    labs(
+      x = "성향 점수",
+      fill = "노출",
+      title = paste(str_to_title(.y), title)
+    ) +
+    theme(legend.position = "none")
+}
+
+plots_overlap <- imap(
+  models_overlap,
+  plot_ps
+)
+
+models_balance <- list(
+  good = make_model(intercept = 0.0, slope = 1.5),
+  moderate = make_model(intercept = log(0.25 / 0.75), slope = 1.5),
+  poor = make_model(intercept = log(0.10 / 0.90), slope = 1.5)
+)
+
+plots_balance <- imap(
+  models_balance,
+  plot_ps,
+  title = "균형"
+)
+
+plots_balance$moderate <- plots_balance$moderate +
+  theme(legend.position = "bottom")
+
+(plots_overlap$good + plots_overlap$moderate + plots_overlap$poor) /
+  (plots_balance$good + plots_balance$moderate + plots_balance$poor)
+```
+
+@fig-mirrored-ps는 이러한 가정을 단일 차원(성향 점수)으로 축소한 관점을 제공합니다. 중첩과 균형 문제 모두 분명히 보입니다. 분명히 분포는 모양과 날짜 수 측면에서 그룹 간에 다릅니다. 그룹별 성향 점수 범위도 살펴보겠습니다.
+
+```{r}
+seven_dwarfs_9_with_ps |>
+  group_by(park_extra_magic_morning) |>
+  reframe(range = range(.fitted))
+```
+
+그룹 간 범위는 상당히 가까워 보입니다. 꼬리를 살펴보는 한 가지 유용한 방법은 *노출된* 그룹의 가장 낮은 확률보다 낮은 *비노출된* 관찰 수와 *비노출된* 그룹의 가장 높은 확률보다 높은 *노출된* 관찰 수를 확인하는 것입니다.
+
+```{r}
+seven_dwarfs_9_with_ps |>
+  mutate(
+    support = case_when(
+      park_extra_magic_morning == 0 &
+        .fitted < min(.fitted[park_extra_magic_morning == 1]) ~ "unexp_below",
+      park_extra_magic_morning == 1 &
+        .fitted > max(.fitted[park_extra_magic_morning == 0]) ~ "exp_above",
+      .default = "inside_support",
+      .ptype = factor(levels = c("unexp_below", "inside_support", "exp_above"))
+    )
+  ) |>
+  count(support, .drop = FALSE)
+```
+
+그러나 @fig-mirrored-ps를 보면 일부 희소 영역이 보이며, 이는 일부 조합에 양성성 위반이 있음을 의미합니다. 예를 들어, 10% 미만의 확률로 엑스트라 매직 모닝이 없는 날이 훨씬 더 많습니다.
+
+```{r}
+seven_dwarfs_9_with_ps |>
+  count(park_extra_magic_morning, low_prob = .fitted <= .1)
+```
+
+구조적 양성성(일부 날짜는 디즈니의 의사 결정 과정에 따라 엑스트라 매직 아워를 절대 또는 항상 받지 못함)과 확률적 위반의 조합을 보고 있을 가능성이 높습니다. 연중 날짜 수가 제한되어 있고 아침에 엑스트라 매직 아워를 받는 날이 약 17%에 불과하므로 일부 희소성이 예상됩니다. 예를 들어, @fig-random-days-ps는 엑스트라 매직 모닝이 노출된 날과 노출되지 않은 날의 동일한 비율로 무작위화된 경우 그래프가 어떻게 보일지 보여줍니다. (다른 시드로 시도해 보면 이러한 데이터가 그러한 무작위 위반에 취약하다는 것을 알 수 있습니다.) 성향 점수 방법은 결과 모델 기반 방법 및 일부 이중 강건 방법보다 양성성 위반 문제에 더 취약합니다. 이를 주시해야 합니다.
+
+```{r}
+#| label: fig-random-days-ps
+#| code-fold: true
+#| fig-cap: "엑스트라 매직 모닝 무작위화 시뮬레이션. 공변량과 노출 간에는 우연을 제외하고는 관계가 없습니다. 표본 크기가 작고 노출된 날짜 비율이 낮기 때문에 이러한 분포 결과를 해석하는 데 주의해야 합니다."
+set.seed(2025)
+seven_dwarfs_9 |>
+  mutate(randomized_emm = rbinom(n(), 1, .17)) |>
+  glm(
+    randomized_emm ~ park_ticket_season + park_close + park_temperature_high,
+    data = _,
+    family = binomial()
+  ) |>
+  augment(type.predict = "response") |>
+  ggplot(
+    aes(.fitted, fill = factor(randomized_emm))
+  ) +
+  geom_mirror_histogram(bins = 50) +
+  scale_y_continuous(labels = abs) +
+  labs(x = "성향 점수", fill = "엑스트라 매직 모닝")
+```
+
+이러한 문제에 대해 무엇을 할 수 있을까요? 가정의 근거가 되는 좋은 영역 지식(그리고 구조적으로 엑스트라 매직 아워를 받을 수 없는 날에 대한 더 나은 제외 기준)이 필요하지만, 성향 점수의 정보를 사용하면 교환 가능성과 일부 방법에서는 양성성 모두에 도움이 될 수 있습니다.
+
+## 성향 점수 사용하기 {#sec-using-ps}
+
+성향 점수는 본질적으로 *균형* 도구입니다.
+노출 그룹을 교환 가능하게 만드는 데 도움이 되며(@sec-estimands에서 보게 되겠지만 때로는 양성성을 개선하는 데도 사용할 수 있음), 이를 사용합니다.
+분석에 성향 점수를 통합하는 방법은 여러 가지가 있습니다.
+일반적으로 사용되는 기법에는 계층화(성향 점수 계층 내에서 인과 효과 추정), 매칭, 가중치 부여 및 직접 공변량 조정(결과 모델에 공변량으로 성향 점수 포함)이 포함됩니다.
+이 섹션에서는 **매칭**과 **가중치 부여**에 초점을 맞출 것입니다.
+
+매칭과 가중치 부여는 더 나은 교란 변수 균형을 가진 모집단을 만드는 두 가지 다른 방법입니다. 매칭에서는 교환 가능성이 유지되기를 바라는 관찰 하위 그룹을 선택하여 *하위* 모집단을 만듭니다. 가중치 부여에서는 교환 가능성이 유지되기를 바라는 *유사* 모집단을 만들기 위해 관찰에 가중치를 다시 부여합니다.
+
+## 매칭
+
+매칭은 사과 대 사과 비교를 할 수 있는 모집단을 만드는 직관적인 방법입니다.
+노출된 관찰로 시작한다고 상상해 보십시오. 무한 모집단에서는 노출 상태만 다른 노출되지 않은 관찰을 직접 선택할 수 있습니다.
+즉, 교란 변수 값은 동일하지만 노출 값은 반대인 두 관찰을 일치시킵니다.
+이를 **정확한 매칭**이라고 합니다. 정확한 매칭은 데이터가 매우 크거나 교란 변수의 수(및 값)가 매우 제한적인 경우에 잘 작동하지만, 교란 변수의 수와 연속성이 증가하면 이러한 일치를 찾기가 점점 더 복잡해집니다.
+여기서 모든 교란 변수의 요약 측정값인 성향 점수가 중요해집니다.
+
+`{MatchIt}` 패키지는 R에서 매칭을 위한 가장 유연한 도구 중 하나입니다.
+`matchit()`으로 유사한 날짜를 일치시켜 보겠습니다.
+(`distance` 인수에 미리 계산된 성향 점수를 포함하지 않았다면 `matchit()`은 로지스틱 회귀를 다시 적합시켰을 것입니다.)
+2018년 매직 킹덤에 엑스트라 매직 모닝 시간이 있었던 날은 60일이었습니다.
+이 60일의 노출된 날 각각에 대해 `matchit()`은 구성된 성향 점수를 사용하여 최근접 이웃 매칭을 구현하여 비교 가능한 비노출된 날을 찾았습니다.
+출력을 살펴보면 기본 대상 추정량이 "ATT", 즉 치료군 간의 평균 치료 효과임을 알 수 있습니다. @sec-estimands에서 이것과 다른 여러 추정량에 대해 논의하겠지만, 지금 알아야 할 중요한 점은 `matchit()`이 엑스트라 매직 모닝이 있는 모든 날을 유지하고 노출되지 않은 일부 날을 버릴 수 있다는 것입니다.
+
+```{r}
+library(MatchIt)
+ps_logit_scale <- predict(ps_mod)
+matchit_obj <- matchit(
+  park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9_with_ps,
+  # 로짓 척도에서 적합시킨 성향 점수에 매칭
+  # TODO: @Lucy, 이것을 로짓 척도 또는 확률 척도에서 제공해야 합니까?
+  distance = ps_logit_scale
+)
+
+matchit_obj
+```
+`get_matches()` 함수를 사용하여 일치된 항목만으로 구성된 원래 변수가 있는 데이터 프레임을 만들 수 있습니다.
+표본 크기가 354일에서 120일로 줄어든 것을 확인하십시오.
+
+```{r}
+matched_data <- get_matches(matchit_obj) |>
+  as_tibble()
+
+matched_data
+```
+
+`subclass` 열은 어떤 날짜가 일치하는지 알려줍니다. 예를 들어, `subclass == 1`의 경우 엑스트라 매직 모닝이 있는 날과 없는 날 한 쌍이 있습니다. 성향 점수는 동일합니다.
+
+```{r}
+matched_data |>
+  filter(subclass == 1) |>
+  select(park_date, park_extra_magic_morning, .fitted)
+```
+
+공변량을 자세히 살펴보면 이유를 알 수 있습니다. 이것은 정확한 일치가 아닙니다. 즉, 온도와 공원 폐장 변수가 약간 다르지만, 둘 다 더 시원한 과거 기온과 더 늦은 폐장 시간을 가진 일반 티켓 시즌 날이라는 것을 알 수 있습니다. 서로에게 좋은 반사실적 상황처럼 보입니까?
+
+```{r}
+matched_data |>
+  filter(subclass == 1) |>
+  select(park_date, park_temperature_high, park_ticket_season, park_close)
+```
+
+45번 쌍도 유사한 성향 점수를 갖지만 1번 쌍만큼 가깝지는 않습니다.
+
+```{r}
+matched_data |>
+  filter(subclass == 45) |>
+  select(park_date, park_extra_magic_morning, .fitted)
+```
+
+그러나 실제 변수는 그다지 가깝지 않습니다. 과거 기온에는 약 20도 차이가 있으며, 공원 폐장 시간은 둘 다 더 이르지만 1번 쌍보다 약간 더 떨어져 있습니다.
+
+```{r}
+matched_data |>
+  filter(subclass == 45) |>
+  select(park_date, park_temperature_high, park_ticket_season, park_close)
+```
+
+어떤 날짜가 일치하지 *않았는지* 알고 싶을 수도 있습니다. 엑스트라 매직 아워가 있는 모든 날짜를 유지했으므로 삭제된 모든 날짜에는 없었다는 것을 알고 있습니다. 역 조인을 사용하여 일치된 데이터에 없는 날짜를 확인할 수 있습니다.
+
+```{r}
+seven_dwarfs_9_with_ps |>
+  anti_join(matched_data, by = "park_date") |>
+  select(park_date, park_extra_magic_morning, .fitted)
+```
+
+이러한 삭제된 데이터에 여전히 많은 귀중한 통계 정보가 있다고 생각할 수 있습니다. 엑스트라 매직 아워가 있는 각 날짜에 대해 둘 이상의 일치를 사용하여 추가적인 통계적 정밀도를 얻을 수 있습니다. 이전에는 $1:1$ 매칭을 사용했지만 `matchit()`은 `ratio` 인수를 사용하여 $1:k$ 매칭도 지원합니다. 예를 들어, `ratio = 2`의 경우 엑스트라 매직 모닝이 있는 모든 날짜에 대해 두 개의 일치를 얻게 되어 표본 크기가 180이 됩니다.
+
+그러나 데이터가 제한적일 때 추가 일치를 추가하는 데 주의해야 합니다. 일치시키려는 날짜가 많을수록 일치가 더 나빠집니다. 예를 들어, 엑스트라 매직 모닝이 있는 각 날짜에 대해 네 개의 일치를 찾으려고 하면 `subclass == 1`에 대한 성향 점수가 나중 일치에 대해 상당히 달라지기 시작합니다. 이것은 편향-분산 트레이드오프입니다. 즉, 더 많은 일치를 얻으면 정밀도가 향상되지만 좋은 일치를 찾기가 더 어려워져 편향이 증가할 수 있습니다.
+
+```{r}
+matchit(
+  park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9_with_ps,
+  distance = ps_logit_scale,
+  ratio = 4
+) |>
+  get_matches() |>
+  as_tibble() |>
+  filter(subclass == 1) |>
+  select(park_date, park_extra_magic_morning, .fitted)
+```
+
+특정 거리 내에 있는 관찰만 일치하도록 `matchit()`에 요청하여 일치 품질을 제어할 수 있습니다. 즉, 원하는 것보다 성향 점수가 더 멀리 떨어진 관찰을 일치시키지 않도록 요청할 수 있습니다. **캘리퍼**를 설정하여 이를 제어합니다. 캘리퍼는 로짓 척도에서 일치시킬 수 있는 두 관찰 간의 최대 차이로 허용하는 동적 거리입니다. `caliper` 인수에 제공하는 값이 성향 점수의 표준 편차에 곱해진다는 의미에서 동적입니다. 그러나 캘리퍼가 0.2인 1:2 매칭을 시도해 보겠습니다. 캘리퍼를 사용하여 매칭하면 178일이 되며, 이는 $60 + 60*2$보다 2일 적습니다. 엑스트라 매직 모닝이 있는 날 중 두 날은 두 개 대신 하나의 일치된 대조군만 받았습니다.
+
+```{r}
+mtchs <- matchit(
+  park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9_with_ps,
+  distance = ps_logit_scale,
+  ratio = 2,
+  caliper = 0.2
+)
+
+mtchs |>
+  get_matches() |>
+  group_by(subclass) |>
+  summarise(n = n()) |>
+  filter(n < 3)
+```
+
+한 가지 중요한 점은 캘리퍼를 설정하면 삭제되는 관찰과 그 수에 따라 추론하는 모집단이 변경될 수 있다는 것입니다. @sec-estimands에서 이를 다시 살펴보겠습니다.
+
+## 가중치 부여
+
+매칭을 조잡한 가중치로 생각할 수 있습니다. 즉, 최종 표본에서 일치된 모든 사람은 가중치 1을 받고 일치되지 않은 모든 사람은 가중치 0을 받습니다.
+또 다른 접근 방식은 이 가중치를 부드럽게 하여 관심 있는 공변량이 가중된 유사 모집단에서 평균적으로 균형을 이루도록 가중치를 적용하는 것입니다.
+균형을 맞춰야 하는 공변량에 대한 편리한 요약, 즉 성향 점수가 이미 있습니다.
+성향 점수에 매칭하는 대신 이러한 가중치의 기초로 사용할 것입니다.
+관심 있는 대상 추정량에 따라 여러 가지 다른 가중치를 계산할 수 있습니다(@sec-estimands에서 자세한 내용 참조).
+이 섹션에서는 일반적으로 역확률 가중치라고 하는 평균 치료 효과(ATE) 가중치에 초점을 맞출 것입니다.
+가중치는 다음과 같이 구성됩니다. 각 관찰은 실제로 받은 노출을 받을 확률의 *역수*로 가중됩니다.
+
+$$w_{ATE} = \frac{X}{p} + \frac{(1 - X)}{1 - p}$$
+
+예를 들어, 관찰 1이 사전 노출 공변량을 고려할 때 노출될 가능성이 매우 높았지만($p = 0.9$) 실제로는 노출되지 *않았다면* 가중치는 10($w_1 = 1 / (1 - 0.9)$)이 됩니다.
+마찬가지로 관찰 2가 사전 노출 공변량을 고려할 때 노출될 가능성이 매우 높았고($p = 0.9$) *실제로* 노출되었다면 가중치는 1.1($w_2 = 1 / 0.9$)이 됩니다.
+직관적으로 측정된 교란 변수를 기반으로 반사실적 상황을 구성하는 데 유용한 정보를 가지고 있는 것으로 보이는 관찰에 더 많은 가중치를 부여합니다. 즉, 노출될 것으로 예측했지만 우연히 노출되지 않았거나 그 반대의 경우입니다.
+
+`{propensity}` 패키지는 `wt_estimand()` 패턴을 따르는 이름의 함수를 사용하여 다양한 성향 점수 가중치를 계산합니다. ATE를 계산하려면 `wt_ate()`를 사용하며, 여기에 적합된 성향 점수와 관찰된 노출 값을 제공합니다.
+
+```{r}
+library(propensity)
+
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+```
+
+@tbl-df-wt는 처음 6개 행의 가중치를 보여줍니다. 예를 들어, 1월 1일에는 엑스트라 매직 아워가 없었으며, 엑스트라 매직 아워가 *없을* 확률은 $1 - 0.3 = 0.7$에 불과했습니다. 따라서 특별히 놀라운 날은 아닙니다. 가중치는 1.4입니다. 그러나 1월 5일은 더 놀랍습니다. 엑스트라 매직 아워를 받을 확률이 0.18이지만 실제로는 있었습니다. 이로 인해 엑스트라 매직 아워가 없었던 다른 날에 대한 좋은 반사실적 상황이 되므로 가중치는 5.4입니다.
+
+```{r}
+#| label: tbl-df-wt
+#| tbl-cap: >
+#|   `.fitted` 열의 성향 점수와 `w_ate` 열의 가중치를 포함하여 `seven_dwarfs_9_with_wt` 데이터셋의 처음 6개 관찰.
+#| code-fold: true
+seven_dwarfs_9_with_wt |>
+  select(
+    park_date,
+    park_extra_magic_morning,
+    park_ticket_season,
+    park_close,
+    park_temperature_high,
+    .fitted,
+    w_ate
+  ) |>
+  head() |>
+  gt() |>
+  cols_label(
+    .fitted = "P(EMM)",
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 모닝",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐장 시간",
+    park_temperature_high = "과거 기온",
+    w_ate = "ATE 가중치"
+  )
+```
+
+::: {.callout-note}
+## WeightIt
+
+MatchIt의 느낌을 좋아한다면 동일한 설계 원칙과 많은 유용한 기능을 가진 `{WeightIt}`이라는 사촌 패키지가 있습니다. 성향에 초점을 맞추겠지만 MatchIt에 익숙하다면 WeightIt을 사용하기 쉽습니다.
+
+```{r}
+wt_it <- WeightIt::weightit(
+  park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9_with_ps,
+  ps = ".fitted"
+)
+
+wt_it
+
+head(wt_it$weights)
+```
+
+:::
+
+아침에 엑스트라 매직 아워가 있을 예측 확률이 매우 낮은 날은 실제로 있었다면 높은 가중치를 받게 됩니다. ATE 가중치의 최솟값은 1이지만 최댓값은 제한이 없습니다. 관찰된 노출을 받을 확률이 0에 가까울수록 가중치가 높아집니다. 이는 **극단적인 가중치**에 주의해야 함을 의미합니다. 극단적인 가중치는 결과 모델에 과도한 정보를 추가하는 가중치입니다. 극단적인 가중치는 추정치를 *불안정하게* 만들어 정밀도를 악화시키고 잠재적으로 편향을 악화시키는 경향이 있습니다. @fig-wts-distr은 ATE 가중치의 분포를 보여줍니다.
+
+```{r}
+#| label: fig-wts-distr
+#| fig-cap: "평균 치료 효과 가중치의 분포. ATE 가중치는 하한이 1이고 상한이 없습니다. 여기서는 1 근처에 급증하지만 오른쪽 꼬리에는 훨씬 더 높은 가중치가 많이 있습니다."
+#| message: false
+seven_dwarfs_9_with_wt |>
+  ggplot(aes(w_ate)) +
+  geom_histogram() +
+  scale_x_log10() +
+  xlab("ATE 가중치")
+```
+
+실제로 가중치가 10을 넘는 날이 여러 날 있습니다(@tbl-extreme-wts). 예를 들어 4월 27일은 거의 20일처럼 취급됩니다! 엑스트라 매직 아워가 없는 날에 대한 좋은 반사실적 상황일 수 있지만 그렇게 높은 가중치는 편향을 줄이는 것보다 분산을 더 많이 추가할 것입니다.
+
+```{r}
+#| label: tbl-extreme-wts
+#| tbl-cap: "ATE 가중치가 10을 넘는 날. 이러한 날은 발생 확률이 낮기 때문에 모집단에서 상향 가중되지만 가중치가 높을수록 불안정성이 더 많이 발생합니다."
+#| code-fold: true
+seven_dwarfs_9_with_wt |>
+  filter(w_ate > 10) |>
+  select(
+    park_date,
+    park_extra_magic_morning,
+    park_ticket_season,
+    park_close,
+    park_temperature_high,
+    .fitted,
+    w_ate
+  ) |>
+  gt() |>
+  cols_label(
+    .fitted = "P(EMM)",
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 모닝",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐장 시간",
+    park_temperature_high = "과거 기온",
+    w_ate = "ATE 가중치"
+  )
+```
+
+극단적인 가중치의 불안정성 중 일부는 안정화 요인인 노출군과 비노출군의 비율을 사용하여 완화할 수 있습니다. 받은 노출 확률을 역전시키는 대신 분자에 비율을 사용합니다. 안정화는 가중치에 흥미로운 영향을 미칩니다. 첫째, 가중치의 확산을 작게 만들어 분산을 개선합니다. 둘째, 평균이 1인 가중치를 만듭니다. 즉, 유사 모집단은 원래 모집단과 거의 같은 크기입니다.
+
+```{r}
+#| label: fig-stbl-wts
+#| fig-cap: "안정화된 ATE 가중치의 분포. 분포는 안정화되지 않은 가중치보다 훨씬 더 제한적이며 평균 가중치는 1입니다."
+#| message: false
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
+  mutate(stbl_wts = wt_ate(.fitted, park_extra_magic_morning, stabilize = TRUE))
+
+seven_dwarfs_9_with_wt |>
+  summarize(
+    mean = mean(stbl_wts),
+    min = min(stbl_wts),
+    max = max(stbl_wts),
+    n = n(),
+    sum = sum(stbl_wts)
+  )
+
+seven_dwarfs_9_with_wt |>
+  ggplot(aes(stbl_wts)) +
+  geom_histogram() +
+  scale_x_log10() +
+  xlab("안정화된 ATE 가중치")
+```
+
+극단적인 가중치(및 불량한 중첩)를 해결하는 데 사용되는 또 다른 기법 집합은 **트리밍**과 **절단**입니다. 트리밍은 허용 가능한 성향 점수 범위를 설정하고 해당 범위를 벗어나는 관찰을 분석에서 제외하는 것입니다. 트리밍할 때는 적합도와 보정을 개선하기 위해 성향 점수 모델을 다시 적합시켜야 합니다. 절단은 관찰을 제외하는 대신 허용 가능한 범위를 벗어나는 모든 값을 범위의 최솟값 또는 최댓값으로 *절단*하는 것입니다. 절단은 때때로 **윈저화**라고도 합니다. 때때로 저자는 "트림"과 "절단"을 같은 의미로 사용하거나 심지어 반대 의미로 사용하므로 무엇을 의미하는지 명확히 하고 다른 분석가가 무엇을 의미하는지 확인하십시오.
+
+propensity는 이러한 프로세스를 관리하는 도우미 함수를 제공합니다. `ps_trim()`은 관찰을 트리밍하고 `ps_trunc()`는 절단합니다. `ps_refit()`은 트리밍되지 않은 관찰에 대해서만 성향 점수를 다시 적합시킵니다. 여기서 몇 가지 유의할 점이 있습니다. 첫째, 점수를 트리밍할 최적의 범위를 결정하기 위해 적응형 방법을 사용하고 있습니다. 이 접근 방식은 결과 관찰의 분산을 최적화합니다. 둘째, 트리밍된 관찰 없이 성향 점수를 다시 계산하기 위해 트리밍된 성향 점수에 `ps_refit()`을 사용하고 있습니다. 셋째, `ps_trunc()`에서는 성향 점수를 1번째 백분위수 *미만*에서 1번째 백분위수*로* 절단하고 있습니다. 연구자들은 일반적으로 1번째 및 99번째 백분위수로 절단하지만 가장 높은 성향 점수가 약 0.50이므로 극단적인 가중치를 생성하지 않으므로 그대로 둡니다.
+
+```{r}
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_wt |>
+  mutate(
+    trimmed_ps = ps_trim(.fitted, method = "adaptive") |>
+      ps_refit(ps_mod),
+    trunc_ps = ps_trunc(.fitted, method = "pctl", lower = .01, upper = 1)
+  )
+```
+
+트리밍과 절단은 표본에 다르게 영향을 미칩니다. 트리밍에서는 나중에 관찰 수가 줄어듭니다. `is_unit_trimmed()`를 사용하여 어떤 관찰이 트리밍되었는지 확인할 수 있습니다. 원래 성향 점수의 낮은 범위에 있는 관찰만 트리밍되었습니다. `ps_refit()`을 사용할 때 모델에 포함되지 않았으므로 `trimmed_ps` 값은 `NA`입니다.
+
+```{r}
+seven_dwarfs_9_with_wt |>
+  filter(is_unit_trimmed(trimmed_ps)) |>
+  select(park_date, park_extra_magic_morning, .fitted, trimmed_ps)
+```
+
+이 하위 집합의 중첩이 약간 개선된 것을 볼 수 있습니다(@fig-dist-ps-trimmed).
+
+```{r}
+#| label: fig-dist-ps-trimmed
+#| fig-cap: "트리밍 후 노출 그룹별 성향 점수 분포. 트리밍으로 중첩이 개선되었습니다."
+#| message: false
+#| warning: false
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(trimmed_ps, fill = factor(park_extra_magic_morning))
+) +
+  geom_mirror_histogram(bins = 50) +
+  scale_y_continuous(labels = abs) +
+  labs(x = "성향 점수", fill = "엑스트라 매직 모닝")
+```
+
+절단에서는 관찰을 제거하는 것이 아니라 일부 관찰을 허용 가능한 범위 내로 강제합니다. 절단된 모든 관찰(`is_unit_truncated()`로 찾음)은 이제 `trunc_ps`에서 동일한 값을 가지며, 이는 `.fitted`의 1번째 백분위수와 같습니다.
+
+```{r}
+seven_dwarfs_9_with_wt |>
+  filter(is_unit_truncated(trunc_ps)) |>
+  select(park_date, park_extra_magic_morning, .fitted, trunc_ps)
+```
+
+플롯의 왼쪽에서 절단이 어떻게 중첩을 강제하는지 볼 수 있습니다(@fig-dist-ps-trunc). 절단은 단위를 버리지 않지만(트리밍보다 표본 크기 개선), 이러한 성향 점수의 강제 변경은 직관적이지 않을 수 있습니다.
+
+```{r}
+#| label: fig-dist-ps-trunc
+#| fig-cap: "절단 후 노출 그룹별 성향 점수 분포. 절단으로 중첩도 개선되었습니다."
+#| message: false
+#| warning: false
+ggplot(
+  seven_dwarfs_9_with_wt,
+  aes(trunc_ps, fill = factor(park_extra_magic_morning))
+) +
+  geom_mirror_histogram(bins = 50) +
+  scale_y_continuous(labels = abs) +
+  labs(x = "성향 점수", fill = "엑스트라 매직 모닝")
+```
+
+그런 다음 트리밍되거나 절단된 가중치를 사용하여 가중치를 계산할 수 있습니다. 실제로 이러한 접근 방식을 안정화된 가중치와 결합할 수 있습니다. 절단된 성향 점수에 대해 안정화된 가중치를 계산해 보겠습니다. (매칭 및 캘리퍼와 함께 절단되거나 트리밍된 가중치를 사용할 수도 있지만 여기서는 보여주지 않겠습니다.) @fig-sbl-trunc-wts는 절단 및 안정화 후 가중치 분포를 보여줍니다.
+
+```{r}
+#| label: fig-sbl-trunc-wts
+#| fig-cap: "성향 점수가 1번째 백분위수로 절단된 안정화된 가중치의 분포. 이전에 보았던 극단적인 가중치가 약간 개선되었습니다."
+#| message: false
+#| warning: false
+seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_wt |>
+  mutate(trunc_stbl_wt = wt_ate(
+    trunc_ps,
+    park_extra_magic_morning,
+    stabilize = TRUE
+  ))
+
+seven_dwarfs_9_with_wt |>
+  ggplot(aes(trunc_stbl_wt)) +
+  geom_histogram() +
+  scale_x_log10() +
+  xlab("절단 및 안정화된 ATE 가중치")
+```
+
+캘리퍼 사용과 마찬가지로 절단 및 트리밍은 추론하는 모집단을 변경할 수 있습니다. @sec-estimands에서 이를 자세히 조사할 것입니다.
+
+극단적인 가중치는 종종 양성성 문제라는 점에 유의했을 수 있습니다. 예를 들어 트리밍된 날은 주로 엑스트라 매직 아워가 없었고 예측된 수신 확률이 낮은 날이었습니다. 성향 점수를 적합시킨 후에는 트리밍되거나 절단된 결과를 조사하여 애초에 수정해야 하는 이유를 더 잘 이해할 수 있습니다. 여기서 트리밍된 관찰은 모두 가치 티켓 시즌에 늦은 폐장 시간이 있는 따뜻한 날이었던 것 같습니다. 아마도 이러한 날은 디즈니의 요구 사항에 따라 구조적으로 엑스트라 매직 아워를 받을 수 없을 것입니다. 성향 점수를 기반으로 동적으로 관찰을 제거하는 대신 제외 기준을 수정하고 싶은지 여부를 결정하고 싶을 것입니다.
+
+```{r}
+seven_dwarfs_9_with_wt |>
+  filter(is_unit_trimmed(trimmed_ps)) |>
+  select(
+    park_ticket_season,
+    park_close,
+    park_temperature_high
+  )
+```
+
+::: {.callout-note}
+## 매칭 대 가중치 부여는 언제 사용해야 합니까?
+
+가중치 부여는 매칭보다 통계적으로 더 효율적이므로 가능하면 매칭보다 사용하는 것이 좋습니다. 그러나 매칭에는 뚜렷한 장점이 있습니다. 즉, 이해하기 쉽습니다. 통계적 배경이 있는 사람은 가중 분석 결과를 해석하는 데 편안할 수 있지만 배경이 다른 이해 관계자는 유사 모집단이나 표본 크기가 정수가 아닌 값일 수 있는 이유를 이해하지 못할 수 있습니다. 따라서 데이터가 많고 분석 해석을 개선하는 데 도움이 될 것이라고 생각되면 매칭이 좋은 옵션이 될 수 있습니다.
+
+또한 @sec-estimands에서 이해 관계자가 분석을 더 잘 이해하는 데 도움이 될 수 있는 가중 모집단을 제시하는 몇 가지 방법을 제시하여 두 가지 모두의 장점을 얻을 수 있도록 할 것입니다.
+:::
+
+이제 가중치 부여 및 매칭을 통해 성향 점수를 적용했으므로 @fig-mirrored-ps에서 본 균형이 이러한 접근 방식으로 개선되었는지 물어볼 차례입니다. 성향 점수 기법의 결과를 조사하는 기법으로 넘어가겠습니다.

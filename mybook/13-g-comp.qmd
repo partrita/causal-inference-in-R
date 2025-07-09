@@ -1,0 +1,446 @@
+# G-계산 {#sec-g-comp}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("wip")
+```
+
+## 모수적 G-공식
+
+지금까지 이 책에서 본 인과 분석의 일반적인 목표를 요약해 보겠습니다. 즉, 연구의 *모든 사람*이 노출되었을 때와 *아무도* 노출되지 않았을 때 어떤 일이 일어날지 추정하는 것입니다.
+이를 위해 교란 변수가 균형을 이루는 유사 모집단을 만드는 가중치 기법을 사용했으며, 이는 결과적으로 주변 결과 모델에서 편향되지 않은 인과 효과 추정치를 생성합니다.
+가중치 부여의 대안적인 접근 방식은 모수적 G-공식이라고 하며, 일반적으로 다음 4단계를 통해 실행됩니다.
+
+1.  적절한 시간 순서 DAG를 그립니다(@sec-dags에 설명됨).
+
+2.  기준선 이후 각 시점에 대해 DAG의 이전에 측정된 변수를 기반으로 각 변수의 값을 예측하는 모수적 모델을 결정합니다.
+    이는 종종 연속형 변수에 대한 선형 모델 또는 이진 변수에 대한 로지스틱 회귀입니다.
+
+3.  기준선에서 관찰된 데이터 분포의 표본으로 시작하여 2단계의 모델에 따라 모든 후속 변수에 대한 값을 생성합니다(즉, *몬테카를로 시뮬레이션* 수행).
+    한 가지 주요 수정을 통해 이를 수행합니다. 즉, 비교하려는 각 노출 체제(예: 모든 사람이 노출된 경우 대 모든 사람이 노출되지 않은 경우)에 대해 노출 변수를 적절하게 할당합니다(즉, 시뮬레이션이 노출 변수에 대한 값을 할당하도록 허용하지 않음).
+
+4.  각 노출 그룹의 시뮬레이션된 결과를 기반으로 관심 있는 인과적 대조를 계산합니다.
+
+::: callout-tip
+## 몬테카를로 시뮬레이션
+
+몬테카를로 시뮬레이션은 무작위 프로세스에 대한 결과 표본을 생성하는 계산적 접근 방식입니다.
+한 가지 예는 두 개의 6면체 주사위를 한 번 굴려 "스네이크 아이즈"(두 개의 1)가 나올 확률을 계산하는 것입니다.
+물론 이 확률을 수학적으로 계산할 수 있지만($\frac{1}{6}*\frac{1}{6}=\frac{1}{36}\approx 2.8$%), 프로세스의 몬테카를로 시뮬레이션을 작성하는 것이 더 빠를 수 있습니다(아래에 1,000,000번 굴림 표시).
+
+```{r}
+n <- 1000000
+tibble(
+  roll_1 = sample(1:6, n, replace = TRUE),
+  roll_2 = sample(1:6, n, replace = TRUE),
+) |>
+  reframe(roll_1 + roll_2 == 2) |>
+  pull() |>
+  sum() / n
+```
+
+몬테카를로 시뮬레이션은 폐쇄형 수학적 해법을 결정하기 어려운 복잡한 프로세스의 결과를 추정하는 데 매우 유용합니다.
+실제로 이것이 몬테카를로 시뮬레이션이 이 책에 설명된 실제 인과 메커니즘에 매우 유용한 이유입니다!
+:::
+
+## 매직 모닝 아워 예제 재검토하기
+
+@sec-outcome-model에서 엑스트라 매직 모닝 시간이 오전 9시에서 10시 사이 일곱 난쟁이 놀이기구의 평균 게시 대기 시간에 미치는 영향을 추정했습니다.
+이를 위해 노출(`park_extra_magic_morning`)에 대한 성향 점수 모델을 교란 변수 `park_ticket_season`, `park_close` 및 `park_temperature_high`로 적합시켰습니다.
+결과적으로 이러한 성향 점수는 결과 모델에 대한 회귀 가중치로 변환되었으며, 이는 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 예상 영향이 6.2분이라고 결론지었습니다.
+
+이제 g-공식 접근 방식을 채택하여 이 분석을 재현할 것입니다.
+위에서 설명한 4단계를 진행하면서 이 질문과 관련된 시간 순서 DAG를 다시 살펴보겠습니다.
+
+```{r}
+#| label: fig-dag-magic-hours-wait-take-2
+#| code-fold: true
+#| message: false
+#| warning: false
+#| fig.cap: >
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 간의 관계에 대해 제안된 DAG.
+#|   여기서는 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐장 시간, 과거 최고 기온 및 티켓 시즌에 의해 결정된다고 믿습니다.
+
+library(ggdag)
+library(ggokabeito)
+
+coord_dag <- list(
+  x = c(Season = 0, close = 0, weather = -1, x = 1, y = 2),
+  y = c(Season = -1, close = 1, weather = 0, x = 0, y = 0)
+)
+
+labels <- c(
+  x = "엑스트라 매직 모닝",
+  y = "평균 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐장 시간"
+)
+
+dagify(
+  y ~ x + close + Season + weather,
+  x ~ weather + close + Season,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "x",
+  outcome = "y"
+) |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_arc(curvature = c(rep(0, 5), .3)) +
+  geom_dag_point() +
+  geom_dag_label_repel(seed = 1630) +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text()
+  ) +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(
+    limits = c(-1.25, 2.25),
+    breaks = c(-1, 0, 1, 2),
+    labels = c(
+      "\n(1년 전)",
+      "\n(6개월 전)",
+      "\n(3개월 전)",
+      "오전 9시 - 10시\n(오늘)"
+    )
+  )
+```
+
+두 번째 단계는 DAG의 이전에 측정된 변수를 기반으로 하는 각 비기준선 변수에 대한 모수적 모델을 지정하는 것입니다.
+이 특정 예는 이전 기능(`park_extra_magic_morning` 및 `wait_minutes_posted_avg`)의 영향을 받는 변수가 두 개뿐이므로 간단합니다.
+이 두 변수에 대한 적절한 모델이 다음과 같은 간단한 로지스틱 및 선형 모델이라고 가정해 보겠습니다.
+특히 노출(`park_extra_magic_morning`)에 대한 모델을 아직 사용하지는 않지만, 다음 섹션(@sec-dynamic)에서 볼 패턴의 중요한 부분이므로 여기에 단계를 포함합니다.
+
+```{r}
+# 패키지 및 데이터 로드
+library(broom)
+library(touringplans)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9)
+
+# park_extra_magic_morning에 대한 로지스틱 회귀
+fit_extra_magic <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = "binomial"
+)
+
+# wait_minutes_posted_avg에 대한 선형 모델
+fit_wait_minutes <- lm(
+  wait_minutes_posted_avg ~
+    park_extra_magic_morning + park_ticket_season + park_close +
+    park_temperature_high,
+  data = seven_dwarfs_9
+)
+```
+
+다음으로 기준선 특성 분포에서 큰 표본을 추출해야 합니다.
+이 표본의 크기를 결정하는 것은 일반적으로 계산 가용성에 따라 결정됩니다. 표본 크기가 클수록 시뮬레이션 오류를 통해 정밀도 손실 위험을 최소화할 수 있습니다[@keil2014].
+이 경우 복원 추출을 사용하여 크기가 10,000인 데이터 프레임을 생성합니다.
+
+```{r}
+# 몬테카를로 실행의 재현성을 위해 시드를 설정하는 것이 중요합니다.
+set.seed(8675309)
+
+df_sim_baseline <- seven_dwarfs_9 |>
+  select(park_ticket_season, park_close, park_temperature_high) |>
+  slice_sample(n = 10000, replace = TRUE)
+```
+
+이 모집단을 확보했으므로 이제 방금 정의한 모수적 모델에 따라 각 후속 시점에서 어떤 일이 일어날지 시뮬레이션할 수 있습니다.
+3단계에서 중요한 주의 사항은 개입하려는 변수(이 경우 `park_extra_magic_morning`)에 대해 모델이 값을 결정하도록 허용할 필요가 없다는 것입니다. 오히려 우리가 설정합니다.
+구체적으로 처음 5000개는 `park_extra_magic_morning = 1`로 설정하고 두 번째 5000개는 `park_extra_magic_morning = 0`으로 설정합니다.
+다른 시뮬레이션(이 경우 유일하게 남은 변수인 `wait_minutes_posted_avg`)은 예상대로 진행됩니다.
+
+```{r}
+# 추정하려는 인과적 대조에 대한 노출 그룹 설정
+df_sim_time_1 <- df_sim_baseline |>
+  mutate(park_extra_magic_morning = c(rep(1, 5000), rep(0, 5000)))
+
+# 2단계의 모수적 모델에 따라 결과 시뮬레이션
+df_outcome <- fit_wait_minutes |>
+  augment(newdata = df_sim_time_1) |>
+  rename(wait_minutes_posted_avg = .fitted)
+```
+
+남은 것은 추정하려는 인과적 대조를 계산하는 것뿐입니다.
+여기서 해당 대조는 엑스트라 매직 모닝이 있는 날과 엑스트라 매직 프로그램이 없는 아침의 예상 대기 시간 차이입니다.
+
+```{r}
+df_outcome |>
+  group_by(park_extra_magic_morning) |>
+  summarize(wait_minutes = mean(wait_minutes_posted_avg))
+```
+
+차이 $74.3-68.1=6.2$는 IP 가중치를 사용했을 때의 추정치 6.2와 동일함을 알 수 있습니다.
+
+## 연속형 노출에 대한 g-공식
+
+앞서 언급했듯이 g-공식의 주요 강점은 연속형 노출을 처리할 수 있다는 점이며, 이 경우 IP 가중치는 불안정한 추정치를 생성할 수 있습니다.
+여기서는 @sec-continuous-exposures의 예제를 간략하게 반복하여 이것이 어떻게 수행되는지 보여줍니다.
+패턴을 확장하기 위해 이 기법의 실행을 부트스트랩에 포함하여 신뢰 구간이 어떻게 계산되는지 보여줄 것입니다.
+
+관심 있는 인과적 질문은 "오전 8시 일곱 난쟁이 광산 열차의 게시된 대기 시간이 오전 9시 실제 대기 시간에 영향을 미치는가?"입니다. 이 질문에 대한 시간 순서 DAG(1단계)는 다음과 같습니다.
+
+```{r}
+#| label: fig-dag-avg-wait-2
+#| code-fold: true
+#| message: false
+#| warning: false
+#| fig.cap: >
+#|    특정 공원의 아침 게시 대기 시간과 오후 5시에서 6시 사이의 평균 대기 시간 간의 관계에 대해 제안된 DAG.
+
+coord_dag <- list(
+  x = c(Season = -1, close = -1, weather = -2, extra = 0, x = 1, y = 2),
+  y = c(Season = -1, close = 1, weather = 0, extra = 0, x = 0, y = 0)
+)
+
+labels <- c(
+  extra = "엑스트라 매직 모닝",
+  x = "평균 게시 대기 시간",
+  y = "평균 실제 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐장 시간"
+)
+
+dagify(
+  y ~ x + close + Season + weather + extra,
+  x ~ weather + close + Season + extra,
+  extra ~ weather + close + Season,
+  coords = coord_dag,
+  labels = labels,
+  exposure = "x",
+  outcome = "y"
+) |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(
+    aes(x, y, xend = xend, yend = yend, color = status)
+  ) +
+  geom_dag_edges_arc(curvature = c(rep(0, 7), .2, 0, .2, .2, 0), edge_colour = "grey70") +
+  geom_dag_point() +
+  geom_dag_label_repel(seed = 1602) +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text()
+  ) +
+  coord_cartesian(clip = "off") +
+  scale_x_continuous(
+    limits = c(-2.25, 2.25),
+    breaks = c(-2, -1, 0, 1, 2),
+    labels = c(
+      "\n(1년 전)",
+      "\n(6개월 전)",
+      "\n(3개월 전)",
+      "오전 8시-9시\n(오늘)",
+      "오전 9시-10시\n(오늘)"
+    )
+  )
+```
+
+2단계에서는 DAG의 비기준선 변수(즉, 화살표가 들어가는 모든 변수)에 대한 모수적 모델을 지정해야 합니다.
+이 경우 `park_extra_magic_morning`, `wait_minutes_posted_avg` 및 `wait_minutes_actual_avg`에 대한 이러한 모델이 필요합니다. 아래 로지스틱 및 선형 모델이 적절하다고 가정합니다.
+이전 구현에 대한 한 가지 확장은 전체 파이프라인을 부트스트랩하고 신뢰 구간을 얻을 수 있도록 프로세스의 각 단계를 함수에 포함하는 것입니다.
+
+```{r}
+library(splines)
+
+fit_models <- function(.data) {
+  # park_extra_magic_morning에 대한 로지스틱 회귀
+  fit_extra_magic <- glm(
+    park_extra_magic_morning ~
+      park_ticket_season + park_close + park_temperature_high,
+    data = .data,
+    family = "binomial"
+  )
+
+  # wait_minutes_posted_avg에 대한 선형 모델
+  fit_wait_minutes_posted <- lm(
+    wait_minutes_posted_avg ~
+      park_extra_magic_morning + park_ticket_season + park_close +
+      park_temperature_high,
+    data = .data
+  )
+
+  # wait_minutes_actual_avg에 대한 선형 모델
+  # 추가적인 유연성을 위해 스플라인을 추가해 보겠습니다.
+  # 여기에 많은 옵션(상호 작용 등)을 추가할 수 있지만
+  # 데이터가 충분하지 않으면 경고가 발생하거나 모델이
+  # 수렴하지 못할 수 있음에 유의하십시오.
+  fit_wait_minutes_actual <- lm(
+    wait_minutes_actual_avg ~
+      ns(wait_minutes_posted_avg, df = 3) +
+      park_extra_magic_morning +
+      park_ticket_season + park_close +
+      park_temperature_high,
+    data = .data
+  )
+
+  # 시뮬레이션 단계(다음)로 파이프할 수 있는 목록 반환
+  return(
+    list(
+      .data = .data,
+      fit_extra_magic = fit_extra_magic,
+      fit_wait_minutes_posted = fit_wait_minutes_posted,
+      fit_wait_minutes_actual = fit_wait_minutes_actual
+    )
+  )
+}
+```
+
+다음으로 3단계를 완료할 함수를 작성합니다. 즉, 기준선 변수 분포의 무작위 표본에서 정의한 모델에 따라 모든 후속 변수(개입 변수 제외)에 대한 값을 생성합니다.
+
+```{r}
+# simulate_process의 인수는 다음과 같습니다.
+# fit_obj는 fit_models 함수에서 반환된 목록입니다.
+# contrast는 노출(기본값 60) 및 대조군(기본값 30) 그룹 설정을 제공합니다.
+# n_sample은 .data의 기준선 재표본 크기입니다.
+simulate_process <- function(
+  fit_obj,
+  contrast = c(60, 30),
+  n_sample = 10000
+) {
+  # 기준선 변수의 무작위 표본 추출
+  df_baseline <- fit_obj |>
+    pluck(".data") |>
+    select(park_ticket_season, park_close, park_temperature_high) |>
+    slice_sample(n = n_sample, replace = TRUE)
+
+  # park_extra_magic_morning 시뮬레이션
+  df_sim_time_1 <- fit_obj |>
+    pluck("fit_extra_magic") |>
+    augment(newdata = df_baseline, type.predict = "response") |>
+    # .fitted는 park_extra_magic_morning이 1일 확률이므로
+    # 이를 사용하여 0/1 결과 생성
+    mutate(
+      park_extra_magic_morning = rbinom(n(), 1, .fitted)
+    )
+
+  # wait_minutes_posted_avg 할당(개입이므로)
+  df_sim_time_2 <- df_sim_time_1 |>
+    mutate(
+      wait_minutes_posted_avg =
+        c(rep(contrast[1], n_sample / 2), rep(contrast[2], n_sample / 2))
+    )
+
+  # 결과 시뮬레이션
+  df_outcome <- fit_obj |>
+    pluck("fit_wait_minutes_actual") |>
+    augment(newdata = df_sim_time_2) |>
+    rename(wait_minutes_actual_avg = .fitted)
+
+  # 대조 추정 단계(다음)로 파이프할 수 있는 목록 반환
+  return(
+    list(
+      df_outcome = df_outcome,
+      contrast = contrast
+    )
+  )
+}
+```
+
+마지막으로 4단계에서는 시뮬레이션된 데이터를 사용하여 관심 있는 요약 통계 및 인과적 대조를 계산합니다.
+
+```{r}
+# sim_obj는 simulate_process() 함수에서 생성된 목록입니다.
+compute_stats <- function(sim_obj) {
+  exposure_val <- sim_obj |>
+    pluck("contrast", 1)
+
+  control_val <- sim_obj |>
+    pluck("contrast", 2)
+
+  sim_obj |>
+    pluck("df_outcome") |>
+    group_by(wait_minutes_posted_avg) |>
+    summarize(avg_wait_actual = mean(wait_minutes_actual_avg)) |>
+    pivot_wider(
+      names_from = wait_minutes_posted_avg,
+      values_from = avg_wait_actual,
+      names_prefix = "x_"
+    ) |>
+    summarize(
+      x_60,
+      x_30,
+      x_60 - x_30
+    )
+}
+```
+
+이제 모든 것을 종합하여 단일 점 추정치를 얻어 보겠습니다.
+작동하는 것을 확인한 후 신뢰 구간을 부트스트랩할 것입니다.
+
+```{r}
+# 묻는 인과적 질문을 반영하도록 데이터 조작
+eight <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 8) |>
+  select(-wait_minutes_actual_avg)
+
+nine <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  select(park_date, wait_minutes_actual_avg)
+
+wait_times <- eight |>
+  left_join(nine, by = "park_date") |>
+  drop_na(wait_minutes_actual_avg)
+
+# 계획대로 작동하는지 확인하기 위해 단일 점 추정치 가져오기
+wait_times |>
+  fit_models() |>
+  simulate_process() |>
+  compute_stats() |>
+  # rsample은 이와 같이 레이블이 지정된 결과를 원합니다.
+  pivot_longer(
+    names_to = "term",
+    values_to = "estimate",
+    cols = everything()
+  )
+
+# 부트스트랩 신뢰 구간 계산
+library(rsample)
+
+boots <- bootstraps(wait_times, times = 1000, apparent = TRUE) |>
+  mutate(
+    models = map(
+      splits,
+      \(.x) as.data.frame(.x) |>
+        fit_models() |>
+        simulate_process() |>
+        compute_stats() |>
+        pivot_longer(
+          names_to = "term",
+          values_to = "estimate",
+          cols = everything()
+        )
+    )
+  )
+
+results <- int_pctl(boots, models)
+results
+```
+
+요약하자면, 결과는 다음과 같이 해석됩니다. 오전 8시 게시된 대기 시간을 60분으로 설정하면 오전 9시 실제 대기 시간은 `r results |>  filter(term == "x_60") |> pull(.estimate) |> round()`분이 되고, 게시된 대기 시간을 30분으로 설정하면 대기 시간이 `r results |>  filter(term == "x_30") |> pull(.estimate) |> round()`분으로 더 길어집니다.
+즉, 오전 8시 게시된 대기 시간을 30분에서 60분으로 늘리면 오전 9시 대기 시간이 `r round(-results[3,3])`분 짧아집니다.
+
+모델 중 하나가 완벽한 판별에 대한 경고(`fitted probabilities numerically 0 or 1 occurred`)를 발생시켰다는 점에 유의하십시오. 이는 표본 크기가 크지 않고 모델 중 하나가 복잡성으로 인해 과도하게 지정된 경우 발생할 수 있습니다.
+이 연습에서는 `wait_minutes_actual_avg`에 대한 회귀의 스플라인으로 추가된 유연성이 문제의 원인이었습니다.
+이러한 경우 한 가지 해결책은 문제가 되는 모델을 단순화하는 것입니다(즉, `wait_minutes_actual_avg`를 수정하여 `wait_minutes_posted_avg`에 대한 간단한 선형 항을 포함하면 경고가 해결됨).
+작은 크기에서 중간 크기의 데이터셋에 대해 모수적 g-공식으로 작업할 때 해결해야 하는 일반적인 문제를 강조하기 위해 여기에 경고를 남겨두었습니다.
+
+## g-공식을 사용한 동적 치료 요법 {#sec-dynamic}
+
+## 자연 경과

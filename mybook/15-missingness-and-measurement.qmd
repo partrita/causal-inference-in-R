@@ -1,0 +1,1016 @@
+# 결측 및 측정 {#sec-missingness}
+
+{{< include 00-setup.qmd >}}
+
+```{r}
+#| echo: false
+# TODO: 첫 번째 판이 완료되면 제거
+status("wip")
+```
+
+결측 및 잘못 측정된 데이터는 설명, 예측 및 인과 추론이라는 세 가지 유형의 분석 모두에 영향을 미치는 대부분의 실제 데이터셋에 대한 문제입니다.
+분석과 마찬가지로 결측 및 잘못된 측정의 영향은 다중 대체와 같은 동일한 도구를 사용하여 해결하더라도 세 가지 모두에서 다릅니다.
+최상의 경우 결측 및 잘못된 측정은 표본의 정밀도와 편향을 악화시킬 수 있습니다. 최악의 경우 해결할 수 없는 선택 편향을 만들어 완전히 잘못된 답을 제공할 수 있습니다.
+이 장에서는 결측 및 잘못된 측정의 존재 하에 인과 분석에서 편향이 어떻게 발생할 수 있는지, 그리고 이를 해결하는 방법(가능하다면!)을 살펴볼 것입니다.
+
+## 구조적 편향으로서의 결측 및 측정 오류
+
+인과 추론은 근본적으로 결측 데이터 문제로 생각할 수 있다는 것이 자주 관찰되었습니다. 결국 우리는 반사실적 상태를 비교하고 싶지만 사실적 세계 외부의 모든 그러한 상태는 누락되었습니다.
+결측으로서의 인과 추론은 철학적으로 흥미로우며 통계의 두 영역에서 방법을 연결합니다.
+여기서는 역命題를 고려할 것입니다. 즉, 결측 및 측정 오류는 인과 추론 문제입니다.
+
+지금까지 DAG에서 포함된 변수가 실제로 데이터의 변수라는 큰 가정을 했습니다.
+즉, 데이터가 완벽하고 완전하게 측정되었다고 가정합니다.
+이 가정은 거의 항상 사실이 아닙니다.
+잘못된 측정과 결측의 영향을 이해하기 위해 인과 다이어그램을 사용하여 몇 가지 시나리오를 고려해 보겠습니다.
+
+::: callout-tip
+`x`가 부분적으로 누락되었지만 `y`가 누락되지 않은 경우 `x`의 평균보다 더 큰 표본 크기로 `y`의 평균을 측정할 수 있습니다.
+그러나 회귀 계수와 같은 공동 매개변수의 경우 `x`와 `y`가 모두 완전한 관찰에 대해서만 값을 계산할 수 있습니다.
+R의 많은 도구(예: `lm()`)는 기본적으로 필요한 변수에 대해 완전하지 않은 행을 자동으로 삭제합니다.
+
+필요한 변수가 모두 완전한 관찰만 사용하는 것을 때때로 *완전 사례 분석*이라고 하며, 지금까지 이 책에서 그렇게 해왔습니다.
+:::
+
+투어링플랜 데이터에서 대부분의 변수는 완전하며 정확하게 측정되었을 가능성이 높습니다(예: 티켓 시즌 및 과거 날씨는 잘 측정됨).
+결측 및 측정 오류가 있는 한 가지 변수는 놀이기구의 실제 대기 시간입니다.
+기억하시겠지만, 데이터는 사람이 줄을 서서 기다리는 것에 의존합니다. 즉, 경험을 보고하는 데이터 소비자 또는 대기 시간을 보고하기 위해 고용된 사람입니다.
+따라서 결측은 주로 누군가가 대기 시간을 측정하기 위해 그곳에 있는지 여부와 관련이 있습니다.
+누군가가 그것을 측정하기 위해 그곳에 있을 때 오류와 함께 측정될 가능성이 높으며, 그 오류는 아마도 그 사람이 누구인지에 따라 달라질 것입니다.
+예를 들어, 디즈니 월드 방문객이 대기 시간을 추정하여 투어링플랜에 제출하는 것은 줄을 서서 분을 세기 위해 돈을 받는 사람보다 오류가 더 많은 값을 생성할 가능성이 높습니다.
+
+즉, 측정 오류와 결측을 한 번에 하나씩 고려해 보겠습니다.
+
+### 구조적 측정 오류
+
+먼저 측정 오류를 고려해 보겠습니다.
+@fig-meas-err-dag에서 실제 대기 시간과 게시된 대기 시간을 두 번 나타냅니다. 즉, 실제 버전과 측정된 버전입니다.
+측정된 버전은 실제 값과 잘못된 측정을 유발하는 알 수 없거나 측정되지 않은 요인이라는 두 가지 변수의 영향을 받습니다.
+두 대기 시간이 잘못 측정되는 방식은 서로 독립적입니다.
+단순화를 위해 이 DAG에서 교란 변수를 제거했습니다.
+
+```{r}
+#| label: fig-meas-err-dag
+#| fig-cap: "게시된 대기 시간과 실제 대기 시간 간의 관계를 보여주는 DAG. 측정에 대한 추가 정보 포함. 두 대기 시간 변수의 잘못 측정된 버전은 별도의 노드로 표시됩니다. 잘못 측정된 버전은 실제 값과 측정을 악화시키는 알 수 없는 메커니즘에 의해 발생합니다. 잘못 측정된 변수로 인과 분석을 수행할 때 실제 값에 대한 대리인으로 사용합니다."
+#| code-fold: true
+#| message: false
+library(ggdag)
+
+glyph <- function(data, params, size) {
+  # data$shape <- 15
+  data$size <- 5
+  ggplot2::draw_key_point(data, params, size)
+}
+
+show_edge_color <- function(...) {
+  list(
+    theme(legend.position = "bottom"),
+    ggokabeito::scale_edge_color_okabe_ito(name = NULL, breaks = ~ .x[!is.na(.x)]),
+    guides(color = "none")
+  )
+}
+
+edges_with_aes <- function(..., edge_color = "grey85", shadow = TRUE) {
+  list(
+    if (shadow) {
+      geom_dag_edges_link(
+        data = \(.x) filter(.x, is.na(path)),
+        edge_color = edge_color
+      )
+    },
+    geom_dag_edges_link(
+      aes(edge_color = path),
+      data = \(.x) mutate(.x, path = if_else(is.na(to), NA, path))
+    )
+  )
+}
+
+ggdag2 <- function(.dag, ..., order = 1:9, seed = 1633, box.padding = 3.4, edges = geom_dag_edges_link(edge_color = "grey85")) {
+  ggplot(
+    .dag,
+    aes_dag(...)
+  ) +
+    edges +
+    geom_dag_point(key_glyph = glyph) +
+    geom_dag_text_repel(aes(label = label), size = 3.8, seed = seed, color = "#494949", box.padding = box.padding) +
+    ggokabeito::scale_color_okabe_ito(order = order, na.value = "grey90", breaks = ~ .x[!is.na(.x)]) +
+    theme_dag() +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off")
+}
+
+add_measured <- function(.df) {
+  mutate(
+    .df,
+    measured = case_when(
+      str_detect(label, "측정됨") ~ "측정됨",
+      str_detect(label, "대기") ~ "실제",
+      .default = NA
+    )
+  )
+}
+
+add_missing <- function(.df) {
+  mutate(
+    .df,
+    missing = case_when(
+      str_detect(label, "누락") ~ "누락 지표",
+      str_detect(label, "대기") ~ "대기 시간",
+      .default = NA
+    )
+  )
+}
+
+labels <- c(
+  "actual" = "실제\n대기",
+  "actual_star" = "측정된\n실제",
+  "posted" = "게시된\n대기",
+  "posted_star" = "측정된\n게시",
+  "u_posted" = "알 수 없음",
+  "u_actual" = "알 수 없음 "
+)
+
+dagify(
+  actual ~ posted,
+  posted_star ~ u_posted + posted,
+  actual_star ~ u_actual + actual,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "posted_star",
+  outcome = "actual_star"
+) |>
+  tidy_dagitty() |>
+  add_measured() |>
+  ggdag2(color = measured, order = 6:7) +
+  theme(legend.position = "bottom") +
+  labs(color = NULL) +
+  theme(
+    legend.key.spacing.x = unit(4, "points"),
+    legend.key.size = unit(1, "points"),
+    legend.text = element_text(size = rel(1.25), margin = margin(l = -10.5, b = 2.6)),
+    legend.box.margin = margin(b = 20),
+    strip.text = element_blank()
+  )
+```
+
+투어링플랜은 디즈니가 웹에 게시한 게시된 대기 시간을 스크랩했습니다.
+이것이 잘못 측정될 수 있는 타당한 메커니즘이 있습니다. 즉, 디즈니가 공원에 게시된 것과 다른 시간을 온라인에 게시하거나 투어링플랜의 데이터 수집 코드에 실수가 있을 수 있습니다.
+즉, 이 오류는 작다고 가정하는 것이 합리적입니다.
+
+반면에 실제 대기 시간에는 측정 오류가 많을 수 있습니다.
+사람이 이 기간을 수동으로 측정해야 하므로 해당 프로세스에는 자연스러운 오류가 있습니다.
+측정은 또한 대기 시간을 측정하는 사람이 그렇게 하도록 돈을 받는지 여부에 따라 달라질 수 있습니다.
+아마도 선의로 입력하는 사람은 대략적인 대기 시간을 제출할 가능성이 더 높고, 돈을 받는 사람은 더 정확할 가능성이 높습니다.
+
+따라서 업데이트된 DAG는 @fig-meas-err-other-1과 같을 수 있습니다.
+이 DAG는 `actual`의 측정 오류의 구조적 원인을 설명합니다. 특히 해당 구조는 `posted`와 연결되어 있지 않습니다.
+`posted`에서 `actual`로 향하는 화살표를 제거한 *귀무* DAG를 표시하면 더 쉽게 볼 수 있습니다(@fig-meas-err-other-2).
+게시된 시간은 실제 시간의 측정 오류를 유발하는 메커니즘과 연결되어 있지 않습니다.
+즉, 이 측정 오류로 인한 편향은 비 교환 가능성 때문이 *아니라* 측정의 수치적 오류 때문이며 인과 그래프의 열린 경로 때문이 아닙니다.
+이 오류의 정도는 측정된 버전이 실제 값과 얼마나 잘 상관되는지에 따라 달라집니다.
+
+```{r}
+#| label: fig-meas-err-other
+#| fig-subcap:
+#|   - "게시된 대기 시간의 측정된 버전이 실제 값에 의해서만 발생하여 완벽하게 측정됨을 의미하는 업데이트된 DAG. 실제 대기 시간의 경우 세 가지 원인은 실제 값, 투어링플랜이 보고자를 고용했는지 여부 및 알 수 없는 잘못된 측정 메커니즘입니다."
+#|   - "귀무 DAG, 즉 실제 대기 시간에서 게시된 대기 시간으로 향하는 화살표를 제거했습니다. 귀무 DAG를 보면 두 대기 시간 변수에 대한 잘못된 측정 메커니즘이 분리되어 있음을 알 수 있습니다."
+#| code-fold: true
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+labels <- c(
+  "actual" = "실제\n대기",
+  "actual_star" = "측정된\n실제",
+  "posted" = "게시된\n대기",
+  "posted_star" = "측정된\n게시",
+  "employed" = "TP에\n고용됨",
+  "u_actual" = "알 수 없음"
+)
+
+dagify(
+  actual ~ posted,
+  posted_star ~ posted,
+  actual_star ~ u_actual + actual + employed,
+  coords = time_ordered_coords(),
+  labels = labels
+) |>
+  tidy_dagitty() |>
+  add_measured() |>
+  ggdag2(color = measured, order = 6:7, box.padding = 3.7, seed = 123)
+
+dagitty::dagitty(
+  'dag {
+actual [pos="1.000,-2.000"]
+actual_star [pos="2.000,-1.000"]
+employed [pos="1.000,-1.000"]
+posted [pos="1.000,2.000"]
+posted_star [pos="2.000,1.000"]
+u_actual [pos="1.000,1.000"]
+actual -> actual_star
+employed -> actual_star
+posted -> posted_star
+u_actual -> actual_star
+}'
+) |>
+  dag_label(labels = labels) |>
+  add_measured() |>
+  ggdag2(color = measured, order = 6:7, box.padding = 2.5)
+```
+
+교란으로 인한 비 교환 가능성 유형 대신 이러한 유형의 측정 편향은 `posted`가 `actual`에 미치는 영향을 근사하기 위해 `posted_measured`가 `actual_measured`에 미치는 영향을 분석하고 있다는 사실 때문입니다.
+결과의 정확성은 `actual_measured`가 `actual`을 얼마나 잘 근사하는지에 전적으로 달려 있습니다.
+측정된 변수를 연구 중인 원인과 결과로 취급하는 관점을 바꾸면 실제로는 실제 변수 연구를 근사하기 위해 인과 구조를 사용하고 있음을 알 수 있습니다.
+@fig-meas-err-other-1의 측정된 변수는 서로를 유발하지 않습니다.
+그러나 관계를 계산하면 실제 변수에 의해 교란됩니다.
+특이하게도 이 교란을 사용하여 실제 변수의 관계를 근사하고 있습니다.
+그렇게 할 수 있는 정도는 *실제 변수를 제외한* 교환 가능성과 각 변수에 대한 독립적인 측정 오류의 양(여기서는 `unknown`과 같음)에 따라 달라집니다.
+
+이를 때때로 *독립적, 비차별적* 측정 오류라고 합니다. 즉, 오류는 구조적 비 교환 가능성 때문이 아니라 실제 및 게시된 시간에 대한 관찰된 값과 실제 값의 차이 때문입니다.
+
+::: callout-warning
+상관 관계가 0에 가까워지면 연구 중인 관계에 대해 측정이 무작위가 됩니다.
+이는 종종 변수가 독립적인 측정 오류로 측정될 때 실제 값 사이에 화살표가 있더라도 측정된 값의 관계가 귀무 가설에 가까워짐을 의미합니다.
+여기서 `x`의 계수는 약 1이어야 하지만 무작위 측정이 악화됨에 따라 계수는 0에 가까워집니다.
+잘못된 측정으로 인한 무작위성(`u`)과 `y` 사이에는 관계가 없습니다.
+
+```{r}
+n <- 1000
+x <- rnorm(n)
+y <- x + rnorm(n)
+# x의 잘못된 측정
+u <- rnorm(n)
+x_measured <- .01 * x + u
+cor(x, x_measured)
+lm(y ~ x_measured)
+```
+
+그러나 모든 무작위 잘못된 측정이 효과를 귀무 가설로 가져오는 것은 아닙니다.
+예를 들어, 두 개 이상의 범주를 가진 범주형 변수의 경우 잘못된 측정은 값의 개수 분포를 변경합니다(이를 범주형 변수에 대한 오분류라고도 함).
+무작위 오분류에서도 일부 관계는 귀무 가설로 편향되고 일부는 귀무 가설에서 멀어집니다. 단순히 한 범주에서 개수가 제거되면 다른 범주로 들어가기 때문입니다.
+예를 들어, 레이블 `"c"`와 `"d"`를 무작위로 섞으면 서로 평균화되어 `c`의 계수는 너무 커지고 `d`의 계수는 너무 작아지는 반면 다른 두 개는 정확하게 유지됩니다.
+
+```{r}
+x <- sample(letters[1:5], size = n, replace = TRUE)
+y <- case_when(
+  x == "a" ~ 1 + rnorm(n),
+  x == "b" ~ 2 + rnorm(n),
+  x == "c" ~ 3 + rnorm(n),
+  x == "d" ~ 4 + rnorm(n),
+  x == "e" ~ 5 + rnorm(n),
+)
+
+x_measured <- if_else(
+  x %in% c("c", "d"),
+  sample(c("c", "d"), size = n, replace = TRUE),
+  x
+)
+
+lm(y ~ x_measured)
+```
+
+일부 연구자들은 무작위 측정 오류가 예측 가능하게 귀무 가설로 향할 것이라는 희망에 의존하지만 항상 그런 것은 아닙니다.
+이것이 거짓인 경우에 대한 자세한 내용은 @Yland2022를 참조하십시오.
+:::
+
+그러나 @fig-meas-err-dag-dep-1에서와 같이 단일 알 수 없는 요인이 게시된 대기 시간과 실제 대기 시간 모두의 측정에 영향을 미친다고 가정해 보겠습니다.
+위의 문제 외에도 측정된 변수의 교란으로 인한 비 교환 가능성도 있습니다(@fig-meas-err-dag-dep-2).
+이를 *종속적, 비차별적* 측정 오류라고 합니다.
+
+```{r}
+#| label: fig-meas-err-dag-dep
+#| fig-subcap:
+#|   - "이제 DAG에는 `unknown`에서 두 측정된 변수로 향하는 화살표가 포함되어 있으며, 이는 잘못 측정되는 방식이 독립적이지 않음을 의미합니다. 즉, `unknown`은 이제 잘못 측정된 변수의 공통 원인, 즉 교란 변수입니다."
+#|   - "이 DAG의 열린 경로. 이것은 귀무 DAG이므로 유일한 열린 경로는 `unknown`을 통해 두 잘못 측정된 변수에서 오는 편향 경로입니다."
+#| code-fold: true
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+labels <- c(
+  "actual" = "실제 대기",
+  "actual_star" = "측정된\n실제",
+  "posted" = "게시된 대기",
+  "posted_star" = "측정된\n게시",
+  "employed" = "TP에 고용됨",
+  "u_actual" = "알 수 없음"
+)
+
+depend_dag <- dagify(
+  posted_star ~ posted + u_actual,
+  actual_star ~ u_actual + actual + employed,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "posted_star",
+  outcome = "actual_star"
+)
+
+depend_dag |>
+  tidy_dagitty() |>
+  add_measured() |>
+  ggdag2(color = measured, order = 6:7, box.padding = 3)
+
+depend_dag |>
+  tidy_dagitty() |>
+  dag_paths() |>
+  ggdag2(
+    color = path,
+    edge_color = path,
+    box.padding = 2.35,
+    edges = edges_with_aes(shadow = FALSE)
+  ) +
+  show_edge_color()
+```
+
+비 교환 가능성이 노출, 결과 또는 둘 다와 관련된 경우 이를 *차별적* 측정 오류라고 하며, 이는 종속적이거나 독립적일 수 있습니다.
+@fig-meas-err-dag-dep-1을 확장하여 게시된 시간이 실제 대기 시간이 측정되는 방식에 영향을 미치는 화살표를 포함시켜 보겠습니다. 이는 *종속적, 차별적* 측정 오류의 경우입니다(@fig-meas-err-dag-dep-1에 도입된 경로가 없으면 *독립적*이고 차별적일 것입니다).
+@fig-meas-err-dag-diff는 두 개의 열린 백도어 경로를 보여줍니다. 즉, `unknown`을 통한 경로와 `posted`를 통한 경로입니다.
+
+```{r}
+#| label: fig-meas-err-dag-diff
+#| fig-cap: "게시된 대기 시간의 실제 값이 두 측정된 변수의 측정에 영향을 미치면 해당 변수의 교란 변수가 됩니다. 백도어 경로가 노출 또는 결과 때문인 경우 차별적 측정 오류로 분류됩니다."
+#| code-fold: true
+#| fig-width: 7.5
+labels <- c(
+  "actual" = "실제 대기",
+  "actual_star" = "측정된\n실제",
+  "posted" = "게시된 대기",
+  "posted_star" = "측정된\n게시",
+  "employed" = "TP에 고용됨",
+  "u_actual" = "알 수 없음"
+)
+
+depend_dag <- dagify(
+  posted_star ~ posted + u_actual,
+  actual_star ~ u_actual + actual + employed + posted,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "posted_star",
+  outcome = "actual_star"
+)
+
+depend_dag |>
+  tidy_dagitty() |>
+  dag_paths() |>
+  ggdag2(
+    color = path,
+    edge_color = path,
+    seed = 234,
+    edges = edges_with_aes(edge_color = "grey90")
+  ) +
+  show_edge_color() +
+  facet_wrap(~set) +
+  theme(strip.text = element_blank())
+```
+
+측정 오류 유형의 이름은 개념적입니다.
+실제로 발생하는 편향은 두 가지 형태뿐입니다. 즉, 측정된 변수와 실제 값의 수치적 불일치(독립적, 비차별적 측정 오류)와 비 교환 가능성(다른 세 가지 유형의 측정 오류)입니다.
+오류가 종속적인지 차별적인지는 비 교환 가능성이 노출 및/또는 결과를 포함하는지 여부에 따라 결정됩니다.
+
+종속/차별 그룹화의 한 가지 불편한 점은 이러한 두 가지 편향 원인이 함께 발생할 수 있고 실제로 발생한다는 사실을 가린다는 것입니다.
+종종 이러한 모든 상황이 함께 발생합니다(실제 값과의 수치적 불일치 및 노출/결과 및 기타 경로를 포함하는 열린 백도어 경로).
+이 경우 편향은 측정된 변수가 실제 변수와 얼마나 잘 상관되는지와 구조적 비 교환 가능성 *모두* 때문입니다.
+
+이 경우 게시된 시간이 실제 시간의 측정 품질에 영향을 미칠 가능성은 거의 없으므로 @fig-meas-err-dag-diff의 추가 화살표는 아마도 제외할 수 있습니다(그러나 아래에서 실제 시간의 *결측*에 영향을 미칠 수 있음을 볼 것입니다).
+게시된 시간의 측정은 아마도 실제 시간의 측정 이전에 발생하므로 거기에 화살표가 있을 수 없습니다.
+
+::: callout-tip
+예를 들어 결과가 노출 측정에 영향을 미치는 상황이 발생할 수 있는 이유는 변수 측정이 나타내는 값의 시간 순서와 일치하지 않을 수 있기 때문입니다.
+노출은 결과보다 훨씬 이전에 발생할 수 있지만 측정은 어떤 순서로든 발생할 수 있습니다.
+시간 순서대로 *측정된* 값을 사용하면 결과가 노출 측정에 영향을 미치는 경우와 같이 일부 유형의 측정 오류를 피하는 데 도움이 됩니다.
+어느 쪽이든 DAG에서 발생과 측정을 올바르게 나타내면 문제를 식별하고 이해하는 데 도움이 될 수 있습니다.
+:::
+
+잘못 측정된 교란 변수도 문제를 일으킵니다.
+첫째, 잘못 측정된 교란 변수가 있는 경우 백도어 경로를 완전히 닫지 못했을 수 있으며, 이는 잔여 교란이 있음을 의미합니다.
+둘째, 잘못 측정된 교란 변수는 잘못된 측정이 결과에 대해 차별적인 경우 효과 수정자로 나타날 수도 있습니다.
+일반적으로 잔여 교란으로 인한 편향이 더 나쁘지만 @tbl-confounder-me에서 볼 수 있듯이 노출과 잘못 측정된 교란 변수 간에는 종종 작지만 중요한 상호 작용 효과가 있습니다.
+
+```{r}
+n <- 10000
+set.seed(1)
+confounder <- rnorm(n)
+exposure <- confounder + rnorm(n)
+outcome <- exposure + confounder + rnorm(n)
+
+true_model <- lm(outcome ~ exposure * confounder)
+
+# 교란 변수 잘못 측정하기
+confounder <- if_else(
+  outcome > 0,
+  confounder,
+  confounder + 10 * rnorm(n)
+)
+
+mismeasured_model <- lm(outcome ~ exposure * confounder)
+```
+
+```{r}
+#| code-fold: true
+#| label: tbl-confounder-me
+#| tbl-cap: "교란 변수와 노출 간의 상호 작용 항의 계수. 한 모드에서는 교란 변수가 올바르게 측정됩니다. 다른 모드에서는 결과에 따라 차별적으로 잘못 측정됩니다. 백도어 경로를 완전히 닫지 않는 것 외에도 이러한 유형의 잘못된 측정은 그러한 상호 작용이 존재하지 않더라도 종종 노출과 교란 변수 간의 상호 작용으로 나타납니다."
+library(gt)
+library(broom)
+pull_interaction <- function(mdl) {
+  mdl |>
+    tidy() |>
+    filter(term == "exposure:confounder") |>
+    mutate(
+      estimate = round(estimate, 3),
+      p.value = scales::label_pvalue()(p.value)
+    ) |>
+    select(term, estimate, `p-value` = p.value)
+}
+
+map(
+  list("true" = true_model, "mismeasured" = mismeasured_model),
+  pull_interaction
+) |>
+  list_rbind(names_to = "model") |>
+  gt()
+```
+
+### 구조적 결측
+
+위에서 게시된 대기 시간이 실제 대기 시간 측정에 영향을 미치지 않을 가능성이 높다고 주장했습니다.
+그러나 게시된 대기 시간은 실제 대기 시간의 *결측*에 영향을 미칠 *수 있습니다*.
+게시된 대기 시간이 길면 누군가가 줄을 서지 않아 투어링플랜에 실제 대기 시간을 제출하지 않을 수 있습니다.
+단순화를 위해 측정 오류에 대한 세부 정보를 제거하고 변수가 잘 측정되었으며 교란이 없다고 가정합니다.
+
+@fig-missing-dag-1은 측정 오류 예제의 DAG와 약간 다른 상황을 나타냅니다.
+여전히 특정 변수에 대해 두 개의 노드가 있지만 하나는 실제 값을 나타내고 다른 하나는 값이 누락되었는지 여부를 나타내는 *결측 지표*를 나타냅니다.
+문제는 우리가 데이터를 관찰했는지 여부에 대해 본질적으로 조건화하고 있다는 것입니다.
+우리는 항상 실제로 가지고 있는 데이터에 대해 조건화하고 있습니다.
+결측의 경우 일반적으로 *완전한* 관찰에 대한 조건화에 대해 이야기합니다. 예를 들어, 필요한 변수에 대해 모든 값이 완전한 데이터 하위 집합을 사용하고 있습니다.
+최상의 경우 결측은 연구 질문의 인과 구조와 관련이 없으며 유일한 영향은 표본 크기 감소(따라서 정밀도 감소)입니다.
+
+그러나 @fig-missing-dag-1에서는 `actual`의 결측이 게시된 대기 시간 및 알 수 없는 메커니즘과 관련이 있다고 말하고 있습니다.
+알 수 없는 메커니즘은 무작위이지만 게시된 대기 시간과 관련된 메커니즘은 노출이므로 무작위가 아닙니다.
+
+```{r}
+#| label: fig-missing-dag-1
+#| fig-cap: "실제 대기 시간의 결측 구조를 나타내는 DAG. 이 DAG에서 결측은 게시된 대기 시간과 실제 대기 시간이 측정되었는지 여부에 영향을 미치는 알 수 없는 메커니즘에 의해 발생합니다. 실제 대기 시간의 결측은 별도의 노드인 결측 지표로 표시됩니다."
+#| code-fold: true
+#| fig-width: 5
+labels <- c(
+  "actual" = "실제 대기",
+  "actual_missing" = "실제\n결측",
+  "posted" = "게시된 대기",
+  "u_actual" = "알 수 없음"
+)
+
+missing_dag <- dagify(
+  actual ~ posted,
+  actual_missing ~ u_actual + posted,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "posted",
+  outcome = "actual"
+)
+
+missing_dag |>
+  tidy_dagitty() |>
+  add_missing() |>
+  ggdag2(color = missing, order = c(5, 3), box.padding = 3) +
+  theme(legend.position = "bottom") +
+  labs(color = NULL) +
+  theme(
+    legend.key.spacing.x = unit(4, "points"),
+    legend.key.size = unit(1, "points"),
+    legend.text = element_text(size = rel(1.25), margin = margin(l = -10.5, b = 2.6)),
+    legend.box.margin = margin(b = 20),
+    strip.text = element_blank()
+  )
+```
+
+그러나 이 간단한 DAG에서 결측에 대한 조건화는 `actual`과 `posted` 사이에 백도어 경로를 열지 않습니다.
+(`unknown`과 `posted` 간의 관계는 편향되지만 추정할 수 있더라도 해당 관계에는 관심이 없습니다.) @fig-missing-dag-2의 유일한 열린 경로는 `posted`에서 `actual`로 이어지는 경로입니다.
+
+```{r}
+#| label: fig-missing-dag-2
+#| fig-cap: "결측이 있는 DAG에서 우리는 특정 변수를 가지고 있는지 여부에 따라 계층화하기 때문에 결측 지표에 대해서도 조건화하고 있습니다. 이 DAG에서 `missing`이 충돌자이더라도 계층화하면 노출과 결과 사이에 백도어 경로가 열리지 않습니다."
+#| code-fold: true
+#| fig-width: 4
+#| fig-height: 4
+missing_dag |>
+  tidy_dagitty() |>
+  add_missing() |>
+  dag_paths(adjust_for = "actual_missing") |>
+  ggdag2(
+    color = path,
+    edge_color = path,
+    box.padding = 3,
+    seed = 234,
+    edges = edges_with_aes(edge_color = "grey90")
+  ) +
+  show_edge_color()
+```
+
+비 교환 가능성 문제가 없으므로 여전히 인과 효과를 추정할 수 있어야 합니다.
+그러나 결측은 여전히 분석에 영향을 미칩니다.
+이 경우 인과 효과는 *복구 가능*합니다. 즉, 완전 사례 분석으로 편향 없이 추정할 수 있습니다.
+그러나 완전한 관찰이 있는 관찰만 사용하므로 표본 크기가 작아지고 따라서 정밀도가 감소합니다.
+또한 게시된 대기 시간별로 값이 체계적으로 누락되었기 때문에 실제 대기 시간의 *평균*을 올바르게 추정할 수 없습니다.
+
+`actual`의 결측이 자체 값과 관련이 있을 가능성이 있습니까?
+실제 대기 시간이 너무 빨라서 라이더가 입력할 시간이 없거나 너무 오래 기다려서 줄을 서지 않기로 결정했을 수 있습니다.
+@fig-missing-dag-actual-1은 이와 같은 관계를 보여줍니다.
+
+결측이 충돌자인 경우 조건화하면 편향이 유발될 수 있습니다.
+이 경우 실제 대기 시간이 측정되었는지 여부는 실제 대기 시간과 게시된 대기 시간 모두의 후손입니다.
+조건화하면 백도어 경로가 열려 @fig-missing-dag-actual-2에서와 같이 비 교환 가능성이 생성됩니다.
+이 경우 결측에 대한 조건화로 열린 백도어 경로를 닫을 방법이 없습니다.
+
+```{r}
+#| label: fig-missing-dag-actual
+#| fig-subcap:
+#|   - "이제 DAG에는 실제 대기 시간에서 실제 대기 시간의 결측 지표로 향하는 화살표가 포함됩니다. 즉, 실제 대기 시간 값 자체가 측정 여부에 영향을 미칩니다."
+#|   - "결측 지표에 대한 조건화는 이제 노출과 결과 사이에 백도어 경로를 열고 이를 닫을 방법이 없습니다."
+#| code-fold: true
+#| layout-ncol: 2
+#| fig-width: 5
+#| fig-height: 5
+labels <- c(
+  "actual" = "실제 대기",
+  "actual_missing" = "실제\n결측",
+  "posted" = "게시된 대기",
+  "u_actual" = "알 수 없음"
+)
+
+missing_dag <- dagify(
+  actual ~ posted,
+  actual_missing ~ u_actual + actual + posted,
+  coords = time_ordered_coords(),
+  labels = labels,
+  exposure = "posted",
+  outcome = "actual"
+)
+
+missing_dag |>
+  tidy_dagitty() |>
+  add_missing() |>
+  ggdag2(color = missing, order = c(5, 3))
+
+missing_dag |>
+  tidy_dagitty() |>
+  add_missing() |>
+  dag_paths(adjust_for = "actual_missing") |>
+  ggdag2(
+    color = path,
+    edge_color = path,
+    seed = 234,
+    edges = edges_with_aes(edge_color = "grey90")
+  ) +
+  show_edge_color() +
+  facet_wrap(~set) +
+  expand_plot(expand_x = expansion(c(.2, .2))) +
+  theme(strip.text = element_blank())
+```
+
+복구할 수 있는 효과는 백도어 경로만 결정하는 것보다 더 복잡합니다.
+백도어 경로가 없는 경우 인과 효과를 계산할 수 있지만 노출 또는 결과의 평균과 같은 다른 통계는 계산할 수 없을 수 있습니다.
+결측에 대한 조건화가 백도어 경로를 열 때 때로는 닫을 수 있고(따라서 인과 효과를 추정할 수 있음) 때로는 닫을 수 없습니다.
+
+@fig-missing-dags-sim의 DAG를 고려해 보십시오. 여기서 `a`는 `actual`, `p`는 `posted`, `u`는 `unknown`, `m`은 `missing`입니다.
+각 DAG는 약간 다른 결측 구조를 나타냅니다.
+
+```{r}
+#| label: fig-missing-dags-sim
+#| fig-cap: "`a`가 `actual`, `p`가 `posted`, `u`가 `unknown`, `m`이 `missing`인 5개의 DAG. 각 DAG는 약간 다른 결측 메커니즘을 나타냅니다. DAG 1-3에서는 실제 대기 시간 값에 결측이 있습니다. DAG 4-5에서는 일부 게시된 대기 시간에 결측이 있습니다. 결측의 인과 구조는 추정할 수 있는 것에 영향을 미칩니다."
+#| code-fold: true
+library(patchwork)
+
+define_dag <- function(..., tag, title) {
+  dagify(
+    ...,
+    coords = time_ordered_coords(),
+    exposure = "p",
+    outcome = "a"
+  ) |>
+    ggdag(size = .7) +
+    labs(title = paste0(tag, ": ", title)) +
+    theme_dag() +
+    theme(plot.title = element_text(size = 12)) +
+    expand_plot(expansion(c(0.4, 0.4)), expansion(c(0.4, 0.4)))
+}
+
+dag_1 <- define_dag(
+  a ~ p,
+  m ~ u,
+  tag = "1",
+  title = "`실제`가 누락됨"
+)
+
+dag_2 <- define_dag(
+  a ~ p,
+  m ~ u + p,
+  tag = "2",
+  title = "`실제`가 누락됨"
+)
+
+dag_3 <- define_dag(
+  a ~ p,
+  m ~ u + a,
+  tag = "3",
+  title = "`실제`가 누락됨"
+)
+
+dag_4 <- define_dag(
+  a ~ p,
+  m ~ u + p,
+  tag = "4",
+  title = "`게시됨`이 누락됨"
+)
+
+dag_5 <- define_dag(
+  a ~ p,
+  m ~ u + a,
+  tag = "5",
+  title = "`게시됨`이 누락됨"
+)
+
+(dag_1 + dag_2 + dag_3) / (plot_spacer() + dag_4 + dag_5)
+```
+
+@fig-recoverables는 이러한 DAG에서 시뮬레이션된 데이터에 대한 `posted` 및 `actual`의 평균과 `posted`가 `actual`에 미치는 추정된 인과 효과를 보여줍니다.
+물론 결측이 없으면 세 가지 모두를 추정할 수 있습니다.
+DAG 1의 경우 세 가지 모두를 추정할 수도 있지만 결측으로 인해 표본 크기가 줄어들고 따라서 정밀도가 떨어집니다.
+DAG 2의 경우 `posted`의 평균과 인과 효과는 계산할 수 있지만 `actual`의 평균은 계산할 수 없습니다.
+DAG 3의 경우 인과 효과도 계산할 수 없습니다.
+DAG 4에서는 `actual`의 평균과 인과 효과는 계산할 수 있지만 `posted`의 평균은 계산할 수 없으며, DAG 5에서는 `actual`의 평균만 계산할 수 있습니다.
+
+```{r}
+#| label: fig-recoverables
+#| fig-cap: "@fig-missing-dags-sim의 각 DAG에서 시뮬레이션된 데이터에 대한 세 가지 다른 효과의 포레스트 플롯. 누락되지 않은 결과에서 표본에 대한 효과가 무엇인지 알 수 있습니다. 각 시뮬레이션된 데이터셋에는 실제 또는 게시된 대기 시간에 결측이 있는 365개의 행이 있습니다. 각 DAG에 대해 올바르게 추정할 수 있는 것이 제한됩니다."
+#| code-fold: true
+set.seed(123)
+posted <- rnorm(365, mean = 30, sd = 5)
+# 게시된 시간 1시간이 실제 시간 50분을 생성하는 효과 만들기
+coef <- 50 / 60
+actual <- coef * posted + rnorm(365, mean = 0, sd = 2)
+
+posted_60 <- posted / 60
+missing_dag_1 <- rbinom(365, 1, .3) |>
+  as.logical()
+missing_dag_2 <- if_else(posted_60 > .50, rbinom(365, 1, .95), 0) |>
+  as.logical()
+missing_dag_3 <- if_else(actual > 22, rbinom(365, 1, .99), 0) |>
+  as.logical()
+# 동일한 구조이지만 결과적인 결측을 갖는 것은 `posted`입니다.
+missing_dag_4 <- missing_dag_2
+missing_dag_5 <- missing_dag_3
+
+fit_stats <- function(dag, actual, posted_60, missing_by = NULL, missing_for = "actual") {
+  if (!is.null(missing_by) & missing_for == "actual") {
+    actual[missing_by] <- NA
+  }
+
+  if (!is.null(missing_by) & missing_for == "posted") {
+    posted_60[missing_by] <- NA
+  }
+
+  t_actual <- t.test(actual)
+  t_posted <- t.test(posted_60 * 60)
+  mdl <- lm(actual ~ posted_60)
+  mdl_confints <- confint(mdl)
+
+  tibble(
+    dag = dag,
+    mean_actual_estimate = as.numeric(t_actual$estimate),
+    mean_actual_lower = t_actual$conf.int[[1]],
+    mean_actual_upper = t_actual$conf.int[[2]],
+    mean_posted_estimate = as.numeric(t_posted$estimate),
+    mean_posted_lower = t_posted$conf.int[[1]],
+    mean_posted_upper = t_posted$conf.int[[2]],
+    coef_60_estimate = coefficients(mdl)[["posted_60"]],
+    coef_60_lower = mdl_confints[2, 1],
+    coef_60_upper = mdl_confints[2, 2]
+  ) |>
+    pivot_longer(
+      cols = -dag,
+      names_to = c("stat", ".value"),
+      names_pattern = "^(.*)_(estimate|lower|upper)$"
+    )
+}
+
+dag_stats <- bind_rows(
+  fit_stats("결측 없음", actual, posted_60),
+  fit_stats("DAG 1", actual, posted_60, missing_by = missing_dag_1),
+  fit_stats("DAG 2", actual, posted_60, missing_by = missing_dag_2),
+  fit_stats("DAG 3", actual, posted_60, missing_by = missing_dag_3),
+  fit_stats("DAG 4", actual, posted_60, missing_by = missing_dag_4, missing_for = "posted"),
+  fit_stats("DAG 5", actual, posted_60, missing_by = missing_dag_5, missing_for = "posted"),
+)
+
+dag_stats |>
+  mutate(
+    true_value = if_else(dag == "결측 없음", "실제 값", "관찰된 값"),
+    dag = factor(dag, levels = c(paste("DAG", 5:1), "결측 없음")),
+    stat = factor(
+      stat,
+      levels = c("mean_posted", "mean_actual", "coef_60"),
+      labels = c("게시된 평균", "실제 평균", "인과 효과")
+    )
+  ) |>
+  ggplot(aes(color = true_value)) +
+  geom_point(aes(estimate, dag)) +
+  geom_segment(aes(x = lower, xend = upper, y = dag, yend = dag, group = stat)) +
+  facet_wrap(~stat, scales = "free_x") +
+  labs(y = NULL, color = NULL)
+```
+
+다양한 결측 구조에서 복구할 수 있는 효과에 대한 포괄적인 개요는 @Moreno-Betancur2018을 참조하십시오.
+
+측정 오류와 마찬가지로 인과 모델의 교란 변수도 실제 대기 시간의 결측에 기여할 수 있습니다. 예를 들어, 계절이나 기온이 투어링플랜이 측정을 위해 누군가를 보내는지 여부에 영향을 미치는 경우입니다.
+이 데이터에서는 모든 교란 변수가 관찰되지만 교란 변수의 결측은 잔여 교란과 완전한 사례에 대한 계층화로 인한 선택 편향을 모두 유발할 수 있습니다.
+
+::: callout-tip
+통계학자들이 이름을 잘 못 짓는 훌륭한 전통에서 결측은 *완전히 무작위로 누락됨*, *무작위로 누락됨*, *무작위가 아닌 누락됨*이라는 용어로도 흔히 논의됩니다.
+
+인과 모델의 경우 이러한 아이디어를 결측의 인과 구조와 해당 구조와 관련된 변수 및 값의 데이터 가용성으로 설명할 수 있습니다.
+
+-   **완전히 무작위로 누락됨(MCAR)**: 결측값이 있지만 결측 원인이 질문의 인과 구조와 관련이 없습니다. 즉, 결측의 유일한 문제는 표본 크기 감소입니다.
+-   **무작위로 누락됨(MAR)**: 결측 원인이 연구 문제의 인과 구조와 관련이 있지만 실제로 관찰한 데이터의 변수와 값에만 의존합니다.
+-   **무작위가 아닌 누락됨(MNAR)**: 결측 원인이 연구 문제의 인과 구조와 관련이 있지만 이 과정은 누락된 값과 관련이 있습니다. 고전적인 예는 변수의 결측이 자체적으로 영향을 받는 경우입니다. 예를 들어, `x`의 높은 값이 `x`에서 누락될 가능성이 더 높습니다. 정의상 누락되었으므로 해당 정보가 없습니다.
+
+이러한 용어는 다음에 무엇을 해야 할지 항상 알려주지는 않으므로 결측 생성 과정을 명시적으로 설명하는 대신 피할 것입니다.
+:::
+
+실제 값을 놓치고 있기 때문에 측정 오류가 결측입니까?
+일부 값을 `NA`로 잘못 측정했기 때문에 결측이 측정 오류입니까?
+측정 오류는 대리 변수의 인과 효과를 계산하여 표현하고 결측은 결측에 대한 조건부로 실제 변수의 인과 효과를 계산하여 표현하는 다른 구조를 사용하여 두 가지 문제를 제시했습니다.
+이 두 구조는 두 상황에서 발생하는 편향을 더 잘 보여줍니다.
+즉, 다른 관점에서 생각하는 것도 도움이 될 수 있습니다.
+예를 들어, 측정 오류를 결측 문제로 생각하면 다중 대체와 같은 기법을 사용하여 해결할 수 있습니다.
+물론 일부 관찰에는 데이터가 누락되고 다른 관찰에는 관찰되었지만 잘못 측정되었기 때문에 종종 두 가지 모두를 수행합니다.
+
+이제 이러한 DAG에서 볼 수 있는 수치적 문제와 구조적 비 교환 가능성을 모두 수정하기 위해 측정 오류와 결측을 해결하기 위한 몇 가지 분석 기법에 대해 논의해 보겠습니다.
+[Chapter -@sec-sensitivity]에서는 결측 및 측정 오류에 대한 민감도 분석도 논의할 것입니다.
+
+## 회귀 보정
+
+때로는 관찰 하위 집합에 대해 잘 측정된 버전의 변수가 있고 데이터셋의 더 큰 부분에 대해 측정 오류가 더 많은 버전이 있는 경우가 있습니다. 때때로 사람들은 이것을 **검증 집합**이라고 부릅니다.
+이 경우 *회귀 보정*이라는 간단한 접근 방식을 사용하여 데이터셋의 더 많은 관찰에 대해 잘 측정된 버전의 값을 예측할 수 있습니다.
+이 기법의 이름은 잘 측정된 버전에 대해 가지고 있는 값의 하위 집합을 고려하여 더 많이 관찰한 변수 버전을 다시 보정한다는 사실을 나타냅니다.
+그러나 그 외에는 더 많이 관찰한 변수 버전과 측정 과정에 중요하다고 생각하는 다른 변수를 포함하는 예측 모델일 뿐입니다.
+
+알다시피 실제 대기 시간에는 결측이 많습니다.
+게시된 대기 시간을 실제 대기 시간의 대리인으로 간주하면 어떨까요?
+이 경우 엑스트라 매직 모닝이 실제 대기 시간의 보정된 버전에 미치는 영향에 대한 분석을 다시 수행할 수 있습니다.
+
+먼저 `wait_minutes_posted_avg`를 사용하여 `wait_minutes_actual_avg`를 예측하는 모델을 적합시킵니다. 그런 다음 `wait_minutes_posted_avg` 대신 해당 모델의 보정된 값을 대신 사용합니다.
+
+회귀 보정 모델을 적합시킬 때 후속 모델에 나타날 모든 변수를 동일한 형태로 포함하는 것이 중요합니다(예: 최종 모델에 스플라인을 사용하여 적합시킨 교란 변수가 있는 경우 보정 모델에도 스플라인을 사용하여 적합시킨 동일한 교란 변수가 필요함).
+
+
+```{r}
+library(splines)
+library(touringplans)
+library(broom)
+
+calib_model <- lm(
+  wait_minutes_actual_avg ~
+    wait_minutes_posted_avg * wait_hour +
+    park_extra_magic_morning +
+    park_temperature_high + park_close + park_ticket_season,
+  data = seven_dwarfs_train_2018)
+
+seven_dwarves_calib <- calib_model |>
+  augment(newdata = seven_dwarfs_train_2018) |>
+  rename(wait_minutes_posted_calib = .fitted)
+```
+
+
+```{r}
+#| echo: false
+library(propensity)
+fit_ipw_effect <- function(.fmla, .data = seven_dwarfs, .trt = "park_extra_magic_morning", .outcome_fmla = wait_minutes_posted_calib ~ park_extra_magic_morning) {
+  .trt_var <- rlang::ensym(.trt)
+
+  # 성향 점수 모델 적합시키기
+  propensity_model <- glm(
+    .fmla,
+    data = .data,
+    family = binomial()
+  )
+
+  # ATE 가중치 계산하기
+  .df <- propensity_model |>
+    augment(type.predict = "response", data = .data) |>
+    mutate(w_ate = wt_ate(.fitted, !!.trt_var, exposure_type = "binary"))
+
+  # ipw 모델 적합시키기
+  lm(.outcome_fmla, data = .df, weights = w_ate) |>
+    tidy() |>
+    filter(term == .trt) |>
+    pull(estimate)
+}
+
+effect_calib <- fit_ipw_effect(
+  park_extra_magic_morning ~ park_temperature_high +
+    park_close + park_ticket_season,
+  .outcome_fmla = wait_minutes_posted_calib ~ park_extra_magic_morning,
+  .data = seven_dwarves_calib |> filter(wait_hour == 9)
+) |>
+  round(2)
+```
+이 모델을 IPW 추정기로 적합시키면 [Chapter -@sec-outcome-model]에서 보정되지 않은 `wait_minutes_posted_avg`를 사용할 때 본 값에 비해 약간 약화된 `r effect_calib` 효과가 발생합니다.
+
+또 다른 접근 방식은 값을 **대체**하는 것입니다. `wait_minutes_actual_avg`를 사용할 수 있는 경우 이를 사용합니다. `NA`인 경우 보정된 값을 사용합니다. 실제로 이는 위와 동일한 보정 모델을 사용하지만 모든 관찰에 보정된 값을 제공하는 대신 검증 집합에서 누락된 관찰에 대해서만 대체합니다. 이 방법은 때때로 *회귀 대체* 또는 *결정론적 대체*라고 합니다. 누락된 데이터가 있는 모든 관찰에 단일 예측값을 제공하고 이를 고정된 것으로 취급하며 변동성을 추가하지 않는다는 의미에서 결정론적입니다(다음에는 변동성을 도입하는 *확률적* 대체 방법을 볼 것입니다).
+
+```{r}
+seven_dwarves_reg_impute <- calib_model |>
+  augment(newdata = seven_dwarfs_train_2018) |>
+  rename(wait_minutes_actual_impute = .fitted) |>
+  # 실제 값이 있는 경우 채우기
+  mutate(
+    wait_minutes_actual_impute = coalesce(
+      wait_minutes_actual_avg,
+      wait_minutes_actual_impute
+    )
+  )
+```
+
+```{r}
+#| echo: false
+
+effect_reg_impute <- fit_ipw_effect(
+  park_extra_magic_morning ~ park_temperature_high +
+    park_close + park_ticket_season,
+  .outcome_fmla = wait_minutes_actual_impute ~ park_extra_magic_morning,
+  .data = seven_dwarves_reg_impute |> filter(wait_hour == 9)
+) |>
+  round(2)
+```
+
+이 모델을 IPW 추정기로 적합시키면 `r effect_reg_impute` 효과가 발생합니다.
+
+::: callout-warning
+회귀 보정 모델은 보정된 변수의 추정치에 불확실성을 도입합니다.
+회귀 보정 또는 대체를 수행할 때 올바른 표준 오차를 얻으려면 부트스트랩에 이 모델의 적합을 포함해야 합니다.
+:::
+
+## 다중 대체 {#sec-imputation}
+
+회귀 보정은 단일 모델로 값을 예측하고 해당 예측을 분석에 연결하여 측정 오류와 결측을 해결하는 간단한 방법을 제공합니다. 그러나 이 플러그인 접근 방식은 일반적으로 비효율적입니다. 불확실성을 올바르게 추정하면(예: 보정 및 결과 모델 모두 부트스트랩) 단일 대체 값에 의존했다는 사실을 반영하여 종종 넓은 신뢰 구간을 얻게 됩니다.
+
+다중 대체(MI)는 종종 더 효율적인 대안입니다. 결측값에 대한 "최상의 추측" 하나를 생성하는 대신 MI는 분포에서 예측값을 추출하여 결측 데이터에 내재된 불확실성을 포착합니다. 이 프로세스를 통해 요약 통계(예: 대체된 변수의 평균)와 다운스트림 조건부 효과(예: 대체된 변수가 결과 모델에 나타날 때의 치료 효과) 모두에 대한 더 나은 추정치를 얻을 수 있습니다. 이 프로세스를 통해 여러 개의 대체된 데이터셋을 생성합니다. 기본값은 종종 5이지만 데이터의 상당 부분이 누락된 경우 안정적인 결과를 얻으려면 더 많은 대체가 필요할 수 있습니다. 일반적인 경험 법칙은 대체 횟수가 불완전한 사례의 백분율과 거의 일치해야 한다는 것입니다.
+
+인과 분석에서 MI를 사용할 때 몇 가지 중요한 모델링 고려 사항이 있습니다.
+
+1. 대체 모델에는 최종 결과 모델과 성향 점수 모델에 나타나는 *모든 변수*가 포함되어야 합니다. 여기에는 치료-결과 관계를 교란시키는 변수, 치료 *및 결과 자체*(결과가 대체 대상이 아닌 경우)가 포함됩니다. 주요 변수, 특히 결과를 생략하면 편향된 추정치가 발생할 수 있습니다. [@d2024behind]
+2. 회귀 보정과 마찬가지로 *나중에 사용할 것과 동일한 함수 형태를 대체 모델에 사용하십시오*. 변수가 다운스트림에서 스플라인 또는 상호 작용으로 모델링되는 경우 대체 단계에서 이를 미러링해야 합니다.
+
+일반적인 인과 분석에서는 다음과 같이 진행합니다.
+
+1. 결과와 모든 공변량을 포함하는 대체 모델을 사용하여 여러 개의 완전한 데이터셋을 대체합니다.
+2. 각 데이터셋 내에서 치료 효과를 추정합니다.
+    * 성향 점수 모델을 적합시킵니다.
+    * 역확률 가중치를 계산합니다.
+    * 가중 결과 모델을 적합시킵니다.
+3. 루빈의 규칙(@tip-rubin 참조)을 사용하여 추정치를 풀링하여 전체 치료 효과와 유효한 표준 오차를 얻습니다.
+
+
+::: {#tip-rubin .callout-tip}
+
+### 루빈의 규칙
+
+$m$개의 대체된 데이터셋 각각에 대해 개별적으로 분석을 수행한 후:
+
+다음과 같이 가정합니다.
+
+- $\hat{Q}_i$: $i$번째 대체된 데이터셋의 추정치
+- $U_i$: $\hat{Q}_i$의 분산
+- $\bar{Q} = \frac{1}{m} \sum_{i=1}^m \hat{Q}_i$: 풀링된 추정치
+- $\bar{U} = \frac{1}{m} \sum_{i=1}^m U_i$: 평균 대체 내 분산
+- $B = \frac{1}{m - 1} \sum_{i=1}^m (\hat{Q}_i - \bar{Q})^2$: 대체 간 분산
+
+그러면 총 분산은 다음과 같습니다.
+
+$$T = \bar{U} + \left(1 + \frac{1}{m}\right) B$$
+
+풀링된 추정치의 표준 오차는 $\sqrt{T}$이며, 이를 사용하여 신뢰 구간을 구성하거나 가설 검정을 수행할 수 있습니다.
+
+:::
+
+
+이 접근 방식은 대체 및 치료 효과 추정 단계 모두에서 불확실성을 설명합니다. 결측이 치료 할당 또는 결과 과정에 관련된 변수에 영향을 미치는 경우, 즉 완전 사례 분석 또는 단일 대체가 편향되거나 비효율적인 추정치를 산출할 수 있는 경우에 특히 유용합니다.
+
+실제로 다중 대체는 종종 MICE(연쇄 방정식에 의한 다변량 대체) 알고리즘을 사용하여 구현되며, 이는 결측값이 있는 각 변수를 다른 변수에 대한 조건부 모델을 사용하여 반복적으로 대체합니다. R에서는 종종 `{mice}` 패키지를 사용하여 대체를 구현합니다.
+
+위와 동일한 예를 사용하되 단일 회귀 대체를 수행하는 대신 확률적(다중) 대체를 10번 수행해 보겠습니다. 먼저 데이터를 대체해야 합니다.
+
+```{r}
+#| message: false
+#| warning: false
+library(mice)
+
+seven_dwarfs_to_impute_data <- seven_dwarfs_train_2018 |>
+  mutate(park_ticket_season = as.factor(park_ticket_season)) |>
+  select(
+    park_date,
+    wait_minutes_actual_avg,
+    wait_minutes_posted_avg,
+    wait_hour,
+    park_temperature_high,
+    park_close,
+    park_ticket_season,
+    park_extra_magic_morning
+  )
+
+predictor_matrix <- make.predictorMatrix(seven_dwarfs_to_impute_data)
+
+# 대체 모델에서 공원 날짜 제거
+predictor_matrix[, 1] <- 0
+
+# 데이터 대체
+seven_dwarfs_mi <- mice(
+  seven_dwarfs_to_impute_data,
+  m = 10, # 10번 대체 수행
+  predictorMatrix = predictor_matrix,
+  method = "pmm",  # 예측 평균 매칭
+  seed = 1,
+  print = FALSE
+)
+```
+
+그런 다음 `complete` 함수를 사용하여 대체된 데이터셋을 목록으로 수집할 수 있습니다.
+
+```{r}
+seven_dwarfs_mi_data <- complete(seven_dwarfs_mi, action = "all")
+```
+
+
+마지막으로 이러한 데이터셋에 걸쳐 IPW 효과를 적합시키는 함수를 작성해 보겠습니다. 루빈의 규칙을 적용하기 위해 치료 효과와 표준 오차를 유지하고 싶습니다.
+
+```{r}
+fit_ipw_effect <- function(.fmla, .data = seven_dwarfs, .trt = "park_extra_magic_morning", .outcome_fmla = wait_minutes_posted_calib ~ park_extra_magic_morning) {
+  .trt_var <- rlang::ensym(.trt)
+
+  # 성향 점수 모델 적합시키기
+  propensity_model <- glm(
+    .fmla,
+    data = .data,
+    family = binomial()
+  )
+
+  # ATE 가중치 계산하기
+  .df <- propensity_model |>
+    augment(type.predict = "response", data = .data) |>
+    mutate(w_ate = wt_ate(.fitted, !!.trt_var, exposure_type = "binary"))
+
+  # 결과 모델 적합시키기
+  outcome_model <- lm(.outcome_fmla, data = .df, weights = w_ate)
+
+  # ipw 효과 적합시키기
+  ipw_output <- ipw(propensity_model, outcome_model, .df)
+  return(c(estimate = ipw_output$estimates$estimate,
+           std.err = ipw_output$estimates$std.err))
+}
+```
+
+```{r}
+effect_mi_all <- map(seven_dwarfs_mi_data, ~fit_ipw_effect(
+  park_extra_magic_morning ~ park_temperature_high +
+    park_close + park_ticket_season,
+  .outcome_fmla = wait_minutes_actual_avg ~ park_extra_magic_morning,
+  .data = .x |> filter(wait_hour == 9)
+)) |>
+  bind_rows()
+```
+
+이제 각 대체된 데이터셋 내의 추정된 효과와 표준 오차가 포함된 데이터 프레임이 있습니다.
+
+```{r}
+effect_mi_all
+```
+
+최종 효과를 얻으려면 `estimate` 열을 평균화하고 적절한 표준 오차를 얻기 위해 루빈의 규칙을 적용합니다(@tip-rubin에서 자세한 내용 참조).
+
+```{r}
+effect_mi_all |>
+  summarise(
+    effect_mi = mean(estimate),      # 풀링된 추정치
+    u_bar = mean(std.err^2),         # 평균 대체 내 분산
+    b = var(estimate),               # 대체 간 분산
+    t_var = u_bar + (1 + 1/n()) * b, # 총 분산
+    se_mi = sqrt(t_var)              # 풀링된 표준 오차
+  ) |>
+  select(effect_mi, se_mi)
+```
+
+다시 말하지만, 이 효과는 [Chapter -@sec-outcome-model]에서 본 것과 비교하여 약화되었습니다(표준 오차가 상당히 크므로 차이가 의미 없을 수 있지만).
+
+
+
+::: callout-tip
+결측이 결과에 미치는 영향과 완전 사례 분석 및 다중 대체의 영향은 매우 직관적이지 않을 수 있습니다.
+측정 오류 및 기타 유형의 편향을 추가하면 추론하기가 거의 불가능할 수 있습니다.
+이 문제에 대한 부분적인 해결책은 추론의 일부를 뇌에서 컴퓨터로 오프로드하는 것입니다.
+
+연구 질문과 관련된 인과 메커니즘을 작성한 다음 시뮬레이션을 사용하여 다양한 전략을 조사하는 것이 좋습니다.
+
+1.  결측 및 잘못된 측정 생성 과정과 중요하다고 생각하는 다른 모든 유형의 편향을 포함하는 DAG를 만듭니다.
+2.  이 과정과 일치하는 데이터를 시뮬레이션합니다. 종종 잘못된 측정의 강도 또는 DAG의 변수와 관련된 결측과 같은 다양한 가정을 일치시키기 위해 시뮬레이션하고 싶을 것입니다.
+3.  완전 사례 분석 대 대체와 같은 다양한 분석 전략 하에서 결과를 확인합니다. 또한 신뢰 구간에 대한 명목 포함 범위를 계산하고 싶을 수 있습니다(시뮬레이션을 통해 얻은 신뢰 구간 중 실제 값을 포함하는 비율, 예를 들어 95% 신뢰 구간의 경우 시뮬레이션의 신뢰 구간 중 95%가 실제 결과를 포함해야 함).
+
+DAG에 대한 일반적인 제안과 마찬가지로 올바른 DAG에 대해 확신이 없는 경우 사양에 따라 이러한 결과가 어떻게 다른지 확인해야 합니다.
+:::
