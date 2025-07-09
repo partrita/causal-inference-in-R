@@ -1,22 +1,14 @@
+# R을 이용한 인과 추론 (Causal Inference in R)
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
+이 저장소는 *Causal Inference in R* 책의 소스 코드를 포함하고 있습니다.
 
-# Causal Inference in R
+## 설치
 
-<!-- badges: start -->
-<!-- badges: end -->
+이 저장소를 클론(clone)한 후, 다음 명령어를 사용하여 이 책의 패키지 종속성들을 설치할 수 있습니다:
 
-This repository contains the source code for the book *Causal Inference
-in R.*
-
-## Installation
-
-After cloning this repository, you can install the package dependencies
-for this book with:
-
-``` r
+```r
 # install.packages("remotes")
 remotes::install_deps(dependencies = TRUE)
 ```
 
-We use [Quarto](https://quarto.org/) to render this book.
+저희는 이 책을 렌더링하기 위해 [Quarto](https://quarto.org/)를 사용합니다.

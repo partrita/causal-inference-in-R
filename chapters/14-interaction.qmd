@@ -1,17 +1,17 @@
-# Interaction {#sec-interaction}
+# 상호작용 {#sec-interaction}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Functional form, hetereogenous effects, and joint causes
+## 함수 형태, 이질적 효과 및 공동 원인
 
-## Fitting interaction terms in causal models
+## 인과 모델에서 상호작용 항 적합시키기
 
-<!-- Maybe also: -->
+<!-- 아마도 또한: -->
 
-<!-- ## type ii selection bias, induced by EM [@lu2022] -->
+<!-- ## EM에 의해 유도된 유형 II 선택 편향 [@lu2022] -->

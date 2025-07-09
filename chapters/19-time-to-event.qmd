@@ -1,19 +1,19 @@
-# Causal time-to-event models {#sec-survival}
+# 인과적 시간-사건 모델 {#sec-survival}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Preparing data for time-to-event analysis
+## 시간-사건 분석을 위한 데이터 준비하기
 
 ```{r}
 rnorm(5)
 ```
 
-## Pooled logistic regression
+## 풀링된 로지스틱 회귀
 
-## Confidence intervals for causal time-to-event models
+## 인과적 시간-사건 모델의 신뢰 구간

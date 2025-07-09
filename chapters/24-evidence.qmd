@@ -1,21 +1,21 @@
-# Evidence {#sec-evidence}
+# 증거 {#sec-evidence}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-> "Circumstantial evidence is a very tricky thing. It may seem to point very straight to one thing, but if you shift your own point of view a little, you may find it pointing in an equally uncompromising manner to something entirely different” --- Sherlock Holmes
+> "정황 증거는 매우 까다로운 것입니다. 그것은 한 가지를 매우 똑바로 가리키는 것처럼 보일 수 있지만, 자신의 관점을 약간 바꾸면 완전히 다른 것을 똑같이 단호하게 가리키는 것을 발견할 수 있습니다." --- 셜록 홈즈
 
-## Triangulation
+## 삼각 측량
 
 ```{r}
 rnorm(5)
 ```
 
-## Generalization and transportability
+## 일반화 및 이동성
 
-## Ragged evidence
+## 누더기 증거

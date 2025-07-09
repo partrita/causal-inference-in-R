@@ -1,28 +1,28 @@
-# Causal inference is not (just) a statistical problem {#sec-quartets}
+# 인과 추론은 (단지) 통계 문제가 아니다 {#sec-quartets}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("complete")
 ```
 
-## The Causal Quartet
+## 인과적 사중주
 
-We now have the tools to look at something we've alluded to thus far in the book: causal inference is not (just) a statistical problem.
-Of course, we use statistics to answer causal questions.
-It's necessary to answer most questions, even if the statistics are basic (as they often are in randomized designs).
-However, statistics alone do not allow us to address all of the assumptions of causal inference.
+이제 이 책에서 지금까지 언급했던 것을 살펴볼 도구가 생겼습니다. 즉, 인과 추론은 (단지) 통계 문제가 아닙니다.
+물론 인과적 질문에 답하기 위해 통계를 사용합니다.
+통계가 기본적이더라도(무작위 설계에서 종종 그렇듯이) 대부분의 질문에 답하는 데 필요합니다.
+그러나 통계만으로는 인과 추론의 모든 가정을 해결할 수 없습니다.
 
-In 1973, Francis Anscombe introduced a set of four datasets called **Anscombe's Quartet**.
-These data illustrated an important lesson: summary statistics alone cannot help you understand data; you must also visualize your data.
-In the plots in @fig-anscombe, each data set has remarkably similar summary statistics, including means and correlations that are nearly identical.
+1973년 프랜시스 앤스콤은 **앤스콤의 사중주**라는 네 가지 데이터셋 집합을 소개했습니다.
+이 데이터는 중요한 교훈을 보여주었습니다. 즉, 요약 통계만으로는 데이터를 이해하는 데 도움이 될 수 없으며 데이터를 시각화해야 합니다.
+@fig-anscombe의 플롯에서 각 데이터셋은 거의 동일한 평균 및 상관 관계를 포함하여 놀랍도록 유사한 요약 통계를 갖습니다.
 
 ```{r}
 #| label: fig-anscombe
 #| message: false
-#| fig-cap: "Anscombe's Quartet, a set of four datasets with nearly identical summary statistics. Anscombe's point was that one must visualize the data to understand it."
+#| fig-cap: "앤스콤의 사중주, 거의 동일한 요약 통계를 가진 네 가지 데이터셋 집합. 앤스콤의 요점은 데이터를 이해하려면 시각화해야 한다는 것이었습니다."
 library(quartets)
 
 anscombe_quartet |>
@@ -32,13 +32,13 @@ anscombe_quartet |>
   facet_wrap(~dataset)
 ```
 
-The **Datasaurus Dozen** is a modern take on Anscombe's Quartet.
-The mean, standard deviation, and correlation are nearly identical in each dataset, but the visualizations are very different.
+**데이터사우루스 12종**은 앤스콤의 사중주를 현대적으로 해석한 것입니다.
+각 데이터셋의 평균, 표준 편차 및 상관 관계는 거의 동일하지만 시각화는 매우 다릅니다.
 
 ```{r}
 library(datasauRus)
 
-# roughly the same correlation in each dataset
+# 각 데이터셋에서 거의 동일한 상관 관계
 datasaurus_dozen |>
   group_by(dataset) |>
   summarize(cor = round(cor(x, y), 2))
@@ -47,7 +47,7 @@ datasaurus_dozen |>
 ```{r}
 #| label: fig-datasaurus
 #| message: false
-#| fig-cap: "The Datasaurus Dozen, a set of datasets with nearly identical summary statistics. The Datasaurus Dozen is a modern version of Anscombe's Quartet. It's actually a baker's dozen, but who's counting?"
+#| fig-cap: "데이터사우루스 12종, 거의 동일한 요약 통계를 가진 데이터셋 집합. 데이터사우루스 12종은 앤스콤의 사중주를 현대적으로 해석한 것입니다. 실제로는 13종이지만 누가 세고 있겠습니까?"
 #| fig-height: 8
 datasaurus_dozen |>
   ggplot(aes(x, y)) +
@@ -55,20 +55,20 @@ datasaurus_dozen |>
   facet_wrap(~dataset)
 ```
 
-In causal inference, however, even visualization is insufficient to untangle causal effects.
-As saw in @sec-counterfactuals and @sec-dags, unverifiable assumptions based on background knowledge is required to infer causation from correlation [@onthei1999].
+그러나 인과 추론에서는 시각화만으로는 인과 효과를 풀기에 충분하지 않습니다.
+@sec-counterfactuals 및 @sec-dags에서 보았듯이 상관 관계에서 인과 관계를 추론하려면 배경 지식에 기반한 검증 불가능한 가정이 필요합니다[@onthei1999].
 
-Inspired by Anscombe's quartet, the **Causal Quartet** has many of the same properties of Anscombe's quartet and the Datasaurus Dozen: the numerical summaries of the variables in the dataset are the same [@dagostinomcgowan2023].
-Unlike these data, the causal quartet also *look* the same as each other.
-The difference is the causal structure that generated each dataset.
-@fig-causal_quartet_hidden shows four datasets where the observational relationship between `exposure` and `outcome` is virtually identical.
+앤스콤의 사중주에서 영감을 받은 **인과적 사중주**는 앤스콤의 사중주 및 데이터사우루스 12종과 많은 동일한 속성을 갖습니다. 즉, 데이터셋의 변수에 대한 수치적 요약이 동일합니다[@dagostinomcgowan2023].
+이러한 데이터와 달리 인과적 사중주는 서로 *모양도* 동일합니다.
+차이점은 각 데이터셋을 생성한 인과 구조입니다.
+@fig-causal_quartet_hidden은 `exposure`와 `outcome` 간의 관찰 관계가 거의 동일한 네 가지 데이터셋을 보여줍니다.
 
 ```{r}
 #| label: fig-causal_quartet_hidden
 #| message: false
-#| fig-cap: "The Causal Quartet, four data sets with nearly identical summary statistics and visualizations. The causal structure of each dataset is different, and data alone cannot tell us which is which."
+#| fig-cap: "인과적 사중주, 거의 동일한 요약 통계와 시각화를 가진 네 가지 데이터셋. 각 데이터셋의 인과 구조는 다르며 데이터만으로는 어떤 것이 어떤 것인지 알 수 없습니다."
 causal_quartet |>
-  # hide the dataset names
+  # 데이터셋 이름 숨기기
   mutate(dataset = as.integer(factor(dataset))) |>
   group_by(dataset) |>
   mutate(exposure = scale(exposure), outcome = scale(outcome)) |>
@@ -79,18 +79,18 @@ causal_quartet |>
   facet_wrap(~dataset)
 ```
 
-The question for each dataset is whether to adjust for a third variable, `covariate`.
-Is `covariate` a confounder?
-A mediator?
-A collider?
-We can't use data to figure this problem out.
-In @tbl-quartet_lm, it's not clear which effect is correct.
-Likewise, the correlation between `exposure` and `covariate` is no help: they're all the same!
+각 데이터셋에 대한 질문은 세 번째 변수인 `covariate`를 조정할지 여부입니다.
+`covariate`는 교란 변수인가요?
+매개 변수인가요?
+충돌자인가요?
+데이터를 사용하여 이 문제를 해결할 수는 없습니다.
+@tbl-quartet_lm에서는 어떤 효과가 올바른지 명확하지 않습니다.
+마찬가지로 `exposure`와 `covariate` 간의 상관 관계도 도움이 되지 않습니다. 모두 동일하기 때문입니다!
 
 ```{r}
 #| label: tbl-quartet_lm
 #| code-fold: true
-#| tbl-cap: "The causal quartet, with the estimated effect of `exposure` on `outcome` with and without adjustment for `covariate`. The unadjusted estimate is identical for all four datasets, as is the correlation between `exposure` and `covariate`. The adjusted estimate varies. Without background knowledge, it's not clear which is right."
+#| tbl-cap: "`covariate` 조정 여부에 따른 `exposure`가 `outcome`에 미치는 추정 효과를 포함하는 인과적 사중주. 조정되지 않은 추정치는 네 가지 데이터셋 모두에 대해 동일하며 `exposure`와 `covariate` 간의 상관 관계도 마찬가지입니다. 조정된 추정치는 다양합니다. 배경 지식 없이는 어떤 것이 올바른지 명확하지 않습니다."
 library(gt)
 effects <- causal_quartet |>
   nest_by(dataset = as.integer(factor(dataset))) |>
@@ -105,44 +105,44 @@ effects <- causal_quartet |>
 gt(effects) |>
   fmt_number(columns = -dataset) |>
   cols_label(
-    dataset = "Dataset",
-    ate_x = md("Not adjusting for `covariate`"),
-    ate_xz = md("Adjusting for `covariate`"),
-    cor = md("Correlation of `exposure` and `covariate`")
+    dataset = "데이터셋",
+    ate_x = md("`covariate`를 조정하지 않음"),
+    ate_xz = md("`covariate`를 조정함"),
+    cor = md("`exposure`와 `covariate`의 상관 관계")
   )
 ```
 
 ::: callout-warning
-## The ten percent rule
+## 10% 규칙
 
-The ten percent rule is a common technique in epidemiology and other fields to determine whether a variable is a confounder.
-The ten percent rule says that you should include a variable in your model if including it changes the effect estimate by more than ten percent.
-The problem is, it doesn't work.
-*Every* example in the causal quartet causes a more than ten percent change.
-As we know, this leads to the wrong answer in some of the datasets.
-Even the reverse technique, *excluding* a variable when it's *less* than ten percent, can cause trouble because many minor confounding effects can add up to more considerable bias.
+10% 규칙은 역학 및 기타 분야에서 변수가 교란 변수인지 여부를 결정하는 일반적인 기법입니다.
+10% 규칙은 변수를 모델에 포함하면 효과 추정치가 10% 이상 변경되는 경우 해당 변수를 모델에 포함해야 한다고 말합니다.
+문제는 작동하지 않는다는 것입니다.
+인과적 사중주의 *모든* 예는 10% 이상의 변화를 유발합니다.
+알다시피 이것은 일부 데이터셋에서 잘못된 답으로 이어집니다.
+*10% 미만*일 때 변수를 *제외*하는 역 기법조차도 많은 사소한 교란 효과가 더 큰 편향으로 이어질 수 있기 때문에 문제를 일으킬 수 있습니다.
 
 ```{r}
 #| label: tbl-quartet_ten_percent
 #| code-fold: true
-#| tbl-cap: "The percent change in the coefficient for `exposure` when including `covariate` in the model."
+#| tbl-cap: "모델에 `covariate`를 포함할 때 `exposure`에 대한 계수의 백분율 변화."
 effects |>
   mutate(percent_change = scales::percent((ate_x - ate_xz) / ate_x)) |>
   select(dataset, percent_change) |>
   gt() |>
   cols_label(
-    dataset = "Dataset",
-    percent_change = "Percent change"
+    dataset = "데이터셋",
+    percent_change = "백분율 변화"
   )
 ```
 :::
 
-While the visual relationship between `covariate` and `exposure` is not identical between datasets, all have the same correlation.
-In @fig-causal_quartet_covariate, the standardized relationship between the two is identical.
+`covariate`와 `exposure` 간의 시각적 관계는 데이터셋 간에 동일하지 않지만 모두 동일한 상관 관계를 갖습니다.
+@fig-causal_quartet_covariate에서 둘 사이의 표준화된 관계는 동일합니다.
 
 ```{r}
 causal_quartet |>
-  # hide the dataset names
+  # 데이터셋 이름 숨기기
   mutate(dataset = as.integer(factor(dataset))) |>
   group_by(dataset) |>
   summarize(cor = round(cor(covariate, exposure), 2))
@@ -151,9 +151,9 @@ causal_quartet |>
 ```{r}
 #| label: fig-causal_quartet_covariate
 #| message: false
-#| fig-cap: "The scaled relationship between `exposure` and `covariate`. We still do not have enough information to determine whether `covariate` is a confounder, mediator, or collider."
+#| fig-cap: "`exposure`와 `covariate` 간의 조정된 관계. `covariate`가 교란 변수, 매개 변수 또는 충돌자인지 결정하기에 충분한 정보가 여전히 없습니다."
 causal_quartet |>
-  # hide the dataset names
+  # 데이터셋 이름 숨기기
   mutate(dataset = as.integer(factor(dataset))) |>
   group_by(dataset) |>
   mutate(covariate = scale(covariate), exposure = scale(exposure)) |>
@@ -165,23 +165,23 @@ causal_quartet |>
 ```
 
 ::: callout-tip
-## Why did we standardize the coefficients?
+## 왜 계수를 표준화했습니까?
 
-Standardizing numeric variables to have a mean of 0 and standard deviation of 1, as implemented in `scale()`, is a common technique in statistics.
-It's useful for a variety of reasons, but we chose to scale the variables here to emphasize the identical correlation between `covariate` and `exposure` in each dataset.
-If we didn't scale the variables, the correlation would be the same, but the plots would look different because their standard deviations are different.
-The beta coefficient in an OLS model is calculated with information about the covariance and the standard deviation of the variable, so scaling it makes the coefficient identical to the Pearson's correlation.
+`scale()`에 구현된 것처럼 평균이 0이고 표준 편차가 1인 숫자 변수를 표준화하는 것은 통계에서 일반적인 기법입니다.
+다양한 이유로 유용하지만 여기서는 각 데이터셋에서 `covariate`와 `exposure` 간의 동일한 상관 관계를 강조하기 위해 변수를 조정하기로 결정했습니다.
+변수를 조정하지 않으면 상관 관계는 동일하지만 표준 편차가 다르기 때문에 플롯이 다르게 보일 것입니다.
+OLS 모델의 베타 계수는 공분산과 변수의 표준 편차에 대한 정보로 계산되므로 조정하면 계수가 피어슨 상관 관계와 동일해집니다.
 
-@fig-causal_quartet_covariate_unscaled shows the unscaled relationship between `covariate` and `exposure`.
-Now, we see some differences: dataset 4 seems to have more variance in `covariate`, but that's not actionable information.
-In fact, it's a mathematical artifact of the data generating process.
+@fig-causal_quartet_covariate_unscaled는 `covariate`와 `exposure` 간의 조정되지 않은 관계를 보여줍니다.
+이제 몇 가지 차이점이 보입니다. 즉, 데이터셋 4는 `covariate`에 더 많은 분산이 있는 것처럼 보이지만 이는 실행 가능한 정보가 아닙니다.
+실제로 데이터 생성 과정의 수학적 인공물입니다.
 
 ```{r}
 #| label: fig-causal_quartet_covariate_unscaled
 #| message: false
-#| fig-cap: "@fig-causal_quartet_covariate, unscaled"
+#| fig-cap: "@fig-causal_quartet_covariate, 조정되지 않음"
 causal_quartet |>
-  # hide the dataset names
+  # 데이터셋 이름 숨기기
   mutate(dataset = as.integer(factor(dataset))) |>
   ggplot(aes(covariate, exposure)) +
   geom_point() +
@@ -190,16 +190,16 @@ causal_quartet |>
 ```
 :::
 
-Let's reveal the labels of the datasets, representing the causal structure of the dataset.
-@fig-causal_quartet, `covariate` plays a different role in each dataset.
-In 1 and 4, it's a collider (we *shouldn't* adjust for it).
-In 2, it's a confounder (we *should* adjust for it).
-In 3, it's a mediator (it depends on the research question).
+데이터셋의 레이블을 공개하여 데이터셋의 인과 구조를 나타내 보겠습니다.
+@fig-causal_quartet에서 `covariate`는 각 데이터셋에서 다른 역할을 합니다.
+1과 4에서는 충돌자입니다(조정해서는 *안 됩니다*).
+2에서는 교란 변수입니다(조정해야 *합니다*).
+3에서는 매개 변수입니다(연구 질문에 따라 다름).
 
 ```{r}
 #| label: fig-causal_quartet
 #| message: false
-#| fig-cap: "The Causal Quartet, revealed. The first and last datasets are types of collider bias; we should *not* control for `covariate.` In the second dataset, `covariate` is a confounder, and we *should* control for it. In the third dataset, `covariate` is a mediator, and we should control for it if we want the direct effect, but not if we want the total effect."
+#| fig-cap: "인과적 사중주, 공개됨. 첫 번째와 마지막 데이터셋은 충돌자 편향 유형입니다. `covariate`를 통제해서는 *안 됩니다*. 두 번째 데이터셋에서 `covariate`는 교란 변수이므로 통제해야 *합니다*. 세 번째 데이터셋에서 `covariate`는 매개 변수이므로 직접 효과를 원하면 통제해야 하지만 전체 효과를 원하면 통제해서는 안 됩니다."
 causal_quartet |>
   ggplot(aes(exposure, outcome)) +
   geom_point() +
@@ -207,10 +207,10 @@ causal_quartet |>
   facet_wrap(~dataset)
 ```
 
-What can we do if the data can't distinguish these causal structures?
-The best answer is to have a good sense of the data-generating mechanism.
-In @fig-quartet-dag, we show the DAG for each dataset.
-Once we compile a DAG for each dataset, we only need to query the DAG for the correct adjustment set, assuming the DAG is right.
+데이터가 이러한 인과 구조를 구별할 수 없다면 무엇을 할 수 있을까요?
+가장 좋은 답은 데이터 생성 메커니즘을 잘 이해하는 것입니다.
+@fig-quartet-dag에서는 각 데이터셋에 대한 DAG를 보여줍니다.
+각 데이터셋에 대한 DAG를 컴파일하면 DAG가 올바르다고 가정하고 올바른 조정 집합에 대해 DAG를 쿼리하기만 하면 됩니다.
 
 ```{r}
 #| label: fig-quartet-dag
@@ -220,12 +220,12 @@ Once we compile a DAG for each dataset, we only need to query the DAG for the co
 #| message: false
 #| warning: false
 #| layout-ncol: 2
-#| fig-cap: "The DAGs for the Causal Quartet."
+#| fig-cap: "인과적 사중주에 대한 DAG."
 #| fig-subcap:
-#|   - "The DAG for dataset 1, where `covariate`  (c) is a collider. We should *not* adjust for `covariate`, which is a descendant of `exposure` (e) and `outcome` (o)."
-#|   - "The DAG for dataset 2, where `covariate` (c) is a confounder. `covariate` is a mutual cause of `exposure` (e) and `outcome` (o), representing a backdoor path, so we *must* adjust for it to get the right answer."
-#|   - "The DAG for dataset 3, where `covariate` (c) is a mediator. `covariate` is a descendant of `exposure` (e) and a cause of `outcome` (o). The path through `covariate` is the indirect path, and the path through `exposure` is the direct path. We should adjust for `covariate` if we want the direct effect, but not if we want the total effect."
-#|   - "The DAG for dataset 4, where `covariate` (c) is a collider via M-Bias. Although `covariate` happens before both `outcome` (o) and `exposure` (e), it's still a collider. We should *not* adjust for `covariate`, particularly since we can't control for the bias via `u1` and `u2`, which are unmeasured."
+#|   - "`covariate` (c)가 충돌자인 데이터셋 1에 대한 DAG. `exposure` (e)와 `outcome` (o)의 후손인 `covariate`를 조정해서는 *안 됩니다*."
+#|   - "`covariate` (c)가 교란 변수인 데이터셋 2에 대한 DAG. `covariate`는 `exposure` (e)와 `outcome` (o)의 공통 원인이며 백도어 경로를 나타내므로 올바른 답을 얻으려면 조정해야 *합니다*."
+#|   - "`covariate` (c)가 매개 변수인 데이터셋 3에 대한 DAG. `covariate`는 `exposure` (e)의 후손이고 `outcome` (o)의 원인입니다. `covariate`를 통한 경로는 간접 경로이고 `exposure`를 통한 경로는 직접 경로입니다. 직접 효과를 원하면 `covariate`를 조정해야 하지만 전체 효과를 원하면 조정해서는 안 됩니다."
+#|   - "M-편향을 통해 `covariate` (c)가 충돌자인 데이터셋 4에 대한 DAG. `covariate`가 `outcome` (o)과 `exposure` (e) 모두 이전에 발생하지만 여전히 충돌자입니다. 특히 측정되지 않은 `u1`과 `u2`를 통한 편향을 통제할 수 없으므로 `covariate`를 조정해서는 *안 됩니다*."
 library(ggdag)
 
 coords <- list(
@@ -286,7 +286,7 @@ d_mbias <- dagify(
 
 p_coll <- d_coll |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(label == "c", "covariate", NA_character_)) |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -296,18 +296,18 @@ p_coll <- d_coll |>
   theme_dag() +
   coord_cartesian(clip = "off") +
   theme(legend.position = "bottom") +
-  ggtitle("(1) Collider") +
+  ggtitle("(1) 충돌자") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
 
 
 p_conf <- d_conf |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(label == "c", "covariate", NA_character_)) |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -317,17 +317,17 @@ p_conf <- d_conf |>
   theme_dag() +
   coord_cartesian(clip = "off") +
   theme(legend.position = "bottom") +
-  ggtitle("(2) Confounder") +
+  ggtitle("(2) 교란 변수") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
 
 p_med <- d_med |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(label == "c", "covariate", NA_character_)) |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -337,18 +337,18 @@ p_med <- d_med |>
   theme_dag() +
   coord_cartesian(clip = "off") +
   theme(legend.position = "bottom") +
-  ggtitle("(3) Mediator") +
+  ggtitle("(3) 매개 변수") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
 
 
 p_m_bias <- d_mbias |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(label == "c", "covariate", NA_character_)) |>
+  mutate(covariate = if_else(label == "c", "공변량", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -361,14 +361,14 @@ p_m_bias <- d_mbias |>
   ) +
   theme_dag() +
   coord_cartesian(clip = "off") +
-  ggtitle("(4) M-bias") +
+  ggtitle("(4) M-편향") +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량", na.value = "grey70")
 
 
 p_coll
@@ -377,51 +377,51 @@ p_med
 p_m_bias
 ```
 
-The data generating mechanism[^06-not-just-a-stats-problem-1] in the DAGs matches what generated the datasets, so we can use the DAGs to determine the correct effect: unadjusted in datasets 1 and 4 and adjusted in dataset 2.
-For dataset 3, it depends on which mediation effect we want: adjusted for the direct effect and unadjusted for the total effect.
+DAG의 데이터 생성 메커니즘[^06-not-just-a-stats-problem-1]은 데이터셋을 생성한 것과 일치하므로 DAG를 사용하여 올바른 효과를 결정할 수 있습니다. 즉, 데이터셋 1과 4에서는 조정되지 않고 데이터셋 2에서는 조정됩니다.
+데이터셋 3의 경우 원하는 매개 효과에 따라 다릅니다. 즉, 직접 효과에는 조정되고 전체 효과에는 조정되지 않습니다.
 
-[^06-not-just-a-stats-problem-1]: See @dagostinomcgowan2023 for the models that generated the datasets.
+[^06-not-just-a-stats-problem-1]: 데이터셋을 생성한 모델에 대해서는 @dagostinomcgowan2023을 참조하십시오.
 
 ```{r}
 #| label: tbl-quartets_true_effects
 #| echo: false
-#| tbl-cap: "The data generating mechanism and true causal effects in each dataset. Sometimes, the unadjusted effect is the same, and sometimes it is not, depending on the mechanism and question."
+#| tbl-cap: "각 데이터셋의 데이터 생성 메커니즘 및 실제 인과 효과. 때로는 조정되지 않은 효과가 동일하고 때로는 메커니즘과 질문에 따라 동일하지 않습니다."
 tibble::tribble(
-  ~`Data generating mechanism`, ~`Correct causal model`, ~`Correct causal effect`,
-  "(1) Collider", "outcome ~ exposure", "1",
-  "(2) Confounder", "outcome ~ exposure; covariate", "0.5",
-  "(3) Mediator", "Direct effect: outcome ~ exposure; covariate, Total Effect: outcome ~ exposure", "Direct effect: 0, Total effect: 1",
-  "(4) M-Bias", "outcome ~ exposure", "1"
+  ~`데이터 생성 메커니즘`, ~`올바른 인과 모델`, ~`올바른 인과 효과`,
+  "(1) 충돌자", "outcome ~ exposure", "1",
+  "(2) 교란 변수", "outcome ~ exposure; covariate", "0.5",
+  "(3) 매개 변수", "직접 효과: outcome ~ exposure; covariate, 전체 효과: outcome ~ exposure", "직접 효과: 0, 전체 효과: 1",
+  "(4) M-편향", "outcome ~ exposure", "1"
 ) |>
   gt()
 ```
 
-## Time as a heuristic for causal structure
+## 인과 구조의 휴리스틱으로서의 시간
 
-Hopefully, we have convinced you of the usefulness of DAGs.
-However, constructing correct DAGs is a challenging endeavor.
-In the causal quartet, we knew the DAGs because we generated the data.
-We need background knowledge to assemble a candidate causal structure in real life.
-For some questions, such background knowledge is not available.
-For others, we may worry about the complexity of the causal structure, particularly when variables mutually evolve with each other, as in @fig-feedback-loop.
+DAG의 유용성에 대해 확신을 드렸기를 바랍니다.
+그러나 올바른 DAG를 구성하는 것은 어려운 일입니다.
+인과적 사중주에서는 데이터를 생성했기 때문에 DAG를 알고 있었습니다.
+실제 생활에서는 후보 인과 구조를 조립하기 위해 배경 지식이 필요합니다.
+일부 질문의 경우 그러한 배경 지식을 사용할 수 없습니다.
+다른 질문의 경우 @fig-feedback-loop에서와 같이 변수가 서로 상호 진화할 때 특히 인과 구조의 복잡성에 대해 걱정할 수 있습니다.
 
-One heuristic is particularly useful when a DAG is incomplete or uncertain: time.
-Because causality is temporal, a cause must precede an effect.
-Many, but not all, problems in deciding if we should adjust for a confounder are solved by simply putting the variables in order by time.
-Time order is also one of the most critical assumptions you can visualize in a DAG, so it's an excellent place to start, regardless of the completeness of the DAG.
+DAG가 불완전하거나 불확실할 때 특히 유용한 휴리스틱은 시간입니다.
+인과 관계는 시간적이므로 원인은 결과보다 먼저 발생해야 합니다.
+교란 변수를 조정해야 하는지 결정하는 문제 중 많은 부분은 단순히 변수를 시간순으로 정렬함으로써 해결됩니다.
+시간 순서는 DAG에서 시각화할 수 있는 가장 중요한 가정 중 하나이므로 DAG의 완전성에 관계없이 시작하기에 좋은 곳입니다.
 
-Consider @fig-quartets-time-ordered-1, a time-ordered version of the collider DAG where the covariate is measured at both baseline and follow-up.
-The original DAG actually represents the *second* measurement, where the covariate is a descendant of both the outcome and exposure.
-If, however, we control for the same covariate as measured at the start of the study (@fig-quartets-time-ordered-2), it cannot be a descendant of the outcome at follow-up because it has yet to happen.
-Thus, when you are missing background knowledge as to the causal structure of the covariate, you can use time-ordering as a defensive measure to avoid bias.
-Only control for variables that precede the outcome.
+@fig-quartets-time-ordered-1을 고려해 보십시오. 즉, 공변량이 기준선과 추적 관찰 모두에서 측정되는 충돌자 DAG의 시간 순서 버전입니다.
+원래 DAG는 실제로 공변량이 결과와 노출 모두의 후손인 *두 번째* 측정을 나타냅니다.
+그러나 연구 시작 시점에 측정된 동일한 공변량을 통제하면(@fig-quartets-time-ordered-2) 아직 발생하지 않았으므로 추적 관찰 시 결과의 후손이 될 수 없습니다.
+따라서 공변량의 인과 구조에 대한 배경 지식이 없는 경우 시간 순서를 방어적인 조치로 사용하여 편향을 피할 수 있습니다.
+결과보다 먼저 발생하는 변수만 통제하십시오.
 
 ```{r}
 #| label: fig-quartets-time-ordered
-#| fig-cap: "A time-ordered version of the collider DAG where each variable is measured twice. Controlling for `covariate` at follow-up is a collider, but controlling for `covariate` at baseline is not."
+#| fig-cap: "각 변수가 두 번 측정되는 충돌자 DAG의 시간 순서 버전. 추적 관찰 시 `covariate`를 통제하면 충돌자이지만 기준선에서 `covariate`를 통제하면 그렇지 않습니다."
 #| fig-subcap:
-#|   - "In a time-ordered version of the collider DAG, controlling for the covariate at follow-up induces bias."
-#|   - "Conversely, controlling for the covariate as measured at baseline does not induce bias because it is not a descendant of the outcome."
+#|   - "충돌자 DAG의 시간 순서 버전에서 추적 관찰 시 공변량을 통제하면 편향이 유발됩니다."
+#|   - "반대로 기준선에서 측정된 공변량을 통제하면 결과의 후손이 아니므로 편향이 유발되지 않습니다."
 #| layout-ncol: 2
 #| code-fold: true
 #| fig-width: 4
@@ -460,7 +460,7 @@ d_coll <- dagify(
 
 d_coll |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(name == "Z_3", "covariate\n(follow-up)", NA_character_)) |>
+  mutate(covariate = if_else(name == "Z_3", "공변량\n(추적 관찰)", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -471,18 +471,18 @@ d_coll |>
   coord_cartesian(clip = "off") +
   theme(legend.position = "bottom") +
   geom_vline(xintercept = c(2.6, 3.25, 3.6, 4.25), lty = 2, color = "grey60") +
-  annotate("label", x = 2.925, y = 0.97, label = "baseline", color = "grey50") +
-  annotate("label", x = 3.925, y = 0.97, label = "follow-up", color = "grey50") +
+  annotate("label", x = 2.925, y = 0.97, label = "기준선", color = "grey50") +
+  annotate("label", x = 3.925, y = 0.97, label = "추적 관찰", color = "grey50") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate\n(follow-up)", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량\n(추적 관찰)", na.value = "grey70")
 
 d_coll |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(name == "Z_2", "covariate\n(baseline)", NA_character_)) |>
+  mutate(covariate = if_else(name == "Z_2", "공변량\n(기준선)", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -493,34 +493,34 @@ d_coll |>
   coord_cartesian(clip = "off") +
   theme(legend.position = "bottom") +
   geom_vline(xintercept = c(2.6, 3.25, 3.6, 4.25), lty = 2, color = "grey60") +
-  annotate("label", x = 2.925, y = 0.97, label = "baseline", color = "grey50") +
-  annotate("label", x = 3.925, y = 0.97, label = "follow-up", color = "grey50") +
+  annotate("label", x = 2.925, y = 0.97, label = "기준선", color = "grey50") +
+  annotate("label", x = 3.925, y = 0.97, label = "추적 관찰", color = "grey50") +
   guides(color = guide_legend(
     title = NULL,
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "covariate\n(baseline)", na.value = "grey70")
+  scale_color_discrete(breaks = "공변량\n(기준선)", na.value = "grey70")
 ```
 
 ::: callout-warning
-The time-ordering heuristic relies on a simple rule: don't adjust for the future.
+시간 순서 휴리스틱은 간단한 규칙에 의존합니다. 즉, 미래를 조정하지 마십시오.
 :::
 
-The quartet package's `causal_quartet_time` has time-ordered measurements of each variable for the four datasets.
-Each has a `*_baseline` and `*_follow-up` measurement.
+사중주 패키지의 `causal_quartet_time`에는 네 가지 데이터셋에 대한 각 변수의 시간 순서 측정값이 있습니다.
+각각 `*_baseline` 및 `*_follow-up` 측정값이 있습니다.
 
 ```{r}
 causal_quartet_time
 ```
 
-Using the formula `outcome_followup ~ exposure_baseline + covariate_baseline` works for three out of four datasets.
-Even though `covariate_baseline` is only in the adjustment set for the second dataset, it's not a collider in two of the other datasets, so it's not a problem.
+`outcome_followup ~ exposure_baseline + covariate_baseline` 공식을 사용하면 네 가지 데이터셋 중 세 가지에 대해 작동합니다.
+`covariate_baseline`이 두 번째 데이터셋의 조정 집합에만 있지만 다른 두 데이터셋에서는 충돌자가 아니므로 문제가 되지 않습니다.
 
 ```{r}
 #| label: tbl-quartet_time_adjusted
 #| code-fold: true
-#| tbl-cap: "The adjusted effect of `exposure_baseline` on `outcome_followup` in each dataset. The effect adjusted for `covariate_baseline` is correct for three out of four datasets."
+#| tbl-cap: "각 데이터셋에서 `exposure_baseline`이 `outcome_followup`에 미치는 조정된 효과. `covariate_baseline`에 대해 조정된 효과는 네 가지 데이터셋 중 세 가지에 대해 정확합니다."
 causal_quartet_time |>
   nest_by(dataset) |>
   mutate(
@@ -535,45 +535,45 @@ causal_quartet_time |>
   bind_cols(tibble(truth = c(1, 0.5, 1, 1))) |>
   select(-data, dataset) |>
   ungroup() |>
-  set_names(c("Dataset", "Adjusted effect", "Truth")) |>
+  set_names(c("데이터셋", "조정된 효과", "실제 값")) |>
   gt() |>
-  fmt_number(columns = -Dataset)
+  fmt_number(columns = -데이터셋)
 ```
 
-Where it fails is in dataset 4, the M-bias example.
-In this case, `covariate_baseline` is still a collider because the collision occurs before both the exposure and outcome.
-As we discussed in @sec-m-bias, however, if you are in doubt whether something is genuinely M-bias, it is better to adjust for it than not.
-Confounding bias tends to be worse, and meaningful M-bias is probably rare in real life.
-As the actual causal structure deviates from perfect M-bias, the severity of the bias tends to decrease.
-So, if it is clearly M-bias, don't adjust for the variable.
-If it's not clear, adjust for it.
+실패하는 곳은 데이터셋 4, 즉 M-편향 예입니다.
+이 경우 `covariate_baseline`은 노출과 결과 모두 이전에 충돌이 발생하기 때문에 여전히 충돌자입니다.
+그러나 @sec-m-bias에서 논의한 바와 같이 어떤 것이 진정으로 M-편향인지 의심스러우면 조정하지 않는 것보다 조정하는 것이 좋습니다.
+교란 편향이 더 나쁜 경향이 있으며 의미 있는 M-편향은 실제 생활에서 드물 것입니다.
+실제 인과 구조가 완벽한 M-편향에서 벗어날수록 편향의 심각성은 감소하는 경향이 있습니다.
+따라서 명확하게 M-편향이라면 변수를 조정하지 마십시오.
+명확하지 않으면 조정하십시오.
 
 ::: callout-tip
-Remember as well that it is possible to block bias induced by adjusting for a collider in certain circumstances because collider bias is just another open path.
-If we had `u1` and `u2`, we could control for `covariate` while blocking potential collider bias.
-In other words, sometimes, when we open a path, we can close it again.
+충돌자를 조정함으로써 유발되는 편향은 특정 상황에서는 차단할 수 있다는 점도 기억하십시오. 왜냐하면 충돌자 편향은 단지 또 다른 열린 경로이기 때문입니다.
+`u1`과 `u2`가 있다면 잠재적인 충돌자 편향을 차단하면서 `covariate`를 통제할 수 있습니다.
+즉, 때로는 경로를 열면 다시 닫을 수 있습니다.
 :::
 
-## Causal and Predictive Models, Revisited {#sec-causal-pred-revisit}
+## 인과 모델과 예측 모델, 재검토 {#sec-causal-pred-revisit}
 
-### Prediction metrics
+### 예측 지표
 
-Predictive measurements also fail to distinguish between the four datasets.
-In @tbl-quartet_time_predictive, we show the difference in a couple of standard predictive metrics when we add `covariate` to the model.
-In each dataset, `covariate` adds information to the model because it contains associational information about the outcome [^06-not-just-a-stats-problem-2].
-The RMSE goes down, indicating a better fit, and the R^2^ goes up, showing more variance explained.
-The coefficients for `covariate` represent the information about `outcome` it contains; they don't tell us from where in the causal structure that information originates.
-Correlation isn't causation, and neither is prediction.
-In the case of the collider data set, it's not even a helpful prediction tool because you wouldn't have `covariate` at the time of prediction, given that it happens after the exposure and outcome.
+예측 측정값도 네 가지 데이터셋을 구별하지 못합니다.
+@tbl-quartet_time_predictive에서는 모델에 `covariate`를 추가할 때 몇 가지 표준 예측 지표의 차이를 보여줍니다.
+각 데이터셋에서 `covariate`는 결과에 대한 연관 정보를 포함하므로 모델에 정보를 추가합니다[^06-not-just-a-stats-problem-2].
+RMSE는 감소하여 더 나은 적합도를 나타내고 R^2^는 증가하여 더 많은 분산이 설명되었음을 보여줍니다.
+`covariate`의 계수는 그것이 포함하는 `outcome`에 대한 정보를 나타냅니다. 즉, 해당 정보가 인과 구조의 어디에서 비롯되었는지는 알려주지 않습니다.
+상관 관계는 인과 관계가 아니며 예측도 마찬가지입니다.
+충돌자 데이터셋의 경우 노출과 결과 이후에 발생하므로 예측 시점에 `covariate`를 갖지 않으므로 유용한 예측 도구조차 아닙니다.
 
-[^06-not-just-a-stats-problem-2]: For M-bias, including `covariate` in the model is helpful to the extent that it has information about `u2`, one of the causes of the outcome.
-    In this case, the data generating mechanism was such that `covariate` contains more information from `u1` than `u2`, so it doesn't add as much predictive value.
-    Random noise represents most of what `u2` doesn't account for.
+[^06-not-just-a-stats-problem-2]: M-편향의 경우 모델에 `covariate`를 포함하는 것은 결과의 원인 중 하나인 `u2`에 대한 정보를 포함하는 한 유용합니다.
+    이 경우 데이터 생성 메커니즘은 `covariate`가 `u2`보다 `u1`에서 더 많은 정보를 포함하도록 되어 있으므로 예측 가치를 그다지 많이 추가하지 않습니다.
+    무작위 노이즈는 `u2`가 설명하지 않는 대부분을 나타냅니다.
 
 ```{r}
 #| label: tbl-quartet_time_predictive
 #| code-fold: true
-#| tbl-cap: "The difference in predictive metrics on `outcome` in each dataset with and without `covariate`. In each dataset, `covariate` adds information to the model, but this offers little guidance regarding the proper causal model."
+#| tbl-cap: "`covariate` 유무에 따른 각 데이터셋의 `outcome`에 대한 예측 지표 차이. 각 데이터셋에서 `covariate`는 모델에 정보를 추가하지만 이는 적절한 인과 모델에 대한 지침을 거의 제공하지 않습니다."
 
 get_rmse <- function(data, model) {
   sqrt(mean((data$outcome - predict(model, data))^2))
@@ -605,55 +605,55 @@ causal_quartet |>
   gt() |>
   fmt_number() |>
   cols_label(
-    dataset = "Dataset",
+    dataset = "데이터셋",
     rmse = "RMSE",
     r_squared = md("R^2^")
   )
 ```
 
-### The Table Two Fallacy[^06-not-just-a-stats-problem-3]
+### 표 2 오류[^06-not-just-a-stats-problem-3]
 
-[^06-not-just-a-stats-problem-3]: If you recall, the Table Two Fallacy is named after the tendency in health research journals to have a complete set of model coefficients in the second table of an article.
-    See @Westreich2013 for a detailed discussion of the Table Two Fallacy.
+[^06-not-just-a-stats-problem-3]: 기억하시겠지만, 표 2 오류는 건강 연구 저널에서 논문의 두 번째 표에 완전한 모델 계수 집합을 포함하는 경향에서 이름이 붙여졌습니다.
+    표 2 오류에 대한 자세한 논의는 @Westreich2013을 참조하십시오.
 
-Relatedly, model coefficients for variables *other* than those of the causes we're interested in can be difficult to interpret.
-In a model with `outcome ~ exposure + covariate`, it's tempting to present the coefficient of `covariate` as well as `exposure`.
-The problem, as discussed @sec-pred-or-explain, is that the causal structure for the effect of `covariate` on `outcome` may differ from that of `exposure` on `outcome`.
-Let's consider a variation of the quartet DAGs with other variables.
+관련하여 관심 있는 원인이 아닌 *다른* 변수에 대한 모델 계수는 해석하기 어려울 수 있습니다.
+`outcome ~ exposure + covariate` 모델에서 `exposure`뿐만 아니라 `covariate`의 계수도 제시하고 싶을 수 있습니다.
+@sec-pred-or-explain에서 논의한 바와 같이 문제는 `covariate`가 `outcome`에 미치는 영향에 대한 인과 구조가 `exposure`가 `outcome`에 미치는 영향에 대한 인과 구조와 다를 수 있다는 것입니다.
+다른 변수가 있는 사중주 DAG의 변형을 고려해 보겠습니다.
 
-First, let's start with the confounder DAG.
-In @fig-quartet_confounder, we see that `covariate` is a confounder.
-If this DAG represents the complete causal structure for `outcome`, the model `outcome ~ exposure + covariate` will give an unbiased estimate of the effect on `outcome` for `exposure`, assuming we've met other assumptions of the modeling process.
-The adjustment set for `covariate`'s effect on `outcome` is empty, and `exposure` is not a collider, so controlling for it does not induce bias[^06-not-just-a-stats-problem-4].
-But look again.
-`exposure` is a mediator for `covariate`'s effect on `outcome`; some of the total effect is mediated through `outcome`, while there is also a direct effect of `covariate` on `outcome`. Both estimates are unbiased, but they are different *types* of estimates. The effect of `exposure` on `outcome` is the *total effect* of that relationship, while the effect of `covariate` on `outcome` is the *direct effect*.
+먼저 교란 변수 DAG부터 시작하겠습니다.
+@fig-quartet_confounder에서 `covariate`가 교란 변수임을 알 수 있습니다.
+이 DAG가 `outcome`에 대한 완전한 인과 구조를 나타낸다면 모델 `outcome ~ exposure + covariate`는 모델링 과정의 다른 가정을 충족했다고 가정하고 `exposure`에 대한 `outcome`에 대한 편향되지 않은 추정치를 제공합니다.
+`covariate`가 `outcome`에 미치는 영향에 대한 조정 집합은 비어 있고 `exposure`는 충돌자가 아니므로 통제해도 편향이 유발되지 않습니다[^06-not-just-a-stats-problem-4].
+하지만 다시 보십시오.
+`exposure`는 `covariate`가 `outcome`에 미치는 영향에 대한 매개 변수입니다. 즉, 전체 효과 중 일부는 `outcome`을 통해 매개되는 반면 `covariate`가 `outcome`에 미치는 직접적인 영향도 있습니다. 두 추정치 모두 편향되지 않았지만 *유형*이 다른 추정치입니다. `exposure`가 `outcome`에 미치는 영향은 해당 관계의 *전체 효과*인 반면, `covariate`가 `outcome`에 미치는 영향은 *직접 효과*입니다.
 
-[^06-not-just-a-stats-problem-4]: Additionally, OLS produces a *collapsible* effect.
-    Other effects, like the odds and hazards ratios, are *non-collapsible*, meaning that the conditional odds or hazards ratio might differ from its marginal version, even when there is no confounding.
-    We'll discuss non-collapsibility in @sec-non-collapse.
+[^06-not-just-a-stats-problem-4]: 또한 OLS는 *축소 가능* 효과를 생성합니다.
+    오즈비 및 위험비와 같은 다른 효과는 *축소 불가능*합니다. 즉, 교란이 없더라도 조건부 오즈비 또는 위험비가 주변 버전과 다를 수 있습니다.
+    @sec-non-collapse에서 축소 불가능성에 대해 논의할 것입니다.
 
 ```{r}
 #| label: fig-quartet_confounder
 #| code-fold: true
-#| fig-cap: "The DAG for dataset 2, where `covariate` is a confounder. If you look closely, you'll realize that, from the perspective of the effect of `covariate` on the `outcome`, `exposure` is a *mediator*."
+#| fig-cap: "`covariate`가 교란 변수인 데이터셋 2에 대한 DAG. 자세히 보면 `covariate`가 `outcome`에 미치는 영향의 관점에서 `exposure`가 *매개 변수*임을 알 수 있습니다."
 #| fig-width: 3
 #| fig-height: 2.75
 p_conf +
   ggtitle(NULL)
 ```
 
-What if we add `q`, a mutual cause of `covariate` and `outcome`?
-In @fig-quartet_confounder_q, the adjustment sets are still different.
-The adjustment set for `outcome ~ exposure` is still the same: `{covariate}`.
-The `outcome ~ covariate` adjustment set is `{q}`.
-In other words, `q` is a confounder for `covariate`'s effect on `outcome`.
-The model `outcome ~ exposure + covariate` will produce the correct effect for `exposure` but not for the direct effect of `covariate`.
-Now, we have a situation where `covariate` not only answers a different type of question than `exposure` but is also biased by the absence of `q`.
+`covariate`와 `outcome`의 공통 원인인 `q`를 추가하면 어떻게 될까요?
+@fig-quartet_confounder_q에서 조정 집합은 여전히 다릅니다.
+`outcome ~ exposure`에 대한 조정 집합은 여전히 동일합니다. 즉, `{covariate}`입니다.
+`outcome ~ covariate` 조정 집합은 `{q}`입니다.
+즉, `q`는 `covariate`가 `outcome`에 미치는 영향에 대한 교란 변수입니다.
+모델 `outcome ~ exposure + covariate`는 `exposure`에 대한 올바른 효과를 생성하지만 `covariate`의 직접적인 효과에 대해서는 그렇지 않습니다.
+이제 `covariate`가 `exposure`와 다른 유형의 질문에 답할 뿐만 아니라 `q`의 부재로 인해 편향되는 상황이 발생했습니다.
 
 ```{r}
 #| label: fig-quartet_confounder_q
 #| code-fold: true
-#| fig-cap: "A modification of the DAG for dataset 2, where `covariate` is a confounder. Now, the relationship between `covariate` and `outcome` is confounded by `q`, a variable not necessary to calculate the unbiased effect of `exposure` on `outcome`."
+#| fig-cap: "`covariate`가 교란 변수인 데이터셋 2에 대한 DAG 수정. 이제 `covariate`와 `outcome` 간의 관계는 `exposure`가 `outcome`에 미치는 편향되지 않은 효과를 계산하는 데 필요하지 않은 변수인 `q`에 의해 교란됩니다."
 #| fig-width: 3.5
 #| fig-height: 3
 coords <- list(
@@ -673,7 +673,7 @@ d_conf2 <- dagify(
 
 p_conf2 <- d_conf2 |>
   tidy_dagitty() |>
-  mutate(covariate = if_else(name == "Q", "covariate", NA_character_)) |>
+  mutate(covariate = if_else(name == "Q", "공변량", NA_character_)) |>
   ggplot(
     aes(x = x, y = y, xend = xend, yend = yend)
   ) +
@@ -688,19 +688,19 @@ p_conf2 <- d_conf2 |>
     keywidth = unit(1.4, "mm"),
     override.aes = list(size = 3.4, shape = 15)
   )) +
-  scale_color_discrete(breaks = "confounder", na.value = "grey70")
+  scale_color_discrete(breaks = "교란 변수", na.value = "grey70")
 
 p_conf2
 ```
 
-Specifying a single causal model is deeply challenging.
-Having a single model answer multiple causal questions is exponentially more difficult.
-If attempting to do so, apply the same scrutiny to both[^06-not-just-a-stats-problem-5] questions.
-Is it possible to have a single adjustment set that answers both questions?
-If not, specify two models or forego one of the questions.
-If so, you need to ensure that the estimates answer the correct question.
-We'll also discuss *joint* causal effects in @sec-interaction.
+단일 인과 모델을 지정하는 것은 매우 어렵습니다.
+단일 모델이 여러 인과적 질문에 답하도록 하는 것은 기하급수적으로 더 어렵습니다.
+그렇게 하려면 두 질문 모두에 대해 동일한 조사를 적용하십시오[^06-not-just-a-stats-problem-5].
+두 질문 모두에 답하는 단일 조정 집합을 가질 수 있습니까?
+그렇지 않은 경우 두 가지 모델을 지정하거나 질문 중 하나를 포기하십시오.
+그렇다면 추정치가 올바른 질문에 답하는지 확인해야 합니다.
+@sec-interaction에서 *공동* 인과 효과에 대해서도 논의할 것입니다.
 
-[^06-not-just-a-stats-problem-5]: Practitioners of *casual* inference will interpret *many* effects from a single model in this way, but we consider this an act of bravado.
+[^06-not-just-a-stats-problem-5]: *평상시* 추론을 하는 사람들은 이와 같이 단일 모델에서 *많은* 효과를 해석하겠지만, 우리는 이것을 허세의 행위로 간주합니다.
 
-Unfortunately, algorithms for detecting adjustment sets for multiple exposures and effect types are not well-developed, so you may need to rely on your knowledge of the causal structure in determining the intersection of the adjustment sets.
+불행히도 여러 노출 및 효과 유형에 대한 조정 집합을 감지하는 알고리즘은 잘 개발되지 않았으므로 조정 집합의 교차점을 결정하는 데 인과 구조에 대한 지식에 의존해야 할 수 있습니다.

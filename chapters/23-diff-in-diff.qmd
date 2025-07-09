@@ -1,17 +1,17 @@
-# Difference-in-difference {#sec-did}
+# 차이 속 차이 {#sec-did}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Difference-in-Difference
+## 차이 속 차이
 
 ```{r}
 rnorm(5)
 ```
 
-## Synthetic controls
+## 합성 대조군

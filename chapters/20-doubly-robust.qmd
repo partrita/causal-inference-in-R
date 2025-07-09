@@ -1,17 +1,17 @@
-# Doubly robust models {#sec-dr}
+# 이중 강건 모델 {#sec-dr}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Augmented propensity scores
+## 증강 성향 점수
 
 ```{r}
 rnorm(5)
 ```
 
-## Targeted Learning
+## 표적 학습

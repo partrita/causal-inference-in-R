@@ -1,28 +1,28 @@
-# Continuous and categorical exposures
+# 연속형 및 범주형 노출
 
-## Continuous exposures {#sec-continuous-exposures}
+## 연속형 노출 {#sec-continuous-exposures}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("wip")
 ```
 
-### Calculating propensity scores for continuous exposures
+### 연속형 노출에 대한 성향 점수 계산하기
 
-Propensity scores generalize to many other types of exposures, including continuous exposures.
-At its heart, the workflow is the same: we fit a model where the exposure is the outcome and then use that model to weight a second outcome model.
-For continuous exposures, linear regression is the simplest way to create propensities.
-Instead of probabilities, we use the cumulative density function.
-Then, we use this density to weight the outcome model.
+성향 점수는 연속형 노출을 포함하여 다른 많은 유형의 노출로 일반화됩니다.
+본질적으로 워크플로는 동일합니다. 즉, 노출이 결과인 모델을 적합시킨 다음 해당 모델을 사용하여 두 번째 결과 모델에 가중치를 부여합니다.
+연속형 노출의 경우 선형 회귀는 성향을 만드는 가장 간단한 방법입니다.
+확률 대신 누적 밀도 함수를 사용합니다.
+그런 다음 이 밀도를 사용하여 결과 모델에 가중치를 부여합니다.
 
-Let's take a look at an example.
-In the `touringplans` data set, we have information about the posted waiting times for rides.
-We also have a limited amount of data on the observed actual times.
-The question we will consider is this: Do posted wait times for the Seven Dwarfs Mine Train at 8 am affect actual wait times at 9 am?
-Here's our DAG:
+예를 살펴보겠습니다.
+`touringplans` 데이터셋에는 놀이기구의 게시된 대기 시간에 대한 정보가 있습니다.
+또한 관찰된 실제 시간에 대한 제한된 양의 데이터도 있습니다.
+고려할 질문은 다음과 같습니다. 오전 8시 일곱 난쟁이 광산 열차의 게시된 대기 시간이 오전 9시 실제 대기 시간에 영향을 미치는가?
+다음은 DAG입니다.
 
 ```{r}
 #| label: fig-dag-avg-wait
@@ -30,9 +30,7 @@ Here's our DAG:
 #| message: false
 #| warning: false
 #| fig.cap: >
-#|    Proposed DAG for the relationship between posted wait
-#|    in the morning at a particular park and the average
-#|    wait time between 5 pm and 6 pm.
+#|    특정 공원의 아침 게시 대기 시간과 오후 5시에서 6시 사이의 평균 대기 시간 간의 관계에 대해 제안된 DAG.
 
 library(tidyverse)
 library(ggdag)
@@ -44,12 +42,12 @@ coord_dag <- list(
 )
 
 labels <- c(
-  extra = "Extra Magic Morning",
-  x = "Average posted wait ",
-  y = "Average actual wait",
-  Season = "Ticket Season",
-  weather = "Historic high temperature",
-  close = "Time park closed"
+  extra = "엑스트라 매직 모닝",
+  x = "평균 게시 대기 시간",
+  y = "평균 실제 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐장 시간"
 )
 
 dagify(
@@ -80,24 +78,24 @@ dagify(
     limits = c(-2.25, 2.25),
     breaks = c(-2, -1, 0, 1, 2),
     labels = c(
-      "\n(one year ago)",
-      "\n(6 months ago)",
-      "\n(3 months ago)",
-      "8am-9am\n(Today)",
-      "9am-10am\n(Today)"
+      "\n(1년 전)",
+      "\n(6개월 전)",
+      "\n(3개월 전)",
+      "오전 8시-9시\n(오늘)",
+      "오전 9시-10시\n(오늘)"
     )
   )
 ```
 
-In @fig-dag-avg-wait, we're assuming that our primary confounders are when the park closes, historic high temperatures, whether or not the ride has extra magic morning hours, and the ticket season.
-This is the only minimal adjustment set in the DAG, as well.
-The confounders precede the exposure and outcome, and (by definition) the exposure precedes the outcome.
-The average posted wait time is, in theory, a manipulable exposure because the park could post a time different from what they expect.
+@fig-dag-avg-wait에서 주요 교란 변수는 공원이 문을 닫는 시간, 과거 최고 기온, 놀이기구에 엑스트라 매직 모닝 시간이 있는지 여부 및 티켓 시즌이라고 가정합니다.
+이것은 DAG의 유일한 최소 조정 집합이기도 합니다.
+교란 변수는 노출과 결과보다 먼저 발생하며 (정의에 따라) 노출은 결과보다 먼저 발생합니다.
+평균 게시 대기 시간은 공원에서 예상과 다른 시간을 게시할 수 있으므로 이론적으로 조작 가능한 노출입니다.
 
 
-The model is similar to the binary exposure case, but we need to use linear regression, as the posted time is a continuous variable.
-Since we're not using probabilities, we'll calculate denominators for our weights from a normal density.
-We then calculate the denominator using the `dnorm()` function, which calculates the normal density for the `exposure`, using `.fitted` as the mean and `mean(.sigma)` as the SD.
+모델은 이진 노출 사례와 유사하지만 게시된 시간이 연속 변수이므로 선형 회귀를 사용해야 합니다.
+확률을 사용하지 않으므로 정규 밀도에서 가중치에 대한 분모를 계산합니다.
+그런 다음 `exposure`에 대해 `.fitted`를 평균으로, `mean(.sigma)`를 표준 편차로 사용하여 `dnorm()` 함수를 사용하여 분모를 계산합니다.
 
 ```{r}
 #| eval: false
@@ -111,23 +109,23 @@ lm(
   )
 ```
 
-### Diagnostics and stabilization
+### 진단 및 안정화
 
-Continuous exposure weights, however, are very sensitive to modeling choices.
-One problem, in particular, is the existence of extreme weights, an issue that can also affect other types of exposures.
-When some observations have extreme weights, the propensities are *destabilized,* which results in wider confidence intervals.
-We can stabilize them using the marginal distribution of the exposure.
-A common way to calculate the marginal distribution for propensity scores is to use a regression model with no predictors.
+그러나 연속형 노출 가중치는 모델링 선택에 매우 민감합니다.
+특히 한 가지 문제는 다른 유형의 노출에도 영향을 미칠 수 있는 문제인 극단적인 가중치의 존재입니다.
+일부 관찰에 극단적인 가중치가 있는 경우 성향이 *불안정*해져 신뢰 구간이 넓어집니다.
+노출의 주변 분포를 사용하여 안정화할 수 있습니다.
+성향 점수에 대한 주변 분포를 계산하는 일반적인 방법은 예측 변수가 없는 회귀 모델을 사용하는 것입니다.
 
 ::: callout-caution
-Extreme weights destabilize estimates, resulting in wider confidence intervals.
-Extreme weights can be an issue for any time of weight (including those for binary and other types of exposures) that is not bounded.
-Bounded weights like the ATO (which are bounded to 0 and 1) do not have this problem, however---one of their many benefits.
+극단적인 가중치는 추정치를 불안정하게 만들어 신뢰 구간을 넓힙니다.
+극단적인 가중치는 제한되지 않은 모든 유형의 가중치(이진 및 기타 유형의 노출에 대한 가중치 포함)에 문제가 될 수 있습니다.
+그러나 ATO와 같이 제한된 가중치(0과 1로 제한됨)는 이 문제가 없으며, 이는 많은 이점 중 하나입니다.
 :::
 
 ```{r}
 #| eval: false
-# for continuous exposures
+# 연속형 노출의 경우
 lm(
   exposure ~ 1,
   data = df
@@ -137,7 +135,7 @@ lm(
     numerator = dnorm(exposure, .fitted, mean(.sigma, na.rm = TRUE))
   )
 
-# for binary exposures
+# 이진 노출의 경우
 glm(
   exposure ~ 1,
   data = df,
@@ -147,11 +145,11 @@ glm(
   select(numerator = .fitted)
 ```
 
-Then, rather than inverting them, we calculate the weights as `numerator / denominator`.
-Let's try it out on our posted wait times example.
-First, let's wrangle our data to address our question: do posted wait times at 8 affect actual weight times at 9?
-We'll join the baseline data (all covariates and posted wait time at 8) with the outcome (average actual time).
-We also have a lot of missingness for `wait_minutes_actual_avg`, so we'll drop unobserved values for now.
+그런 다음 역수를 취하는 대신 `numerator / denominator`로 가중치를 계산합니다.
+게시된 대기 시간 예제에서 시도해 보겠습니다.
+먼저 오전 8시 게시된 대기 시간이 오전 9시 실제 대기 시간에 영향을 미치는지에 대한 질문을 해결하기 위해 데이터를 조작하겠습니다.
+기준선 데이터(모든 공변량 및 오전 8시 게시된 대기 시간)를 결과(평균 실제 시간)와 결합합니다.
+또한 `wait_minutes_actual_avg`에 대한 누락된 데이터가 많으므로 지금은 관찰되지 않은 값을 삭제합니다.
 
 ```{r}
 library(tidyverse)
@@ -169,8 +167,8 @@ wait_times <- eight |>
   drop_na(wait_minutes_actual_avg)
 ```
 
-First, let's calculate our denominator model.
-We'll fit a model using `lm()` for `wait_minutes_posted_avg` with our covariates, then use the fitted predictions of `wait_minutes_posted_avg` (`.fitted`) to calculate the density using `dnorm()`.
+먼저 분모 모델을 계산해 보겠습니다.
+공변량과 함께 `wait_minutes_posted_avg`에 대해 `lm()`을 사용하여 모델을 적합시킨 다음, `wait_minutes_posted_avg`(`.fitted`)의 적합된 예측값을 사용하여 `dnorm()`을 사용하여 밀도를 계산합니다.
 
 ```{r}
 library(broom)
@@ -192,22 +190,22 @@ denominators <- denominator_model |>
   select(park_date, denominator, .fitted)
 ```
 
-When we only use the inverted values of `denominator`, we end up with several extreme weights:
+`denominator`의 역수 값만 사용하면 여러 개의 극단적인 가중치가 발생합니다.
 
 ```{r}
 #| label: fig-hist-sd-unstable
 #| fig.cap: >
-#|   A histogram of the inverse probability weights for posted waiting time. Weights for continuous exposures are prone to extreme values, which can unstabilize estimates and variance.
+#|   게시된 대기 시간에 대한 역확률 가중치 히스토그램. 연속형 노출에 대한 가중치는 극단적인 값을 갖기 쉬우며, 이는 추정치와 분산을 불안정하게 만들 수 있습니다.
 denominators |>
   mutate(wts = 1 / denominator) |>
   ggplot(aes(wts)) +
   geom_histogram(fill = "#E69F00", color = "white", bins = 50) +
-  scale_x_log10(name = "weights")
+  scale_x_log10(name = "가중치")
 ```
 
-In @fig-hist-sd-unstable, we see several weights over 100 and one over 10,000; these extreme weights will put undue stress on specific points, complicating the results we will estimate.
+@fig-hist-sd-unstable에서는 100을 넘는 여러 가중치와 10,000을 넘는 가중치 하나를 볼 수 있습니다. 이러한 극단적인 가중치는 특정 지점에 과도한 부담을 주어 추정할 결과를 복잡하게 만듭니다.
 
-Let's now fit the marginal density to use for stabilized weights:
+이제 안정화된 가중치에 사용할 주변 밀도를 적합시켜 보겠습니다.
 
 ```{r}
 numerator_model <- lm(
@@ -227,7 +225,7 @@ numerators <- numerator_model |>
   select(park_date, numerator)
 ```
 
-We also need to join the fitted values back to our original data set by date, then calculate the stabilized weights (`swts`) using `numerator / denominator`.
+또한 적합된 값을 날짜별로 원래 데이터셋에 다시 결합한 다음 `numerator / denominator`를 사용하여 안정화된 가중치(`swts`)를 계산해야 합니다.
 
 ```{r}
 wait_times_wts <- wait_times |>
@@ -236,26 +234,26 @@ wait_times_wts <- wait_times |>
   mutate(swts = numerator / denominator)
 ```
 
-The stabilized weights are much less extreme.
-Stabilized weights should have a mean close to 1 (in this example, it is `round(mean(wait_times_wts$swts), digits = 2)`); when that is the case, then the pseudo-population (that is, the equivalent number of observations after weighting) is equal to the original sample size.
-If the mean is far from 1, we may have issues with model misspecification or positivity violations [@hernan2021].
+안정화된 가중치는 훨씬 덜 극단적입니다.
+안정화된 가중치는 평균이 1에 가까워야 합니다(이 예에서는 `round(mean(wait_times_wts$swts), digits = 2)`임). 이 경우 유사 모집단(즉, 가중 후 동등한 관찰 수)은 원래 표본 크기와 같습니다.
+평균이 1에서 멀리 떨어져 있으면 모델 오지정 또는 양성성 위반 문제가 있을 수 있습니다[@hernan2021].
 
 ```{r}
 #| label: fig-hist-sd-stable
 #| fig.cap: >
-#|   A histogram of the stabilized inverse probability weights for posted waiting time. These weights are much more reasonable and will allow the outcome model to behave better.
+#|   게시된 대기 시간에 대한 안정화된 역확률 가중치 히스토그램. 이러한 가중치는 훨씬 더 합리적이며 결과 모델이 더 잘 작동하도록 합니다.
 ggplot(wait_times_wts, aes(swts)) +
   geom_histogram(fill = "#E69F00", color = "white", bins = 50) +
-  scale_x_log10(name = "weights")
+  scale_x_log10(name = "가중치")
 ```
 
-When we compare the exposure---average posted wait times---to the standardized weights, we still have one exceptionally high weight.
-Is this a problem, or is this a valid data point?
+노출(평균 게시 대기 시간)을 표준화된 가중치와 비교하면 여전히 매우 높은 가중치가 하나 있습니다.
+이것이 문제일까요, 아니면 유효한 데이터 포인트일까요?
 
 ```{r}
 #| label: fig-stabilized-wts-scatter
 #| fig.cap: >
-#|   A scatter of the stabilized inverse probability weights for posted waiting time vs. posted waiting times. Days with more values of `wait_minutes_posted_avg` farther from the mean appear to be downweighted, with a few exceptions. The most unusual weight is for June 23, 2018.
+#|   게시된 대기 시간에 대한 안정화된 역확률 가중치 대 게시된 대기 시간 산점도. 평균에서 더 멀리 떨어진 `wait_minutes_posted_avg` 값을 가진 날은 몇 가지 예외를 제외하고 하향 가중되는 것으로 보입니다. 가장 특이한 가중치는 2018년 6월 23일입니다.
 ggplot(wait_times_wts, aes(wait_minutes_posted_avg, swts)) +
   geom_point(size = 3, color = "grey80", alpha = 0.7) +
   geom_point(
@@ -272,7 +270,7 @@ ggplot(wait_times_wts, aes(wait_minutes_posted_avg, swts)) +
     color = "firebrick"
   ) +
   scale_y_log10() +
-  labs(x = "Average Posted Wait", y = "Stabilized Weights")
+  labs(x = "평균 게시 대기 시간", y = "안정화된 가중치")
 ```
 
 ```{r}
@@ -290,28 +288,27 @@ wait_times_wts |>
   knitr::kable()
 ```
 
-Our model predicted a much lower posted wait time than observed, so this date was upweighted.
-We don't know why the posted time was so high (the actual time was much lower), but we did find an artist rendering from that date of [Pluto digging for Seven Dwarfs Mine Train treasure](https://disneyparks.disney.go.com/blog/2018/06/disney-doodle-pluto-sniffs-out-fun-at-seven-dwarfs-mine-train/).
+우리 모델은 관찰된 것보다 훨씬 낮은 게시 대기 시간을 예측했으므로 이 날짜는 상향 가중되었습니다.
+게시된 시간이 왜 그렇게 높았는지(실제 시간은 훨씬 낮았음)는 모르지만, 그날 [일곱 난쟁이 광산 열차 보물을 파는 플루토](https://disneyparks.disney.go.com/blog/2018/06/disney-doodle-pluto-sniffs-out-fun-at-seven-dwarfs-mine-train/)의 아티스트 렌더링을 찾았습니다.
 
-### Fitting the outcome model for continuous exposures
+### 연속형 노출에 대한 결과 모델 적합시키기
 
-## Categorical exposures
+## 범주형 노출
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Calculating propensity scores for categorical exposures
+## 범주형 노출에 대한 성향 점수 계산하기
 
 ```{r}
 rnorm(5)
 ```
 
-### Diagnostics with many categories
+### 여러 범주를 사용한 진단
 
-### Fitting the outcome model again
-
+### 결과 모델 다시 적합시키기

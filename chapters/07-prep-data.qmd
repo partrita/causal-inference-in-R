@@ -1,101 +1,101 @@
-# Preparing data to answer causal questions {#sec-data-causal}
+# 인과적 질문에 답하기 위한 데이터 준비 {#sec-data-causal}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("polishing")
 ```
 
-In many respects, preparing data and doing exploratory analysis is the same for causal inference as for description and prediction.
-What differs for causal inference is how we'll link the process to our causal question and target trial emulation.
-We'll also use this opportunity to understand better how well our data might meet the causal assumptions, although, as we've seen in @sec-quartets, data can never tell us whether we're right or not.
+여러 면에서 데이터 준비 및 탐색적 분석 수행은 설명 및 예측과 마찬가지로 인과 추론과 동일합니다.
+인과 추론의 차이점은 해당 과정을 인과적 질문 및 대상 시험 모방과 어떻게 연결할 것인가입니다.
+또한 @sec-quartets에서 보았듯이 데이터만으로는 우리가 옳은지 아닌지 알 수 없지만, 이 기회를 통해 데이터가 인과적 가정을 얼마나 잘 충족하는지 더 잘 이해할 것입니다.
 
-Let's look at the data and the causal question we'll examine for the next several chapters.
+다음 몇 장에서 살펴볼 데이터와 인과적 질문을 살펴보겠습니다.
 
-## Introduction to the data {#sec-data}
+## 데이터 소개 {#sec-data}
 
-Through much of this book, we will be using data obtained from [Touring Plans](https://touringplans.com).
-Touring Plans is a company that helps people plan their trips to Disney and Universal theme parks.
-One of their goals is to accurately predict attraction wait times at these theme parks by leveraging data and statistical modeling.
-The `{touringplans}` R package includes several datasets containing information about Disney theme park attractions.
+이 책의 많은 부분에서 [Touring Plans](https://touringplans.com)에서 얻은 데이터를 사용할 것입니다.
+Touring Plans는 사람들이 디즈니 및 유니버설 테마파크 여행을 계획하는 데 도움을 주는 회사입니다.
+그들의 목표 중 하나는 데이터 및 통계 모델링을 활용하여 이러한 테마파크의 어트랙션 대기 시간을 정확하게 예측하는 것입니다.
+`{touringplans}` R 패키지에는 디즈니 테마파크 어트랙션에 대한 정보가 포함된 여러 데이터셋이 포함되어 있습니다.
 
 ```{r}
 library(touringplans)
 attractions_metadata
 ```
 
-Additionally, this package contains a dataset with raw metadata about the parks, with observations recorded daily.
-The metadata includes information like the Walt Disney World ticket season on a particular day (whether it is peak season---think Christmas---value season---think right when school started---or regular season), what the historic temperatures were in the park on that day, and whether there was a special event, such as Extra Magic Hours (where the park opens early to guests staying in the Walt Disney World resorts) in the park on that day.
+또한 이 패키지에는 매일 기록된 관찰 결과가 있는 공원에 대한 원시 메타데이터가 포함된 데이터셋이 포함되어 있습니다.
+메타데이터에는 특정 날짜의 월트 디즈니 월드 티켓 시즌(성수기---크리스마스 생각---비수기---학교가 막 시작했을 때 생각---또는 일반 시즌), 해당 날짜 공원의 과거 기온, 해당 날짜 공원에서 엑스트라 매직 아워(월트 디즈니 월드 리조트에 머무는 투숙객에게 공원이 일찍 개장하는 시간)와 같은 특별 행사가 있었는지 여부와 같은 정보가 포함됩니다.
 
 ```{r}
 parks_metadata_raw
 ```
 
-Each year, some days are selected for Extra Magic Hours in the mornings.
+매년 일부 날짜는 아침에 엑스트라 매직 아워를 위해 선택됩니다.
 
 ```{r}
 parks_metadata_raw |>
-  # 0: no extra magic hours, 1 extra magic hours
+  # 0: 엑스트라 매직 아워 없음, 1: 엑스트라 매직 아워
   count(year, mkemhmorn)
 ```
 
-Through 2019, every year totals up to the entire year (2016 was a leap year).
-In 2020 and 2021, of course, the park was limited by the COVID-19 pandemic, so fewer days are available.
+2019년까지 매년 총 일수가 전체 연도와 같습니다(2016년은 윤년이었습니다).
+물론 2020년과 2021년에는 COVID-19 팬데믹으로 인해 공원이 제한되어 사용 가능한 날짜가 적습니다.
 
 ```{r}
 parks_metadata_raw |>
-  # extra magic hours
+  # 엑스트라 매직 아워
   count(year, mkemhmorn) |>
   group_by(year) |>
   summarize(days = sum(n))
 ```
 
-We also have data on wait times for individual attractions.
-For instance, here's the data for an attraction called the Seven Dwarfs Mine Train.
+또한 개별 어트랙션의 대기 시간 데이터도 있습니다.
+예를 들어, 다음은 일곱 난쟁이 광산 열차라는 어트랙션의 데이터입니다.
 
 ```{r}
 seven_dwarfs_train
 ```
 
-For each `park_date`, we have a number of reports of wait times, both posted wait times (`wait_minutes_posted`, scraped from the times posted on Disney's website) and actual wait times (`wait_minutes_actual`, reported by individuals who actually waited in line).
-Each row is a record of either posted or actual wait minutes at a given `wait_datetime`, with the other value being `NA` for that row.
+각 `park_date`에 대해 게시된 대기 시간(`wait_minutes_posted`, 디즈니 웹사이트에 게시된 시간에서 스크랩)과 실제 대기 시간(`wait_minutes_actual`, 실제로 줄을 선 개인이 보고) 모두에 대한 여러 대기 시간 보고서가 있습니다.
+각 행은 특정 `wait_datetime`의 게시된 대기 시간 또는 실제 대기 시간 기록이며, 해당 행의 다른 값은 `NA`입니다.
 
 ```{r}
 seven_dwarfs_train |>
   count(park_date, sort = TRUE)
 ```
 
-## Asking a causal question
+## 인과적 질문하기
 
-Here's our causal question that we're hoping to answer with these datasets:
+다음은 이러한 데이터셋으로 답하고자 하는 인과적 질문입니다.
 
-**Is there a relationship between whether there were Extra Magic Hours in the morning at Magic Kingdom and the average posted wait time for the Seven Dwarfs Mine Train the same day between 9 AM and 10 AM in 2018?**
+**2018년 매직 킹덤 아침에 엑스트라 매직 아워가 있었는지 여부와 당일 오전 9시에서 10시 사이 일곱 난쟁이 광산 열차의 평균 게시 대기 시간 사이에 관계가 있는가?**
 
-Let's begin by diagramming this causal question (@fig-seven-diag).
+이 인과적 질문을 다이어그램으로 나타내는 것부터 시작하겠습니다(@fig-seven-diag).
 
 ```{r}
 #| code-fold: true
-#| fig-cap: "Diagram of the causal question \"Is there a relationship between whether there were Extra Magic Hours in the morning at Magic Kingdom and the average posted wait time for the Seven Dwarfs Mine Train the same day between 9 AM and 10 AM in 2018?\""
+#| fig-cap: "인과적 질문 \"2018년 매직 킹덤 아침에 엑스트라 매직 아워가 있었는지 여부와 당일 오전 9시에서 10시 사이 일곱 난쟁이 광산 열차의 평균 게시 대기 시간 사이에 관계가 있는가?\"의 다이어그램"
 #| label: fig-seven-diag
 #| warning: false
 knitr::include_graphics(here::here("images/emm-diagram.png"))
 ```
 
-Historically, guests who stayed in a Walt Disney World resort hotel could access the park during Extra Magic Hours, during which the park was closed to all other guests.
-These extra hours could be in the morning or evening.
-The Seven Dwarfs Mine Train is a ride at Walt Disney World's Magic Kingdom.
-Magic Kingdom may or may not be selected each day to have Extra Magic Hours.
-We are interested in examining whether Extra Magic Hours in the morning ("Extra Magic Morning") causes a change in the average posted wait time for the Seven Dwarfs Mine Train on the same day between 9 AM and 10 AM.
+역사적으로 월트 디즈니 월드 리조트 호텔에 머무는 투숙객은 엑스트라 매직 아워 동안 공원에 입장할 수 있었으며, 이 시간 동안 공원은 다른 모든 투숙객에게 폐쇄되었습니다.
+이러한 추가 시간은 아침이나 저녁에 있을 수 있습니다.
+일곱 난쟁이 광산 열차는 월트 디즈니 월드 매직 킹덤의 놀이기구입니다.
+매직 킹덤은 매일 엑스트라 매직 아워를 가질 수도 있고 갖지 않을 수도 있습니다.
+우리는 아침의 엑스트라 매직 아워("엑스트라 매직 모닝")가 당일 오전 9시에서 10시 사이 일곱 난쟁이 광산 열차의 평균 게시 대기 시간에 변화를 유발하는지 여부를 조사하는 데 관심이 있습니다.
 
-@fig-dag-magic is a proposed DAG for this question.
-We assume that Extra Magic Morning is decided based on the time the park closes, the ticket season, and the historic high temperature.
-Likewise, these three variables are also causes of the average posted wait time.
-This is a greatly simplified DAG, of course.
-Moreover, *someone* at Disney knew the assignment mechanism for deciding Extra Magic Hours for 2018, so if we were working there, we'd want to find out as much as we could about that process.
-We imagine that the actually causal processes for both the exposure and outcome are more complex than this.
-For example's sake, though, we'll keep it simple.
+@fig-dag-magic은 이 질문에 대해 제안된 DAG입니다.
+엑스트라 매직 모닝은 공원 폐장 시간, 티켓 시즌 및 과거 최고 기온에 따라 결정된다고 가정합니다.
+마찬가지로 이 세 가지 변수는 평균 게시 대기 시간의 원인이기도 합니다.
+물론 이것은 매우 단순화된 DAG입니다.
+또한 디즈니의 *누군가*는 2018년 엑스트라 매직 아워를 결정하는 배정 메커니즘을 알고 있었으므로 그곳에서 일했다면 해당 프로세스에 대해 최대한 많이 알아보고 싶을 것입니다.
+노출과 결과 모두에 대한 실제 인과 과정은 이보다 더 복잡하다고 상상합니다.
+그러나 예를 들기 위해 간단하게 유지하겠습니다.
 
 ```{r}
 #| label: fig-dag-magic
@@ -103,10 +103,8 @@ For example's sake, though, we'll keep it simple.
 #| message: false
 #| warning: false
 #| fig.cap: >
-#|   Proposed DAG for the relationship between Extra Magic Hours
-#|   in the morning at a particular park and the average posted wait
-#|   time between 9 AM and 10 AM.
-#|   Here, we believe 1) Extra Magic Hours impacts average wait time and 2) both Extra Magic Hours and average wait time are determined by the time the park closes, historic high temperatures, and ticket season.
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 게시 대기 시간 간의 관계에 대해 제안된 DAG.
+#|   여기서는 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐장 시간, 과거 최고 기온 및 티켓 시즌에 의해 결정된다고 믿습니다.
 library(ggdag)
 library(ggokabeito)
 
@@ -116,11 +114,11 @@ coord_dag <- list(
 )
 
 labels <- c(
-  x = "Extra Magic Morning",
-  y = "Average wait",
-  Season = "Ticket Season",
-  weather = "Historic high temperature",
-  close = "Time park closed"
+  x = "엑스트라 매직 모닝",
+  y = "평균 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐장 시간"
 )
 
 dagify(
@@ -145,48 +143,48 @@ dagify(
   coord_cartesian(clip = "off")
 ```
 
-If we were in charge of Walt Disney World's operations, we might want to randomize dates to have (or not have) Extra Magic Hours.
-Since we're not, we need to rely on previously collected observational data and do our best to emulate the target trial that we would have created, should it have been possible.
-Here, our observations are *days*.
-@tbl-tt-7dwarfs maps each element of the causal question to elements of the target trial protocol.
+월트 디즈니 월드의 운영을 담당했다면 엑스트라 매직 아워를 가질(또는 갖지 않을) 날짜를 무작위로 지정하고 싶을 수 있습니다.
+그렇지 않으므로 이전에 수집된 관찰 데이터에 의존하고 가능했다면 만들었을 대상 시험을 최대한 모방해야 합니다.
+여기서 우리의 관찰은 *날짜*입니다.
+@tbl-tt-7dwarfs는 인과적 질문의 각 요소를 대상 시험 프로토콜의 요소에 매핑합니다.
 
-| Protocol Step               | Description                                                                                                                | Target Trial                                                                                                                            | Emulation                                                                                                                                                                              |
+| 프로토콜 단계               | 설명                                                                                                                | 대상 시험                                                                                                                            | 모방                                                                                                                                                                              |
 |------------------|------------------|------------------|--------------------|
-| Eligibility criteria        | Which days should be included in the study?                                                                                | Days must be from 2018.                                                                                                                 | Same as target trial.                                                                                                                                                                  |
-| Exposure definition         | When eligible, what precise exposure will days under study receive?                                                        | Exposed: Magic Kingdom had Extra Magic Hours in the morning. Otherwise, unexposed.                                                      | Same as target trial.                                                                                                                                                                  |
-| Assignment procedures       | How will eligible days be assigned to an exposure?                                                                         | Days are randomized with a 50% probability of having Extra Magic Hours in the morning. The assignment is non-blinded.                   | Days are assigned the exposure consistent with their data, e.g., whether or not there were Extra Magic Hours that morning. Randomization is emulated using adjustment for confounding. |
-| Follow-up period            | When does follow-up start and end?                                                                                         | Start: When the park opens the day of the exposure; End: at 10 AM on the same day.                                                      | Same as target trial.                                                                                                                                                                  |
-| Outcome definition          | What precise outcomes will be measured?                                                                                    | The average posted wait time for the Seven Dwarfs Mine Train between 9 AM and 10 AM on the same day.                                    | Same as target trial.                                                                                                                                                                  |
-| Causal contrast of interest | Which causal estimand will be estimated?                                                                                   | Average Treatment Effect (ATE).                                                                                                         | Same as target trial.                                                                                                                                                                  |
-| Analysis plan               | What data manipulation and statistical procedures will be applied to the data to estimate the causal contrast of interest? | ATE will be calculated using inverse probability weighting, weighted for historic high temperature, ticket season, and park close time. | Same as target trial. In this case, the variables are confounders, and the adjustment set was determined by assuming the causal structure presented in @fig-dag-magic.                 |
+| 적격성 기준        | 연구에 어떤 날짜를 포함해야 하는가?                                                                                | 2018년의 날짜여야 합니다.                                                                                                                 | 대상 시험과 동일합니다.                                                                                                                                                                  |
+| 노출 정의         | 적격한 경우 연구 대상 날짜는 정확히 어떤 노출을 받게 되는가?                                                       | 노출됨: 매직 킹덤은 아침에 엑스트라 매직 아워가 있었습니다. 그렇지 않으면 노출되지 않았습니다.                                                      | 대상 시험과 동일합니다.                                                                                                                                                                  |
+| 배정 절차       | 적격한 날짜는 어떻게 노출에 배정되는가?                                                                         | 날짜는 아침에 엑스트라 매직 아워를 가질 확률이 50%인 무작위로 배정됩니다. 배정은 비맹검입니다.                   | 날짜는 데이터와 일치하는 노출에 배정됩니다. 즉, 해당 아침에 엑스트라 매직 아워가 있었는지 여부입니다. 무작위화는 교란에 대한 조정을 사용하여 모방됩니다. |
+| 추적 기간            | 추적은 언제 시작하고 끝나는가?                                                                                         | 시작: 노출 당일 공원이 개장할 때, 종료: 당일 오전 10시.                                                      | 대상 시험과 동일합니다.                                                                                                                                                                  |
+| 결과 정의          | 정확히 어떤 결과를 측정할 것인가?                                                                                    | 당일 오전 9시에서 10시 사이 일곱 난쟁이 광산 열차의 평균 게시 대기 시간.                                    | 대상 시험과 동일합니다.                                                                                                                                                                  |
+| 관심 있는 인과적 대조 | 어떤 인과적 추정량을 추정할 것인가?                                                                                   | 평균 치료 효과(ATE).                                                                                                         | 대상 시험과 동일합니다.                                                                                                                                                                  |
+| 분석 계획               | 관심 있는 인과적 대조를 추정하기 위해 데이터에 어떤 데이터 조작 및 통계 절차를 적용할 것인가? | ATE는 과거 최고 기온, 티켓 시즌 및 공원 폐장 시간에 대해 가중치를 부여한 역확률 가중치를 사용하여 계산됩니다. | 대상 시험과 동일합니다. 이 경우 변수는 교란 변수이며 조정 집합은 @fig-dag-magic에 제시된 인과 구조를 가정하여 결정되었습니다.                 |
 
-: A protocol of a target trial of the effect of Extra Magic Morning on average posted wait times and a corresponding protocol for an observational study that emulates the target trial {#tbl-tt-7dwarfs}
+: 엑스트라 매직 모닝이 평균 게시 대기 시간에 미치는 영향에 대한 대상 시험 프로토콜 및 대상 시험을 모방하는 관찰 연구에 대한 해당 프로토콜 {#tbl-tt-7dwarfs}
 
-## Data wrangling and target trials
+## 데이터 조작 및 대상 시험
 
-You can think of the steps of a protocol as actions to take.
-In a randomized trial, many of these actions are part of the trial design and data collection.
-In a target trial emulation, we often need to apply those actions ourselves to the data we are preparing to answer causal questions.
-@tbl-dplyr presents the type of actions (here, functions in the tidyverse) we might need to take.
+프로토콜의 단계를 수행해야 할 작업으로 생각할 수 있습니다.
+무작위 시험에서 이러한 작업 중 다수는 시험 설계 및 데이터 수집의 일부입니다.
+대상 시험 모방에서는 인과적 질문에 답하기 위해 준비하는 데이터에 이러한 작업을 직접 적용해야 하는 경우가 많습니다.
+@tbl-dplyr은 수행해야 할 수 있는 작업 유형(여기서는 tidyverse의 함수)을 보여줍니다.
 
-| Target trial protocol element | tidyverse function                            |
+| 대상 시험 프로토콜 요소 | tidyverse 함수                            |
 |------------------------------|------------------------------------------|
-| Eligibility criteria          | `filter()`                                    |
-| Exposure definition           | `mutate()`                                    |
-| Assignment procedures         | `mutate()`, `select()`                        |
-| Follow-up period              | `mutate()`, `pivot_longer()`, `pivot_wider()` |
-| Outcome definition            | `mutate()`                                    |
-| Analysis plan                 | `select()`, `mutate()`, `*_join()`            |
+| 적격성 기준          | `filter()`                                    |
+| 노출 정의           | `mutate()`                                    |
+| 배정 절차         | `mutate()`, `select()`                        |
+| 추적 기간              | `mutate()`, `pivot_longer()`, `pivot_wider()` |
+| 결과 정의            | `mutate()`                                    |
+| 분석 계획                 | `select()`, `mutate()`, `*_join()`            |
 
-: Mapping elements of target trial protocols to commonly used tidyverse functions {#tbl-dplyr}
+: 대상 시험 프로토콜 요소를 일반적으로 사용되는 tidyverse 함수에 매핑하기 {#tbl-dplyr}
 
-We need to manipulate both the `seven_dwarfs_train` dataset and the `parks_metadata_raw` dataset to answer our causal question.
-Let's start with the `seven_dwarfs_train` data set.
-The `seven_dwarfs_train` dataset in the `{touringplans}` package contains information about the date a particular wait time was recorded (`park_date`), the time of the wait time (`wait_datetime`), the actual wait time (`wait_minutes_actual`), and the posted wait time (`wait_minutes_posted`).
+인과적 질문에 답하려면 `seven_dwarfs_train` 데이터셋과 `parks_metadata_raw` 데이터셋을 모두 조작해야 합니다.
+`seven_dwarfs_train` 데이터셋부터 시작하겠습니다.
+`{touringplans}` 패키지의 `seven_dwarfs_train` 데이터셋에는 특정 대기 시간이 기록된 날짜(`park_date`), 대기 시간(`wait_datetime`), 실제 대기 시간(`wait_minutes_actual`) 및 게시된 대기 시간(`wait_minutes_posted`)에 대한 정보가 포함되어 있습니다.
 
-Let's take a look at this dataset.
-The range of the dates looks reasonable, as do the posted wait times.
-The actual wait times, though, have a minimum of `r min(seven_dwarfs_train$wait_minutes_actual, na.rm = TRUE)`!
+이 데이터셋을 살펴보겠습니다.
+날짜 범위는 합리적으로 보이며 게시된 대기 시간도 마찬가지입니다.
+그러나 실제 대기 시간의 최솟값은 `r min(seven_dwarfs_train$wait_minutes_actual, na.rm = TRUE)`입니다!
 
 ```{r}
 seven_dwarfs_train |>
@@ -198,14 +196,14 @@ seven_dwarfs_train |>
   )
 ```
 
-We won't be using this variable just yet, but we'd better remove this row.
+아직 이 변수를 사용하지는 않겠지만 이 행을 제거하는 것이 좋습니다.
 
 ```{r}
 seven_dwarfs_train <- seven_dwarfs_train |>
   filter(wait_minutes_actual >= 0 | is.na(wait_minutes_actual))
 ```
 
-The distribution of the wait times is quite wide, with actual times appearing shorter on average than posted times.
+대기 시간 분포는 매우 넓으며, 실제 시간은 게시된 시간보다 평균적으로 짧아 보입니다.
 
 ```{r}
 #| warning: false
@@ -220,8 +218,8 @@ seven_dwarfs_train |>
   facet_wrap(~wait_type)
 ```
 
-The posted times are also more jagged.
-They seem to be rounded to the 5 minutes.
+게시된 시간도 더 들쭉날쭉합니다.
+5분 단위로 반올림된 것으로 보입니다.
 
 ```{r}
 seven_dwarfs_train |>
@@ -231,24 +229,24 @@ seven_dwarfs_train |>
 ```
 
 ::: callout-note
-Doing this kind of data checking is essential to understand the limits and potential issues in the data.
-R has many great tools for quickly summarizing data sets, such as `skimr::skim()` and `pointblank::scan_data()`.
-We also recommend using a data validation tool like `{pointblank}` to write down and test your expectations about the data.
+이러한 종류의 데이터 확인은 데이터의 한계와 잠재적인 문제를 이해하는 데 필수적입니다.
+R에는 `skimr::skim()` 및 `pointblank::scan_data()`와 같이 데이터셋을 빠르게 요약하는 훌륭한 도구가 많이 있습니다.
+또한 `{pointblank}`와 같은 데이터 유효성 검사 도구를 사용하여 데이터에 대한 기대치를 작성하고 테스트하는 것이 좋습니다.
 :::
 
-We need this dataset to calculate our outcome, defined as the average posted wait time between 9 AM and 10 AM.
-Our eligibility criteria state that we need to restrict our analysis to days in 2018.
+오전 9시에서 10시 사이의 평균 게시 대기 시간으로 정의된 결과를 계산하려면 이 데이터셋이 필요합니다.
+적격성 기준에 따르면 분석을 2018년의 날짜로 제한해야 합니다.
 
 ```{r}
 #| message: false
 #| warning: false
 seven_dwarfs_9 <- seven_dwarfs_train |>
-  # eligibility criteria
+  # 적격성 기준
   filter(year(park_date) == 2018) |>
-  # get hour from wait
+  # 대기 시간에서 시간 가져오기
   mutate(hour = hour(wait_datetime)) |>
-  # outcome definition:
-  # calculate average wait minutes by date and hour
+  # 결과 정의:
+  # 날짜 및 시간별 평균 대기 시간 계산
   group_by(park_date, hour) |>
   summarize(
     across(
@@ -261,9 +259,9 @@ seven_dwarfs_9 <- seven_dwarfs_train |>
     ),
     .groups = "drop"
   ) |>
-  # replace NaN with NA
-  # this occurs when there is a mean of a
-  # vector of length 0, e.g., no observation for the hour
+  # NaN을 NA로 바꾸기
+  # 이는 길이가 0인 벡터의 평균이 있을 때 발생합니다.
+  # 즉, 해당 시간에 대한 관찰이 없을 때
   mutate(across(
     c(
       wait_minutes_posted_avg,
@@ -271,58 +269,58 @@ seven_dwarfs_9 <- seven_dwarfs_train |>
     ),
     \(.x) if_else(is.nan(.x), NA, .x)
   )) |>
-  # outcome definition:
-  # only keep the average wait time between 9 and 10
+  # 결과 정의:
+  # 9시에서 10시 사이의 평균 대기 시간만 유지
   filter(hour == 9)
 
 seven_dwarfs_9
 ```
 
-## Working with multiple data sources
+## 여러 데이터 소스 작업하기
 
-Now that we have our outcome settled, we need to get our exposure variable and any other park-specific variables about the day in question that we may adjust for.
-Examining @fig-dag-magic, we see that we have three open backdoor paths.
-We can close them with the three confounders on each path: the ticket season, the time the park closed, and the historic high temperature.
-These are in the `parks_metadata_raw` dataset.
-This data will require extra cleaning since the names are in the original format.
+이제 결과가 결정되었으므로 노출 변수와 해당 날짜에 대한 기타 공원별 변수를 가져와야 하며, 이를 조정할 수 있습니다.
+@fig-dag-magic을 살펴보면 세 개의 열린 백도어 경로가 있음을 알 수 있습니다.
+각 경로의 세 가지 교란 변수인 티켓 시즌, 공원 폐장 시간 및 과거 최고 기온으로 이를 닫을 수 있습니다.
+이러한 변수는 `parks_metadata_raw` 데이터셋에 있습니다.
+이 데이터는 이름이 원래 형식으로 되어 있으므로 추가 정리가 필요합니다.
 
-Frequently, we find ourselves merging data from multiple sources when attempting to answer causal questions to ensure we have the outcome, exposure, and confounders joined together.
-Let's clean this data up and join it to the outcome data.
+결과, 노출 및 교란 변수를 함께 결합하기 위해 인과적 질문에 답하려고 할 때 여러 소스에서 데이터를 병합하는 경우가 많습니다.
+이 데이터를 정리하고 결과 데이터에 결합해 보겠습니다.
 
-`parks_metadata_raw` contains many more variables than `seven_dwarfs_train`.
+`parks_metadata_raw`에는 `seven_dwarfs_train`보다 훨씬 많은 변수가 포함되어 있습니다.
 
 ```{r}
 parks_metadata_raw |>
   length()
 ```
 
-For this analysis, we need `date` (the observation date, which will work as an ID to join on), `wdw_ticket_season` (the ticket season for the date), `wdwmaxtemp` (the historic high temperature), `mkclose` (the time Magic Kingdom closed), and `mkemhmorn` (whether Magic Kingdom had an Extra Magic Hour in the morning).
+이 분석에서는 `date`(관찰 날짜, 결합을 위한 ID로 사용됨), `wdw_ticket_season`(해당 날짜의 티켓 시즌), `wdwmaxtemp`(과거 최고 기온), `mkclose`(매직 킹덤 폐장 시간) 및 `mkemhmorn`(매직 킹덤이 아침에 엑스트라 매직 아워를 가졌는지 여부)이 필요합니다.
 
 ```{r}
 parks_metadata <- parks_metadata_raw |>
-  ## exposure definition, assignment procedure,
-  ## and analysis plan: select the ID, exposure, and confounders
+  ## 노출 정의, 배정 절차,
+  ## 및 분석 계획: ID, 노출 및 교란 변수 선택
   select(
     # id
     park_date = date,
-    # exposure
+    # 노출
     park_extra_magic_morning = mkemhmorn,
-    # confounders
+    # 교란 변수
     park_ticket_season = wdw_ticket_season,
     park_temperature_high = wdwmaxtemp,
     park_close = mkclose
   ) |>
-  ## eligibility criteria: days in 2018
+  ## 적격성 기준: 2018년 날짜
   filter(year(park_date) == 2018)
 ```
 
 ::: callout-tip
-We like to have our variable names follow a clean convention; one way to do this is to follow Emily Riederer's "Column Names as Contracts" format [@Riederer_2020].
-The basic idea is to predefine a set of words, phrases, or stubs with precise meanings to index information and use these consistently when naming variables.
-For example, in these data, variables that are specific to a particular wait time are prepended with the term `wait` (e.g. `wait_datetime` and `wait_minutes_actual`), variables that are specific to the park on a particular day, acquired from parks metadata, are prepended with the term `park` (e.g. `park_date` or `park_temperature_high`).
+변수 이름이 깔끔한 규칙을 따르도록 하는 것을 좋아합니다. 한 가지 방법은 에밀리 리더러의 "계약으로서의 열 이름" 형식을 따르는 것입니다[@Riederer_2020].
+기본 아이디어는 정보 색인화를 위해 정확한 의미를 가진 단어, 구문 또는 스텁 집합을 미리 정의하고 변수 이름을 지정할 때 이를 일관되게 사용하는 것입니다.
+예를 들어, 이 데이터에서 특정 대기 시간에 특정한 변수는 `wait`라는 용어로 시작하고(예: `wait_datetime` 및 `wait_minutes_actual`), 공원 메타데이터에서 얻은 특정 날짜의 공원에 특정한 변수는 `park`라는 용어로 시작합니다(예: `park_date` 또는 `park_temperature_high`).
 :::
 
-Between 12 and 16% of days each month had Extra Magic Mornings in 2018, with one exception: 42% of days in December had Extra Magic Mornings.
+2018년에는 매월 12~16%의 날짜에 엑스트라 매직 모닝이 있었으며, 한 가지 예외가 있습니다. 즉, 12월에는 42%의 날짜에 엑스트라 매직 모닝이 있었습니다.
 
 ```{r}
 parks_metadata |>
@@ -330,10 +328,10 @@ parks_metadata |>
   summarise(prop = sum(park_extra_magic_morning) / n())
 ```
 
-Let's learn a little more about the confounders, too.
+교란 변수에 대해서도 좀 더 알아보겠습니다.
 
-Not all ticket season types happen every month.
-There weren't any peak tickets in August or September or value tickets in June, July, or December.
+모든 티켓 시즌 유형이 매월 발생하는 것은 아닙니다.
+8월이나 9월에는 성수기 티켓이 없었고, 6월, 7월 또는 12월에는 비수기 티켓이 없었습니다.
 
 ```{r}
 count_by_month <- function(parks_metadata, .var) {
@@ -346,7 +344,7 @@ count_by_month <- function(parks_metadata, .var) {
       )
     ) |>
     count(month, {{ .var }}) |>
-    # fill in implicitly missing combos
+    # 암묵적으로 누락된 조합 채우기
     complete(
       month,
       {{ .var }},
@@ -361,52 +359,52 @@ ticket_season_by_month |>
   arrange(n, park_ticket_season)
 ```
 
-There were many more regular ticket days in the summer and more peak ticket days in March, May, and December (@fig-ticket-season).
+여름에는 일반 티켓 날짜가 훨씬 더 많았고 3월, 5월 및 12월에는 성수기 티켓 날짜가 더 많았습니다(@fig-ticket-season).
 
 ```{r}
 #| label: fig-ticket-season
-#| fig-cap: "Ticket season by month. The proportion of days of each ticket prices varies across the year. There were many more regular ticket days in the summer and more peak ticket days in March, May, and December. Additionally, there were no peak tickets in August or September or value tickets in June, July, or December."
+#| fig-cap: "월별 티켓 시즌. 각 티켓 가격의 날짜 비율은 연중 다양합니다. 여름에는 일반 티켓 날짜가 훨씬 더 많았고 3월, 5월 및 12월에는 성수기 티켓 날짜가 더 많았습니다. 또한 8월이나 9월에는 성수기 티켓이 없었고 6월, 7월 또는 12월에는 비수기 티켓이 없었습니다."
 ticket_season_by_month |>
   ggplot(aes(month, n, fill = park_ticket_season)) +
   geom_col(position = "fill", alpha = .8) +
   labs(
-    y = "proportion of days",
+    y = "날짜 비율",
     x = NULL,
-    fill = "ticket season"
-  ) + 
+    fill = "티켓 시즌"
+  ) +
   theme(panel.grid.major.x = element_blank())
 ```
 
-Throughout much of the year, the Magic Kingdom was open until 22:00, 21:00, or midnight, although there was considerable variety, including one day that ended at 16:30.
+연중 대부분 매직 킹덤은 22:00, 21:00 또는 자정까지 개장했지만 16:30에 끝나는 날도 하루 있는 등 상당한 차이가 있었습니다.
 
 ```{r}
 parks_metadata |>
   count(park_close, sort = TRUE)
 ```
 
-The close time varies across the year, with earlier times happening more often in the late fall and winter (@fig-close-time).
-Some early times don't happen in the summer, and some late times don't happen in late fall.
+폐장 시간은 연중 다양하며, 늦가을과 겨울에는 더 이른 시간에 폐장하는 경우가 많습니다(@fig-close-time).
+여름에는 일부 이른 시간이 없고 늦가을에는 일부 늦은 시간이 없습니다.
 
 ```{r}
 #| label: fig-close-time
-#| fig-cap: "Close time for the Magic Kingdom park by month. The close time varies across the year. Earlier close times occur more often in the late fall and winter. There are months where some close times don't occur in any days, such as early times in the summer and late times in the late fall."
+#| fig-cap: "월별 매직 킹덤 공원 폐장 시간. 폐장 시간은 연중 다양합니다. 늦가을과 겨울에는 더 이른 시간에 폐장하는 경우가 많습니다. 여름에는 일부 이른 시간이 없고 늦가을에는 일부 늦은 시간이 없는 달도 있습니다."
 parks_metadata |>
   count_by_month(park_close) |>
   ggplot(aes(month, n, fill = ordered(park_close))) +
   geom_col(position = "fill", alpha = .85) +
   labs(
-    y = "proportion of days",
+    y = "날짜 비율",
     x = NULL,
-    fill = "close time"
-  ) + 
+    fill = "폐장 시간"
+  ) +
   theme(panel.grid.major.x = element_blank())
 ```
 
-Disney World is in Florida, so it never gets particularly cold, but it gets hot in the summer (@fig-high-temp).
+디즈니 월드는 플로리다에 있으므로 특별히 춥지는 않지만 여름에는 덥습니다(@fig-high-temp).
 
 ```{r}
 #| label: fig-high-temp
-#| fig-cap: "Historic high temperature in farenheit for Walt Disney World by month. Being in a warm climate, the park never gets particularly cold, but the temperature does vary quite a bit throughout the year, with very hot summers."
+#| fig-cap: "월별 월트 디즈니 월드의 과거 최고 기온(화씨). 따뜻한 기후에 위치하여 공원이 특별히 춥지는 않지만 연중 기온 변화가 상당히 크며 여름은 매우 덥습니다."
 parks_metadata |>
   mutate(
     month = month(
@@ -418,30 +416,30 @@ parks_metadata |>
   ggplot(aes(month, park_temperature_high)) +
   geom_jitter(height = 0, width = .15, alpha = .5) +
   labs(
-    y = "historic high\ntemperature (F)",
+    y = "과거 최고\n기온 (F)",
     x = NULL
   )
 ```
 
-Let's now join the confounder and exposure data (in `parks_metadata`) to the outcome data (in `seven_dwarfs_9`) to make a single analytic dataset.
-In this case, we have a simple, 1:1 match and want to attach `parks_metadata` to `seven_dwarfs_9`; we can use a left join for that.
+이제 교란 변수 및 노출 데이터(`parks_metadata`)를 결과 데이터(`seven_dwarfs_9`)에 결합하여 단일 분석 데이터셋을 만들어 보겠습니다.
+이 경우 간단한 1:1 일치가 있으며 `parks_metadata`를 `seven_dwarfs_9`에 첨부하고 싶습니다. 이를 위해 왼쪽 조인을 사용할 수 있습니다.
 
 ::: callout-note
-Joining is a nuanced data-wrangling topic but is often essential for creating an analytic dataset.
-We recommend *R for Data Science* for a thorough discussion of joins.
+결합은 미묘한 데이터 조작 주제이지만 분석 데이터셋을 만드는 데 종종 필수적입니다.
+결합에 대한 자세한 논의는 *데이터 과학을 위한 R*을 권장합니다.
 :::
 
-Notably, we don't have a match for every day.
-2018 had 365 days, which is how many rows we have in `parks_metadata`.
-`seven_dwarfs_9`, though, only has 362.
-We can use an anti-join to see which days don't have a match in `seven_dwarfs_9`.
+특히 모든 날짜에 대해 일치하는 항목이 있는 것은 아닙니다.
+2018년은 365일이었으며, 이는 `parks_metadata`의 행 수입니다.
+그러나 `seven_dwarfs_9`에는 362개만 있습니다.
+역 조인을 사용하여 `seven_dwarfs_9`에 일치하는 항목이 없는 날짜를 확인할 수 있습니다.
 
 ```{r}
 parks_metadata |>
   anti_join(seven_dwarfs_9, by = "park_date")
 ```
 
-These three days in a row are missing records on the posted wait times for 9 AM.
+연속된 이 3일 동안 오전 9시의 게시된 대기 시간 기록이 누락되었습니다.
 
 ```{r}
 seven_dwarfs_train |>
@@ -451,8 +449,8 @@ seven_dwarfs_train |>
   )
 ```
 
-At any rate, let's join the datasets together by date.
-Now, we have a single analytic dataset on which to do our causal analysis.
+어쨌든 날짜별로 데이터셋을 결합해 보겠습니다.
+이제 인과 분석을 수행할 단일 분석 데이터셋이 있습니다.
 
 ```{r}
 seven_dwarfs_9 <- seven_dwarfs_9 |>
@@ -461,63 +459,63 @@ seven_dwarfs_9 <- seven_dwarfs_9 |>
 seven_dwarfs_9
 ```
 
-## Creating a descriptive table
+## 설명표 만들기
 
-Let's take a bird's eye view of the data set by creating a descriptive table.
-R has many tools for doing so; we are going to use the `tbl_summary()` function from the `{gtsummary}` package.
-We'll also use the `{labelled}` package to clean up the variable names for the table.
+설명표를 만들어 데이터셋을 전체적으로 살펴보겠습니다.
+R에는 이를 위한 많은 도구가 있습니다. `{gtsummary}` 패키지의 `tbl_summary()` 함수를 사용할 것입니다.
+또한 `{labelled}` 패키지를 사용하여 표의 변수 이름을 정리할 것입니다.
 
-In @tbl-unweighted-gtsummary, we see that more days did not have Extra Magic Hours in the morning.
-A slight majority of days were in regular ticket season, and both exposed and unexposed days had all three types of ticket season pricing.
-Among close times, we see that the most common times were 22:00 and 23:00.
-There are also several sparse or empty cells, e.g., close times, where we may have positivity violations.
-Days with Extra Magic Mornings were also slightly cooler, but not by much.
+@tbl-unweighted-gtsummary에서 아침에 엑스트라 매직 아워가 없었던 날이 더 많았음을 알 수 있습니다.
+대부분의 날짜는 일반 티켓 시즌이었으며 노출된 날과 노출되지 않은 날 모두 세 가지 유형의 티켓 시즌 가격이 모두 있었습니다.
+폐장 시간 중에는 22:00와 23:00이 가장 일반적인 시간이었습니다.
+또한 양성성 위반이 있을 수 있는 폐장 시간과 같이 희소하거나 비어 있는 셀도 여러 개 있습니다.
+엑스트라 매직 모닝이 있었던 날은 약간 더 시원했지만 큰 차이는 없었습니다.
 
 ```{r}
 #| label: tbl-unweighted-gtsummary
-#| tbl-cap: A descriptive table of Extra Magic Morning in the touringplans dataset. This table shows the distributions of these variables in the observed population.
+#| tbl-cap: 투어링플랜 데이터셋의 엑스트라 매직 모닝 설명표. 이 표는 관찰된 모집단에서 이러한 변수의 분포를 보여줍니다.
 library(gtsummary)
 library(labelled)
 seven_dwarfs_9 |>
   set_variable_labels(
-    park_ticket_season = "Ticket Season",
-    park_close = "Close Time",
-    park_temperature_high = "Historic High Temperature"
-  ) |> 
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐장 시간",
+    park_temperature_high = "과거 최고 기온"
+  ) |>
   mutate(
     park_close = as.character(park_close),
     park_extra_magic_morning = factor(
-      park_extra_magic_morning, 
-      labels = c("No Extra Magic Hours", "Extra Magic Hours")
+      park_extra_magic_morning,
+      labels = c("엑스트라 매직 아워 없음", "엑스트라 매직 아워")
     )
   ) |>
   tbl_summary(
     by = park_extra_magic_morning,
     include = c(
       park_ticket_season,
-      park_close, 
+      park_close,
       park_temperature_high
     )
   ) |>
-  # add an overall column to the table
+  # 표에 전체 열 추가
   add_overall(last = TRUE)
 ```
 
-## Recognizing missing data
+## 누락된 데이터 인식하기
 
-Recognizing whether we have any missing data in our variables is vital for reasons we saw in @sec-dags and that we'll explore further in @sec-missingness.
-As we saw from the anti-join, we are indeed missing some data.
-Let's take a closer look.
-The `{visdat}` package is great for getting a quick sense of whether we have any missing data.
+변수에 누락된 데이터가 있는지 인식하는 것은 @sec-dags에서 보았고 @sec-missingness에서 더 자세히 살펴볼 이유로 매우 중요합니다.
+역 조인에서 보았듯이 실제로 일부 데이터가 누락되었습니다.
+자세히 살펴보겠습니다.
+`{visdat}` 패키지는 누락된 데이터가 있는지 빠르게 파악하는 데 유용합니다.
 
 ```{r}
 library(visdat)
 vis_miss(seven_dwarfs_9)
 ```
 
-The missing observations for the posted wait times weren't limited to the dates with no observations.
-Some had records that were empty.
-For instance, on January 24th, there were nine records, but both types of wait times were missing.
+게시된 대기 시간의 누락된 관찰은 관찰이 없는 날짜에만 국한되지 않았습니다.
+일부에는 비어 있는 기록이 있었습니다.
+예를 들어, 1월 24일에는 9개의 기록이 있었지만 두 가지 유형의 대기 시간이 모두 누락되었습니다.
 
 ```{r}
 seven_dwarfs_train |>
@@ -528,55 +526,55 @@ seven_dwarfs_train |>
   select(starts_with("wait_minutes"))
 ```
 
-All said and done, though, we're only missing posted wait times for 8 days in addition to the 3 days with no records, about 3% of the year total.
-This amount of missingness isn't likely to significantly impact our results.
-For this first analysis, we will ignore the missing values in the posted wait times.
-We have a lot more missingness in the actual wait times, a topic we'll revisit in @sec-missingness.
-Since we're not using this outcome yet, we'll set that aside, too.
+결국 기록이 없는 3일 외에 게시된 대기 시간이 누락된 날은 8일뿐이며, 이는 전체 연도의 약 3%입니다.
+이 정도의 누락은 결과에 큰 영향을 미치지 않을 것입니다.
+이 첫 번째 분석에서는 게시된 대기 시간의 누락된 값을 무시할 것입니다.
+실제 대기 시간에는 훨씬 더 많은 누락이 있으며, 이는 @sec-missingness에서 다시 다룰 주제입니다.
+아직 이 결과를 사용하지 않으므로 이것도 따로 두겠습니다.
 
-## Exploring causal assumptions {#sec-explore-assump}
+## 인과적 가정 탐색하기 {#sec-explore-assump}
 
-As we've seen in @sec-assump and @sec-quartets, data can't solve the problem of the unverifiable assumptions we need to make to do causal inference.
-However, it can still provide valuable information.
+@sec-assump 및 @sec-quartets에서 보았듯이 데이터는 인과 추론을 위해 만들어야 하는 검증 불가능한 가정을 해결할 수 없습니다.
+그러나 여전히 귀중한 정보를 제공할 수 있습니다.
 
-Exchangeability is a tough assumption to check.
-In many cases, a confounder will be associated with both the exposure and the outcome.
-However, the relationships between the confounder and these two variables may themselves be confounded.
-We'll save data checks for exchangeability for @sec-eval-ps-model, where we will have better tools to probe this assumption.
+교환 가능성은 확인하기 어려운 가정입니다.
+많은 경우 교란 변수는 노출과 결과 모두와 연관됩니다.
+그러나 교란 변수와 이 두 변수 간의 관계 자체가 교란될 수 있습니다.
+이 가정을 조사하는 더 나은 도구가 있는 @sec-eval-ps-model을 위해 교환 가능성에 대한 데이터 확인을 저장할 것입니다.
 
-One way we can check for consistency is to use data for multiple versions of treatment.
-For instance, if our question had instead been about "Extra Magic Hours" rather than "Extra Magic Hours in the morning", we might have a consistency violation.
-Extra Magic Hours also happen in the evening, and it's plausible that that would have a different effect than those in the morning.
-We could explore the data by separating the two Extra Magic Hours types into separate exposures.
-We won't calculate this since we're already being specific, but the idea is the same as any other type of stratification.
-Here, we're grouping by the values of the `exposure` as we have them assigned and the `exposure_type`, a variable that tells us more details about the exposure (say, "morning" or "evening" for the exposure "Extra Magic Hours").
+일관성을 확인하는 한 가지 방법은 여러 버전의 치료에 대한 데이터를 사용하는 것입니다.
+예를 들어, 질문이 "아침의 엑스트라 매직 아워"가 아니라 "엑스트라 매직 아워"에 관한 것이었다면 일관성 위반이 있을 수 있습니다.
+엑스트라 매직 아워는 저녁에도 발생하며 아침의 것과 다른 효과를 가질 가능성이 있습니다.
+두 가지 엑스트라 매직 아워 유형을 별도의 노출로 분리하여 데이터를 탐색할 수 있습니다.
+이미 구체적으로 설명하고 있으므로 계산하지는 않겠지만 아이디어는 다른 유형의 계층화와 동일합니다.
+여기서는 할당된 `exposure` 값과 노출에 대한 자세한 정보(예: 노출 "엑스트라 매직 아워"에 대한 "아침" 또는 "저녁")를 알려주는 변수인 `exposure_type`별로 그룹화합니다.
 
 ```{r}
 #| eval: false
-dataset |> 
-  group_by(exposure, exposure_type) |> 
+dataset |>
+  group_by(exposure, exposure_type) |>
   summarize(...)
 ```
 
-There are also harder-to-measure ways that Extra Magic Mornings might be different from one another; we might not be able to check these without a lot of detective work.
-We won't probe this assumption further since we've already clarified that we're using Extra Magic Mornings.
-In practice, you want to be cautious about such a decision; be an expert in your exposure and its potential manifestations.
+엑스트라 매직 모닝이 서로 다를 수 있는 측정하기 어려운 방법도 있습니다. 많은 탐정 작업 없이는 이를 확인할 수 없을 수도 있습니다.
+이미 엑스트라 매직 모닝을 사용하고 있음을 명확히 했으므로 이 가정을 더 이상 조사하지 않을 것입니다.
+실제로 그러한 결정에 대해 신중해야 합니다. 즉, 노출과 잠재적인 표현 방식에 대한 전문가가 되어야 합니다.
 
-Let's dig into positivity.
-The positivity assumption requires that there are exposed and unexposed subjects within each level and combination of the variables used to achieve exchangeability.
-We can explore this by visualizing the distribution of each of our proposed confounders stratified by the exposure.
-This well help us understand if we are missing exposed or unexposed days for a given level.
-The only way we can tell the difference between stochastic and structural positivity, however, is through background knowledge.
-For instance, it might just be coincidence that Extra Magic Hours didn't happen on a day with a given close time (stochastic violation), but there may be days that are ineligible for Extra Magic Hours given the confounders (structural violation).
+양성성에 대해 자세히 살펴보겠습니다.
+양성성 가정은 교환 가능성을 달성하는 데 사용되는 변수의 각 수준 및 조합 내에 노출된 대상과 노출되지 않은 대상이 있어야 합니다.
+제안된 각 교란 변수의 분포를 노출별로 계층화하여 시각화함으로써 이를 탐색할 수 있습니다.
+이를 통해 특정 수준에 대해 노출된 날짜 또는 노출되지 않은 날짜가 누락되었는지 이해하는 데 도움이 됩니다.
+그러나 확률적 양성성과 구조적 양성성의 차이를 알 수 있는 유일한 방법은 배경 지식을 통하는 것입니다.
+예를 들어, 특정 폐장 시간이 있는 날에 엑스트라 매직 아워가 발생하지 않은 것은 우연일 수 있지만(확률적 위반), 교란 변수가 주어졌을 때 엑스트라 매직 아워에 적격하지 않은 날이 있을 수 있습니다(구조적 위반).
 
-### Single variable checks for positivity violations
+### 양성성 위반에 대한 단일 변수 확인
 
-@fig-close shows the distribution of Magic Kingdom park closing time by whether the date had extra magic hours in the morning.
-Both exposure levels span the majority of the covariate space, but none of the days where the Magic Kingdom closed at 16:30 and 21:00 had Extra Magic Mornings.
+@fig-close는 해당 날짜에 아침에 엑스트라 매직 아워가 있었는지 여부에 따른 매직 킹덤 공원 폐장 시간 분포를 보여줍니다.
+두 노출 수준 모두 공변량 공간의 대부분을 차지하지만 매직 킹덤이 16:30과 21:00에 문을 닫은 날에는 엑스트라 매직 모닝이 없었습니다.
 
 ```{r}
 #| label: fig-close
-#| fig-cap: "Distribution of Magic Kingdom park closing time by whether the date had Extra Magic Hours in the morning. Some close times did not have days with Extra Magic Hours, a potential positivity violation."
+#| fig-cap: "해당 날짜에 아침에 엑스트라 매직 아워가 있었는지 여부에 따른 매직 킹덤 공원 폐장 시간 분포. 일부 폐장 시간에는 엑스트라 매직 아워가 있는 날이 없었으며, 이는 잠재적인 양성성 위반입니다."
 ggplot(
   seven_dwarfs_9,
   aes(
@@ -587,15 +585,15 @@ ggplot(
 ) +
   geom_bar(position = "fill", alpha = .8) +
   labs(
-    fill = "Extra Magic Morning",
-    x = "Time of Park Close"
+    fill = "엑스트라 매직 모닝",
+    x = "공원 폐장 시간"
   ) +
   theme(panel.grid.major.x = element_blank())
 ```
 
-As we know, only one day ended at 16:30, but there were 28 that ended at 21:00, none of which had Extra Magic Mornings.
-That makes it difficult to make inferences about this region of the covariate space without additional assumptions or without changing the question.
-We'll explore both in detail later on.
+알다시피 16:30에 끝나는 날은 하루뿐이었지만 21:00에 끝나는 날은 28일이었으며, 그중 어느 날도 엑스트라 매직 모닝이 없었습니다.
+이로 인해 추가적인 가정 없이는 또는 질문을 변경하지 않고는 이 공변량 공간 영역에 대한 추론을 하기가 어렵습니다.
+나중에 두 가지 모두를 자세히 살펴볼 것입니다.
 
 ```{r}
 #| message: false
@@ -610,13 +608,13 @@ seven_dwarfs_9 |>
   filter(park_close %in% parse_hm(c("16:30", "21:00")))
 ```
 
-We can use a mirrored histogram to examine the distribution of historic high temperatures at Magic Kingdom by whether the date had Extra Magic Hours in the morning.
-To create one, we'll use the `{halfmoon}` package's `geom_mirror_histogram()`.
-Examining @fig-temp, very few days in the exposed group have maximum temperatures less than 60 degrees.
+미러 히스토그램을 사용하여 해당 날짜에 엑스트라 매직 아워가 있었는지 여부에 따른 매직 킹덤의 과거 최고 기온 분포를 검토할 수 있습니다.
+이를 만들려면 `{halfmoon}` 패키지의 `geom_mirror_histogram()`을 사용할 것입니다.
+@fig-temp를 살펴보면 노출된 그룹에서 최고 기온이 60도 미만인 날이 거의 없음을 알 수 있습니다.
 
 ```{r}
 #| label: fig-temp
-#| fig-cap: "Distribution of historic  high temperature at Magic Kingdom by whether the date had Extra Magic Hours in the morning. Only 1 day with Extra Magic Hours had an historic high temperature of less than 60 degress Fahrenheit."
+#| fig-cap: "해당 날짜에 아침에 엑스트라 매직 아워가 있었는지 여부에 따른 매직 킹덤의 과거 최고 기온 분포. 엑스트라 매직 아워가 있었던 날 중 과거 최고 기온이 화씨 60도 미만이었던 날은 단 하루뿐이었습니다."
 library(halfmoon)
 ggplot(
   seven_dwarfs_9,
@@ -629,14 +627,14 @@ ggplot(
   geom_mirror_histogram(bins = 20, alpha = .8) +
   scale_y_continuous(labels = abs) +
   labs(
-    fill = "Extra Magic Morning",
-    x = "Historic high temperature (F)"
+    fill = "엑스트라 매직 모닝",
+    x = "과거 최고 기온 (F)"
   )
 ```
 
-Indeed, there is only one day with Extra Magic Mornings with this historic high temperature.
-If we found this particularly troubling, given our understanding of the problem, we could consider changing our causal question to restrict the analysis to warmer days.
-Making such changes would also restrict which days we could draw conclusions about.
+실제로 이 과거 최고 기온으로 엑스트라 매직 모닝이 있었던 날은 단 하루뿐입니다.
+문제에 대한 이해를 고려할 때 이것이 특히 문제가 된다면 분석을 더 따뜻한 날로 제한하도록 인과적 질문을 변경하는 것을 고려할 수 있습니다.
+그러한 변경은 결론을 내릴 수 있는 날짜도 제한합니다.
 
 ```{r}
 seven_dwarfs_9 |>
@@ -644,12 +642,12 @@ seven_dwarfs_9 |>
   count(park_extra_magic_morning)
 ```
 
-Finally, let's look at the distribution of ticket season by whether there were Extra Magic Hours in the morning.
-Examining @fig-ticket, we do not see any positivity violations.
+마지막으로 아침에 엑스트라 매직 아워가 있었는지 여부에 따른 티켓 시즌 분포를 살펴보겠습니다.
+@fig-ticket을 살펴보면 양성성 위반이 보이지 않습니다.
 
 ```{r}
 #| label: fig-ticket
-#| fig-cap: "Distribution of ticket season by whether the date had Extra Magic Hours in the morning. As days with and without Extra Magic Hours happen across all three levels, there don't appear to be positivity violations."
+#| fig-cap: "아침에 엑스트라 매직 아워가 있었는지 여부에 따른 티켓 시즌 분포. 엑스트라 매직 아워가 있는 날과 없는 날이 세 가지 수준 모두에서 발생하므로 양성성 위반은 없는 것으로 보입니다."
 ggplot(
   seven_dwarfs_9,
   aes(
@@ -660,42 +658,42 @@ ggplot(
 ) +
   geom_bar(position = "dodge", alpha = .8) +
   labs(
-    fill = "Extra Magic Morning",
-    x = "Magic Kingdom Ticket Season"
+    fill = "엑스트라 매직 모닝",
+    x = "매직 킹덤 티켓 시즌"
   ) +
   theme(panel.grid.major.x = element_blank())
 ```
 
-### Multiple variable checks for positivity violations
+### 양성성 위반에 대한 다중 변수 확인
 
-Among the three confounders, we see some potential evidence of positivity violations.
-We can examine this more closely because we have so few variables here.
-Let's start by discretizing the `park_temperature_high` variable, cutting it into tertiles.
+세 가지 교란 변수 중에서 양성성 위반의 잠재적인 증거가 일부 보입니다.
+여기서는 변수가 거의 없으므로 이를 더 자세히 검토할 수 있습니다.
+먼저 `park_temperature_high` 변수를 이산화하여 3분위수로 나누겠습니다.
 
 ```{r}
 #| label: fig-positivity
-#| fig-cap: "Check for positivity violations across three confounders: historic high temperature, park close time, and ticket season."
+#| fig-cap: "세 가지 교란 변수인 과거 최고 기온, 공원 폐장 시간 및 티켓 시즌에 대한 양성성 위반 확인."
 #| fig-width: 9
 prop_exposed <- seven_dwarfs_9 |>
-  ## cut park_temperature_high into tertiles
+  ## park_temperature_high를 3분위수로 자르기
   mutate(park_temperature_high_bin = cut(
       park_temperature_high,
       breaks = 3
   )) |>
-  ## bin park close time
+  ## 공원 폐장 시간 구간화
   mutate(park_close_bin = case_when(
-    hour(park_close) < 19 & hour(park_close) > 12 ~ "(1) early",
-    hour(park_close) >= 19 & hour(park_close) < 24 ~ "(2) standard",
-    hour(park_close) >= 24 | hour(park_close) < 12 ~ "(3) late"
+    hour(park_close) < 19 & hour(park_close) > 12 ~ "(1) 이른 시간",
+    hour(park_close) >= 19 & hour(park_close) < 24 ~ "(2) 표준 시간",
+    hour(park_close) >= 24 | hour(park_close) < 12 ~ "(3) 늦은 시간"
   )) |>
   group_by(
     park_close_bin,
     park_temperature_high_bin,
     park_ticket_season
   ) |>
-  ## calculate the proportion exposed in each bin
+  ## 각 구간에서 노출된 비율 계산
   summarize(
-    prop_exposed = mean(park_extra_magic_morning), 
+    prop_exposed = mean(park_extra_magic_morning),
     .groups = "drop"
   ) |>
   complete(
@@ -708,8 +706,8 @@ prop_exposed <- seven_dwarfs_9 |>
 prop_exposed |>
   ggplot(
     aes(
-      x = park_close_bin, 
-      y = park_temperature_high_bin, 
+      x = park_close_bin,
+      y = park_temperature_high_bin,
       fill = prop_exposed
     )
   ) +
@@ -717,40 +715,40 @@ prop_exposed |>
   scale_fill_viridis_c(begin = .1, end = .9) +
   facet_wrap(~ park_ticket_season) +
   labs(
-    y = "Historic High Temperature (F)",
-    x = "Magic Kingdom Park Close Time",
-    fill = "Proportion of\nDays Exposed"
+    y = "과거 최고 기온 (F)",
+    x = "매직 킹덤 공원 폐장 시간",
+    fill = "노출된\n날짜 비율"
   ) +
   theme(panel.grid = element_blank())
 ```
 
-@fig-positivity shows an interesting potential violation.
-100% of days with lower temperatures (historic highs between 51 and 65 degrees) that are in the peak ticket season have Extra Magic Hours in the morning.
-This actually makes sense if we think a bit about this data set.
-The only days with cold temperatures in Florida that would also be considered a "peak" time to visit Walt Disney World would be over Christmas and New Year.
-During this time, there historically were always Extra Magic Hours.
+@fig-positivity는 흥미로운 잠재적 위반을 보여줍니다.
+성수기 티켓 시즌에 해당하는 기온이 낮은 날(과거 최고 기온 51~65도)의 100%가 아침에 엑스트라 매직 아워를 갖습니다.
+이 데이터셋에 대해 조금 생각해 보면 실제로 의미가 있습니다.
+플로리다에서 기온이 낮고 월트 디즈니 월드를 방문하기에 "성수기"로 간주되는 유일한 날은 크리스마스와 새해입니다.
+이 기간 동안 역사적으로 항상 엑스트라 매직 아워가 있었습니다.
 
-We also have nine combinations that were never exposed.
+또한 전혀 노출되지 않은 9가지 조합이 있습니다.
 
 ```{r}
 #| label: tbl-positivity-check
-#| tbl-cap: "Among binned combinations of confounders, 10 were either always exposed or never exposed. These represent potential positivity violations."
+#| tbl-cap: "교란 변수의 구간화된 조합 중에서 10개는 항상 노출되거나 전혀 노출되지 않았습니다. 이는 잠재적인 양성성 위반을 나타냅니다."
 #| code-fold: true
 library(gt)
 prop_exposed |>
   filter(prop_exposed %in% c(1, 0)) |>
   gt() |>
   cols_label(
-    park_close_bin = "Close Time",
-    park_temperature_high_bin = "Temperature",
-    park_ticket_season = "Ticket Season",
-    prop_exposed = "Proportion Exposed"
+    park_close_bin = "폐장 시간",
+    park_temperature_high_bin = "기온",
+    park_ticket_season = "티켓 시즌",
+    prop_exposed = "노출 비율"
   )
 ```
 
-Are these chance occurrences or structural ineligibility for these days to be Extra Magic Mornings?
-If they are chance occurrences, can we make statistical assumptions that allow us to validly extrapolate across these empty regions of covariate space in our data?
-In either case, should we change the question we're asking, either by eligibility or estimand?
-For now, we are going to continue without making changes to the research question or target trial emulation, but we will keep these observations in mind and explore other options in future sections.
+이러한 현상이 우연히 발생한 것일까요, 아니면 이러한 날짜에 엑스트라 매직 모닝이 구조적으로 불가능한 것일까요?
+우연히 발생한 것이라면 통계적 가정을 통해 데이터의 이러한 빈 영역에 걸쳐 유효하게 외삽할 수 있을까요?
+어느 경우든 적격성 또는 추정량으로 묻는 질문을 변경해야 할까요?
+지금은 연구 질문이나 대상 시험 모방을 변경하지 않고 계속 진행할 것이지만 이러한 관찰 결과를 염두에 두고 향후 섹션에서 다른 옵션을 탐색할 것입니다.
 
-Now that we have a better understanding of the causal question and data (as well as their limitations), let's turn our attention to using statistical models to improve our estimation of the answer we're looking for.
+이제 인과적 질문과 데이터(및 한계)에 대해 더 잘 이해했으므로 찾고 있는 답을 추정하는 것을 개선하기 위해 통계 모델을 사용하는 데 주목해 보겠습니다.

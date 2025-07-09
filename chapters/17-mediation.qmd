@@ -1,19 +1,19 @@
-# Causal mediation analysis {#sec-mediation}
+# 인과 매개 분석 {#sec-mediation}
 
 {{< include 00-setup.qmd >}}
 
 ```{r}
 #| echo: false
-# TODO: remove when first edition complete
+# TODO: 첫 번째 판이 완료되면 제거
 status("unstarted")
 ```
 
-## Estimating direct effects
+## 직접 효과 추정하기
 
 ```{r}
 rnorm(5)
 ```
 
-## Estimating indirect effects
+## 간접 효과 추정하기
 
-## Allowing for interactions
+## 상호작용 허용하기
