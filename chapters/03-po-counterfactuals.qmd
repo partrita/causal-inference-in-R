@@ -1,3 +1,9 @@
+---
+format:
+  pdf:
+    prefer-html: true
+---
+
 # 잠재적 결과와 반사실적 상황 {#sec-counterfactuals}
 
 {{< include 00-setup.qmd >}}
