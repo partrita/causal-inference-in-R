@@ -44,15 +44,35 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libfontconfig1-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libfreetype6-dev \
+            libpng-dev \
+            libtiff5-dev \
+            libjpeg-dev \
+            libgit2-dev \
+            libgsl-dev \
+            libudunits2-dev \
+            libgdal-dev \
+            libproj-dev \
+            cmake \
+            build-essential
 
       - name: Install R package dependencies
         run: |
+          echo "Starting R package installation..."
           pixi run install-r-deps
+          echo "R package installation completed"
         continue-on-error: false
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           DOWNLOAD_STATIC_LIBV8: 1
+          R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
 
       - name: Setup Pages
         id: pages
