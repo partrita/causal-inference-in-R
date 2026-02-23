@@ -2,7 +2,7 @@ name: Deploy Quarto Book to GitHub Pages
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, quarto-book]
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,9 @@ jobs:
         run: pixi install
 
       - name: Install R package dependencies
-        run: pixi run install-r-deps
+        run: |
+          pixi run install-r-deps
+        continue-on-error: false
 
       - name: Setup Pages
         id: pages
