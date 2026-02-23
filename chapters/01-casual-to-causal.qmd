@@ -74,7 +74,7 @@ rankings |>
     axis.ticks = element_blank(),
     panel.grid.major = element_blank(),
     plot.title.position = "plot",
-    plot.subtitle = ggtext::element_markdown(),
+    plot.subtitle = if(requireNamespace("ggtext", quietly = TRUE)) ggtext::element_markdown() else element_text(),
     legend.position = "none"
   )
 ```
@@ -183,7 +183,7 @@ ggplot(
   theme(
     text = element_text(size = 18),
     axis.text.x = element_blank(),
-    plot.title = ggtext::element_markdown(),
+    plot.title = if(requireNamespace("ggtext", quietly = TRUE)) ggtext::element_markdown() else element_text(),
     plot.title.position = "plot"
   )
 ```

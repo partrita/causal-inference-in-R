@@ -11,8 +11,13 @@ in R.*
 
 ## Installation
 
-After cloning this repository, you can install the package dependencies
-for this book with:
+This project uses [pixi](https://pixi.sh/) for dependency management. After cloning this repository, you can install all dependencies with:
+
+```bash
+pixi install
+```
+
+Alternatively, you can install the R package dependencies manually with:
 
 ``` r
 # install.packages("remotes")
@@ -20,3 +25,21 @@ remotes::install_deps(dependencies = TRUE)
 ```
 
 We use [Quarto](https://quarto.org/) to render this book.
+
+## Development
+
+To render the book locally:
+
+```bash
+pixi run render
+```
+
+To preview the book with live reload:
+
+```bash
+pixi run preview
+```
+
+## Deployment
+
+This book is automatically deployed to GitHub Pages when changes are pushed to the main branch. The deployment is handled by GitHub Actions using pixi for dependency management.

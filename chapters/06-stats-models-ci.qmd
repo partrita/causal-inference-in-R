@@ -153,7 +153,8 @@ satisfaction_strat_est <- satisfaction_strat |>
     names_from = update_frequency,
     values_from = avg_satisfaction
   ) |>
-  summarise(estimate = daily - weekly)
+  mutate(estimate = daily - weekly) |>
+  select(customer_type, estimate)
 
 satisfaction_strat_est
 ```

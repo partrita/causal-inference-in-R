@@ -1,6 +1,7 @@
 project:
   type: book
   pre-render: R/setup.R
+  output-dir: _book
 
 callout-appearance: simple
 # see this quarto discussion issue for info on lua filter
@@ -26,6 +27,7 @@ book:
   date: "today"
   repo-url: https://github.com/malcolmbarrett/causal-inference-in-r
   repo-actions: [edit, issue]
+  site-url: https://malcolmbarrett.github.io/causal-inference-in-r/
   chapters:
     - index.qmd
   

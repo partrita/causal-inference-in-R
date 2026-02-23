@@ -2,5 +2,19 @@
 #| include: false
 source(here::here("R/ggdag-mask.R"))
 source(here::here("R/setup.R"))
-library(tidyverse)
+
+# Load tidyverse if available, otherwise load individual packages
+if (requireNamespace("tidyverse", quietly = TRUE)) {
+  library(tidyverse)
+} else {
+  # Load core packages individually if tidyverse is not available
+  if (requireNamespace("dplyr", quietly = TRUE)) library(dplyr)
+  if (requireNamespace("ggplot2", quietly = TRUE)) library(ggplot2)
+  if (requireNamespace("readr", quietly = TRUE)) library(readr)
+  if (requireNamespace("tibble", quietly = TRUE)) library(tibble)
+  if (requireNamespace("stringr", quietly = TRUE)) library(stringr)
+  if (requireNamespace("forcats", quietly = TRUE)) library(forcats)
+  if (requireNamespace("tidyr", quietly = TRUE)) library(tidyr)
+  if (requireNamespace("purrr", quietly = TRUE)) library(purrr)
+}
 ```

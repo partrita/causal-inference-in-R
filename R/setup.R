@@ -5,8 +5,9 @@ options(
   htmltools.dir.version = FALSE,
   width = 55,
   digits = 4,
-  ggplot2.discrete.colour = ggokabeito::palette_okabe_ito(),
-  ggplot2.discrete.fill = ggokabeito::palette_okabe_ito(),
+  # Use default colors if ggokabeito is not available
+  ggplot2.discrete.colour = if(requireNamespace("ggokabeito", quietly = TRUE)) ggokabeito::palette_okabe_ito() else "viridis",
+  ggplot2.discrete.fill = if(requireNamespace("ggokabeito", quietly = TRUE)) ggokabeito::palette_okabe_ito() else "viridis",
   ggplot2.continuous.colour = "viridis",
   ggplot2.continuous.fill = "viridis",
   book.base_family = "sans",
@@ -27,22 +28,31 @@ theme_set(
 )
 
 theme_dag <- function() {
-  ggdag::theme_dag(base_family = getOption("book.base_family"))
+  if(requireNamespace("ggdag", quietly = TRUE)) {
+    ggdag::theme_dag(base_family = getOption("book.base_family"))
+  } else {
+    theme_minimal(base_family = getOption("book.base_family"))
+  }
 }
 
 geom_dag_label_repel <- function(..., seed = 10) {
-  ggdag_geom_dag_label_repel(
-    aes(x, y, label = label),
-    box.padding = 3.5,
-    inherit.aes = FALSE,
-    max.overlaps = Inf,
-    family = getOption("book.base_family"),
-    seed = seed,
-    label.size = NA,
-    label.padding = 0.1,
-    size = getOption("book.base_size") / 3,
-    ...
-  )
+  if(requireNamespace("ggdag", quietly = TRUE)) {
+    ggdag::geom_dag_label_repel(
+      aes(x, y, label = label),
+      box.padding = 3.5,
+      inherit.aes = FALSE,
+      max.overlaps = Inf,
+      family = getOption("book.base_family"),
+      seed = seed,
+      label.size = NA,
+      label.padding = 0.1,
+      size = getOption("book.base_size") / 3,
+      ...
+    )
+  } else {
+    # Fallback to regular geom_text if ggdag is not available
+    geom_text(aes(x, y, label = label), inherit.aes = FALSE, ...)
+  }
 }
 
 est_ci <- function(.df, rsample = FALSE) {
