@@ -14,33 +14,31 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: r-lib/actions/pr-fetch@v1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: r-lib/actions/setup-r@v1
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          cache: true
 
       - name: Cache R packages
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
-          restore-keys: ${{ hashFiles('.github/R-version') }}-1-
+          path: .pixi/envs/default/lib/R/library
+          key: ${{ runner.os }}-r-lib-${{ hashFiles('pixi.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-r-lib-
 
-      - name: Install Package Dependencies
-        run: |-
-          options(repos = 'https://packagemanager.rstudio.com/all/latest')
-          install.packages('remotes')
-          remotes::install_deps(dependencies = TRUE)
-        shell: Rscript {0}
+      - name: Install R package dependencies
+        run: pixi run install-r-deps
 
       - name: Style
-        run: |
-          options(styler.addins_style_transformer = "grkstyle::grk_style_transformer()")
-          styler::style_dir(filetype = c(".R", ".qmd"))
-        shell: Rscript {0}
+        run: pixi run style
 
       - name: commit
         run: |

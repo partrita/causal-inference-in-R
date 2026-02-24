@@ -31,37 +31,13 @@ jobs:
       - name: Cache R packages
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.local/share/renv
-            ~/.cache/R
-          key: ${{ runner.os }}-r-${{ hashFiles('DESCRIPTION', 'renv.lock') }}
+          path: .pixi/envs/default/lib/R/library
+          key: ${{ runner.os }}-r-lib-${{ hashFiles('pixi.lock') }}
           restore-keys: |
-            ${{ runner.os }}-r-
+            ${{ runner.os }}-r-lib-
 
       - name: Install dependencies
         run: pixi install
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libxml2-dev \
-            libfontconfig1-dev \
-            libharfbuzz-dev \
-            libfribidi-dev \
-            libfreetype6-dev \
-            libpng-dev \
-            libtiff5-dev \
-            libjpeg-dev \
-            libgit2-dev \
-            libgsl-dev \
-            libudunits2-dev \
-            libgdal-dev \
-            libproj-dev \
-            cmake \
-            build-essential
 
       - name: Install R package dependencies
         run: |
@@ -72,7 +48,6 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           DOWNLOAD_STATIC_LIBV8: 1
-          R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
 
       - name: Setup Pages
         id: pages

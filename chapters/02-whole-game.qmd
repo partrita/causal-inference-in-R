@@ -873,8 +873,8 @@ if (requireNamespace("tipr", quietly = TRUE)) {
   
   # Create a placeholder tipping_points for the text below
   tipping_points <- data.frame(
-    confounder_outcome_effect = c(-0.15, -0.03),
-    exposure_confounder_effect = c(1, 5)
+    confounder_outcome_effect = c(-0.15, -0.07, -0.05, -0.04, -0.03),
+    exposure_confounder_effect = 1:5
   )
 }
 ```
