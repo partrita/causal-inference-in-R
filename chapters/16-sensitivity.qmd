@@ -1,4 +1,4 @@
-# Sensitivity analysis {#sec-sensitivity}
+# 민감도 분석 (Sensitivity analysis) {#sec-sensitivity}
 
 {{< include 00-setup.qmd >}}
 

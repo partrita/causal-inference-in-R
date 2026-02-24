@@ -1,4 +1,4 @@
-# Causal inference across time {#sec-longitudinal}
+# 시간에 따른 인과 추론 {#sec-longitudinal}
 
 {{< include 00-setup.qmd >}}
 

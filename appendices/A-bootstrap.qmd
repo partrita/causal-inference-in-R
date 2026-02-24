@@ -1,4 +1,4 @@
-# The Bootstrap {#sec-appendix-bootstrap}
+# 부트스트랩 (The Bootstrap) {#sec-appendix-bootstrap}
 
 {{< include ../chapters/00-setup.qmd >}}
 

@@ -1,4 +1,4 @@
-# Evaluating your propensity score model {#sec-eval-ps-model}
+# 성향 점수 모델 평가하기 {#sec-eval-ps-model}
 
 {{< include 00-setup.qmd >}}
 

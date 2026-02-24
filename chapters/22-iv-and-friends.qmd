@@ -1,4 +1,4 @@
-# Instrumental variables and friends {#sec-iv-friends}
+# 도구 변수와 관련 방법들 {#sec-iv-friends}
 
 {{< include 00-setup.qmd >}}
 

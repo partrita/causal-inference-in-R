@@ -1,4 +1,4 @@
-# Difference-in-difference {#sec-did}
+# 이중 차분법 (Difference-in-differences) {#sec-did}
 
 {{< include 00-setup.qmd >}}
 

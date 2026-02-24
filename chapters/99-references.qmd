@@ -1,4 +1,4 @@
-# References {.unnumbered}
+# 참고문헌 {.unnumbered}
 
 {{< include 00-setup.qmd >}}
 

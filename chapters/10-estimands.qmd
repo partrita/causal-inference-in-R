@@ -1,4 +1,4 @@
-# Causal estimands {#sec-estimands}
+# 인과 추정치 (Causal estimands) {#sec-estimands}
 
 {{< include 00-setup.qmd >}}
 

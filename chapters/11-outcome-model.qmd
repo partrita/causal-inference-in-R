@@ -1,4 +1,4 @@
-# Fitting the weighted outcome model {#sec-outcome-model}
+# 가중 결과 모델 적합시키기 {#sec-outcome-model}
 
 {{< include 00-setup.qmd >}}
 

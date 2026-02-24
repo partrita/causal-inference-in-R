@@ -1,4 +1,4 @@
-# Continuous and categorical exposures
+# 연속형 및 범주형 노출 (Continuous and categorical exposures)
 
 ## Continuous exposures {#sec-continuous-exposures}
 

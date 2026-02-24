@@ -1,4 +1,4 @@
-# Propensity scores {#sec-ps}
+# 성향 점수 (Propensity scores) {#sec-ps}
 
 {{< include 00-setup.qmd >}}
 

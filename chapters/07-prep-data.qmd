@@ -1,4 +1,4 @@
-# Preparing data to answer causal questions {#sec-data-causal}
+# 인과적 질문에 답하기 위한 데이터 준비 {#sec-data-causal}
 
 {{< include 00-setup.qmd >}}
 

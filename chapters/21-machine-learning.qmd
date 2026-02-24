@@ -1,4 +1,4 @@
-# Machine learning and causal inference {#sec-causal-ml}
+# 머신러닝과 인과 추론 {#sec-causal-ml}
 
 {{< include 00-setup.qmd >}}
 

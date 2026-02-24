@@ -1,4 +1,4 @@
-# G-computation {#sec-g-comp}
+# G-추정 (G-computation) {#sec-g-comp}
 
 {{< include 00-setup.qmd >}}
 

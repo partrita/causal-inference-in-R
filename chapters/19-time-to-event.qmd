@@ -1,4 +1,4 @@
-# Causal time-to-event models {#sec-survival}
+# 인과 시간-사건 모델 (Causal time-to-event models) {#sec-survival}
 
 {{< include 00-setup.qmd >}}
 

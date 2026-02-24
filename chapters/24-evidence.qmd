@@ -1,4 +1,4 @@
-# Evidence {#sec-evidence}
+# 근거 (Evidence) {#sec-evidence}
 
 {{< include 00-setup.qmd >}}
 

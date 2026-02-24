@@ -1,4 +1,4 @@
-# Interaction {#sec-interaction}
+# 상호작용 (Interaction) {#sec-interaction}
 
 {{< include 00-setup.qmd >}}
 

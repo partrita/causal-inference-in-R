@@ -1,4 +1,4 @@
-# Causal mediation analysis {#sec-mediation}
+# 인과 매개 분석 (Causal mediation analysis) {#sec-mediation}
 
 {{< include 00-setup.qmd >}}
 
