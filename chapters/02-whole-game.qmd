@@ -8,96 +8,96 @@
 status("complete")
 ```
 
-In this chapter, we'll analyze data using techniques we learn in this book.
-We'll play the [whole game](https://www.gse.harvard.edu/news/uk/09/01/education-bat-seven-principles-educators) of causal analysis using a few key steps:
+이 장에서는 이 책에서 배우는 기술들을 사용하여 데이터를 분석해 볼 것입니다.
+우리는 다음과 같은 몇 가지 핵심 단계를 통해 인과 분석의 [전체 게임(whole game)](https://www.gse.harvard.edu/news/uk/09/01/education-bat-seven-principles-educators)을 실행해 볼 것입니다:
 
-1.  Specify a causal question
-2.  Draw our assumptions using a causal diagram
-3.  Model our assumptions
-4.  Diagnose our models
-5.  Estimate the causal effect
-6.  Conduct sensitivity analysis on the effect estimate
+1.  인과적 질문 명시하기
+2.  인과 다이어그램을 사용하여 우리의 가정 그리기
+3.  우리의 가정을 모델링하기
+4.  우리의 모델 진단하기
+5.  인과 효과 추정하기
+6.  효과 추정치에 대한 민감도 분석 수행하기
 
-We'll focus on the broader ideas behind each step and what they look like all together; however, we don't expect you to fully digest each idea.
-We'll spend the rest of the book taking up each step in detail.
+우리는 각 단계 뒤에 숨겨진 광범위한 아이디어와 그것들이 모두 합쳐졌을 때 어떤 모습인지에 집중할 것입니다. 하지만 각 아이디어를 완벽하게 소화할 것으로 기대하지는 않습니다.
+우리는 책의 나머지 부분에서 각 단계를 자세히 다룰 것입니다.
 
-## Specify a causal question
+## 인과적 질문 명시하기
 
-In this guided exercise, we'll attempt to answer a causal question: does using a bed net reduce the risk of malaria?
+이 가이드 연습에서 우리는 다음과 같은 인과적 질문에 답하려고 시도할 것입니다: 모기장(bed net)을 사용하는 것이 말라리아 위험을 줄이는가?
 
-Malaria remains a serious public health issue.
-While malaria incidence has decreased since 2000, 2020 and the COVID-19 pandemic saw an increase in cases and deaths due primarily to service interruption [@worldma].
-About 86% of malaria deaths occurred in 29 countries.
-Nearly half of all malaria deaths occurred in just six of those countries: Nigeria (27%), the Democratic Republic of the Congo (12%), Uganda (5%), Mozambique (4%), Angola (3%), and Burkina Faso (3%).
-Most of these deaths occurred in children under 5 [@Fink2022].
-Malaria also poses severe health risks to pregnant women and worsens birth outcomes, including early delivery and low birth weight.
+말라리아는 여전히 심각한 공중보건 문제입니다.
+2000년 이후 말라리아 발생률은 감소했지만, 2020년과 코로나19 팬데믹 기간 동안 주로 서비스 중단으로 인해 사례와 사망자가 증가했습니다 [@worldma].
+말라리아 사망자의 약 86%가 29개국에서 발생했습니다.
+모든 말라리아 사망자의 거의 절반이 나이지리아(27%), 콩고민주공화국(12%), 우간다(5%), 모잠비크(4%), Angola(3%), 부르키나파소(3%)의 6개국에서만 발생했습니다.
+이러한 사망자의 대부분은 5세 미만 어린이들 사이에서 발생했습니다 [@Fink2022].
+말라리아는 또한 임산부에게 심각한 건강 위험을 초래하며 조산 및 저체중아 출산을 포함한 출산 결과를 악화시킵니다.
 
-Bed nets prevent morbidity and mortality due to malaria by providing a barrier against infective bites by the chief host of malaria parasites, the mosquito.
-Humans have used bed nets since ancient times.
-Herodotus, the 5th century BC Greek author of *The Histories*, observed Egyptians using their fishing nets as bed nets:
+모기장은 말라리아 기생충의 주요 숙주인 모기에 의한 감염성 물림에 대한 장벽을 제공함으로써 말라리아로 인한 이환율과 사망률을 예방합니다.
+인간은 고대부터 모기장을 사용해 왔습니다.
+기원전 5세기 그리스의 작가이자 *역사(The Histories)*의 저자인 헤로도토스(Herodotus)는 이집트인들이 낚시 그물을 모기장으로 사용하는 것을 관찰했습니다:
 
-> Against the gnats, which are very abundant, they have contrived as follows:---those who dwell above the fen-land are helped by the towers, to which they ascend when they go to rest; for the gnats by reason of the winds are not able to fly up high: but those who dwell in the fen-land have contrived another way instead of the towers, and this is it:---every man of them has got a casting net, with which by day he catches fish, but in the night he uses it for this purpose, that is to say he puts the casting-net round about the bed in which he sleeps, and then creeps in under it and goes to sleep: and the gnats, if he sleeps rolled up in a garment or a linen sheet, bite through these, but through the net they do not even attempt to bite [@thehist].
+> 매우 풍부한 각다귀(gnats)에 대항하여 그들은 다음과 같이 고안했습니다. 늪지대 위에 사는 사람들은 휴식을 취하러 올라가는 타워의 도움을 받습니다. 각다귀는 바람 때문에 높이 날 수 없기 때문입니다. 하지만 늪지대에 사는 사람들은 타워 대신 다른 방법을 고안했는데, 그것은 다음과 같습니다. 그들 각자는 투망(casting net)을 가지고 있어 낮에는 그것으로 물고기를 잡지만, 밤에는 이를 다른 용도로 사용합니다. 즉, 잠을 자는 침대 주위에 투망을 두르고 그 안으로 기어들어가 잠을 잡니다. 만약 그가 옷이나 리넨 시트를 덮고 자면 각다귀는 그것을 뚫고 물지만, 그물을 통해서는 물려고 시도조차 하지 않습니다 [@thehist].
 
-Many modern nets are also treated with insecticide, dating back to Russian soldiers in World War II [@nevill1996], although some people still use them as fishing nets [@gettleman2015].
+현대의 많은 모기장은 제2차 세계 대전 당시 러시아 군인들로 거슬러 올라가는 살충제 처리가 되어 있지만 [@nevill1996], 일부 사람들은 여전히 그것들을 낚시 그물로 사용하기도 합니다 [@gettleman2015].
 
-It's easy to imagine a randomized trial that deals with this question: participants in a study are randomly assigned to use a bed net or not, and we follow them over time to see if there is a difference in malaria risk between groups.
-Randomization is often the best way to estimate a causal effect of an intervention because it reduces the number of assumptions we need to make for that estimate to be valid (we will discuss these assumptions in @sec-assump).
-In particular, randomization addresses confounding very well, accounting for confounders about which we may not even know.
+이 질문을 다루는 무작위 시험을 상상하기는 쉽습니다. 연구 참가자들을 무작위로 배정하여 모기장을 사용하게 하거나 사용하지 않게 하고, 시간이 지남에 따라 그룹 간에 말라리아 위험의 차이가 있는지 추적 관찰하는 것입니다.
+무작위 배정(Randomization)은 대개 개입의 인과 효과를 추정하는 가장 좋은 방법입니다. 그 추정이 유효하기 위해 우리가 해야 하는 가정의 수를 줄여주기 때문입니다(이러한 가정들은 @sec-assump에서 논의할 것입니다).
+특히 무작위 배정은 교란(confounding)을 매우 잘 해결하며, 우리가 알지 못하는 교란 요인들까지도 고려해 줍니다.
 
-Several landmark trials in the 1990s studied the effects of bed net use on malaria risk.
-A 2004 meta-analysis found that insecticide-treated nets reduced childhood mortality by 17%, malarial parasite prevalence by 13%, and cases of uncomplicated and severe malaria by about 50% (compared to no nets) [@lengeler2004].
-Since the World Health Organization began recommending insecticide-treated nets, insecticide resistance has been a big concern.
-However, a follow-up analysis of trials found that it has yet to impact the public health benefits of bed nets [@pryce2018].
+1990년대의 몇몇 획기적인 시험들은 모기장 사용이 말라리아 위험에 미치는 효과를 연구했습니다.
+2004년의 메타 분석에 따르면 살충제 처리 모기장은 (모기장을 사용하지 않는 경우에 비해) 아동 사망률을 17%, 말라리아 기생충 유병률을 13%, 그리고 단순 및 중증 말라리아 사례를 약 50% 감소시켰습니다 [@lengeler2004].
+세계보건기구(WHO)가 살충제 처리 모기장을 권장하기 시작한 이후, 살충제 저항성은 큰 우려 사항이 되었습니다.
+그러나 시험들에 대한 후속 분석 결과, 그것이 아직 모기장의 공중보건상 이점에 영향을 미치지는 않은 것으로 나타났습니다 [@pryce2018].
 
-Trials have also been influential in determining the economics of bed net programs.
-For instance, one trial compared free net distribution versus a cost-share program (where participants pay a subsidized fee for nets).
-The study's authors found that net uptake was similar between the groups and that free net distribution --- because it was easier to access --- saved more lives, and was cheaper per life saved than the cost-sharing program [@cohen2010].
+시험들은 또한 모기장 프로그램의 경제성을 결정하는 데 영향력이 있었습니다.
+예를 들어, 한 시험에서는 무료 모기장 배포와 비용 분담 프로그램(참가자가 보조금을 받는 수수료를 지불하는 방식)을 비교했습니다.
+연구 저자들은 모기장 수용도가 두 그룹 간에 비슷했으며, 접근이 더 쉬웠던 무료 모기장 배포가 더 많은 생명을 구했고, 구한 생명당 비용도 비용 분담 프로그램보다 저렴하다는 것을 발견했습니다 [@cohen2010].
 
-There are several reasons we might not be able to conduct a new randomized trial to estimate the effect of bed net use on malaria risk, including ethics, cost, and time.
-We have substantial, robust evidence in favor of bed net use, but let's consider some conditions where observational causal inference could help.
+윤리, 비용, 시간 등 말라리아 위험에 대한 모기장 사용 효과를 추정하기 위한 새로운 무작위 시험을 수행할 수 없는 몇 가지 이유가 있습니다.
+우리는 모기장 사용을 지지하는 실질적이고 견고한 증거를 가지고 있지만, 관측 데이터에 기반한 인과 추론이 도움이 될 수 있는 몇 가지 상황을 고려해 봅시다.
 
--   Imagine we are at a time before trials on this subject, and let's say people have started to use bed nets for this purpose on their own.
-    Our goal may still be to conduct a randomized trial, but we can answer questions more quickly with observed data.
+-   이 주제에 대한 시험이 이루어지기 전의 시점을 상상해 보십시오. 사람들이 이미 스스로 이러한 목적으로 모기장을 사용하기 시작했다고 가정해 봅시다.
+    우리의 목표는 여전히 무작위 시험을 수행하는 것일 수 있지만, 관찰된 데이터를 통해 더 빨리 질문에 답할 수 있습니다.
     In addition, this study's results might guide trials' design or intermediary policy suggestions.
 
--   Sometimes, it is also not ethical to conduct a trial.
+-   때로는 시험을 수행하는 것이 윤리적이지 않을 수도 있습니다.
     An example of this in malaria research is a question that arose in the study of bed net effectiveness: does malaria control in early childhood result in delayed immunity to the disease, resulting in severe malaria or death later in life?
     Since we now know bed net use is very effective, *withholding* nets would be unethical.
     A recent observational study found that the benefits of bed net use in childhood on all-cause mortality persist into adulthood [@Fink2022].
 
--   We may also want to estimate a different effect or the effect for another population than in previous trials.
+-   우리는 또한 이전 시험과 다른 효과를 추정하거나 다른 인구 집단에 대한 효과를 추정하고 싶을 수도 있습니다.
     For example, both randomized and observational studies helped us better understand that insecticide-based nets improve malaria resistance in the entire community, not just among those who use nets, so long as net usage is high enough [@howard2000; @hawley2003].
 
 As we'll see in @sec-strat-outcome and @sec-g-comp, the causal inference techniques that we'll discuss in this book are often beneficial even when we're able to randomize.
 
-When we conduct an observational study, it's still helpful to think through the randomized trial we would run were it possible.
+관찰 연구를 수행할 때도 가능하다면 실행했을 무작위 시험을 끝까지 생각해보는 것이 여전히 도움이 됩니다.
 The trial we're trying to emulate in this causal analysis is the **target trial**. Considering the target trial helps us make our causal question more precise.
 We'll use this framework more explicitly in @sec-designs, but for now, let's consider the causal question posed earlier: does using a bed net (a mosquito net) reduce the risk of malaria?
 This question is relatively straightforward, but it is still vague.
 As we saw in @sec-causal-question, we need to clarify some key areas:
 
--   **What do we mean by "bed net"?**
+-   **"모기장"이란 무엇을 의미하는가?**
     There are several types of nets: untreated bed nets, insecticide-treated bed nets, and newer long-lasting insecticide-treated bed nets.
 
--   **Risk compared to what?**
+-   **무엇과 비교한 위험인가?**
     Are we, for instance, comparing insecticide-treated bed nets to *no* net?
     Untreated nets?
     Or are we comparing a new type of net, like long-lasting insecticide-treated bed nets, to nets that are already in use?
 
--   **Risk as defined by what?**
-    Whether or not a person contracted malaria?
+-   **무엇에 의해 정의된 위험인가?**
+    사람이 말라리아에 걸렸는지 여부입니까?
     Whether a person died of malaria?
 
--   **Risk among whom?**
-    What population are we trying to apply this knowledge to?
+-   **누구 사이에서의 위험인가?**
+    우리는 이 지식을 어떤 인구 집단에 적용하려고 합니까?
     Who is it practical to include in our study?
     Who might we need to exclude?
 
-We will use simulated data to answer a more specific question: Does using insecticide-treated bed nets compared to no nets decrease the risk of contracting malaria after 1 year?
+우리는 시뮬레이션된 데이터를 사용하여 더 구체적인 질문에 답할 것입니다: 살충제 처리 모기장을 사용하는 것이 사용하지 않는 것에 비해 1년 후 말라리아에 걸릴 위험을 감소시키는가?
 In this particular data, [simulated by Dr. Andrew Heiss](https://evalsp21.classes.andrewheiss.com/example/matching-ipw/#program-background):
 
-> ...researchers are interested in whether using mosquito nets decreases an individual's risk of contracting malaria.
-> They have collected data from 1,752 households in an unnamed country and have variables related to environmental factors, individual health, and household characteristics.
+> ...연구자들은 모기장 사용이 개인의 말라리아 감염 위험을 낮추는지에 관심이 있습니다.
+> 그들은 익명의 국가에서 1,752가구로부터 데이터를 수집했으며 환경적 요인, 개인의 건강 및 가구 특성과 관련된 변수들을 가지고 있습니다.
 > The data is **not experimental**---researchers have no control over who uses mosquito nets, and individual households make their own choices over whether to apply for free nets or buy their own nets, as well as whether they use the nets if they have them.
 
 Because we're using simulated data, we'll have direct access to an outcome variable that measures the likelihood of contracting malaria, something we wouldn't likely have in real life.
