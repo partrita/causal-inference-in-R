@@ -77,10 +77,10 @@ est_ci <- function(.df, rsample = FALSE) {
 status <- function(type) {
   status <- switch(
     type,
-    unstarted = "is unstarted, but don't worry, it's on our roadmap",
-    polishing = "has its foundations written but is still undergoing changes",
-    wip = "is actively undergoing work and may be restructured or changed. It may also be incomplete",
-    complete = "is mostly complete, but we might make small tweaks or copyedits",
+    unstarted = "아직 시작되지 않았지만, 로드맵에 포함되어 있으니 걱정 마세요",
+    polishing = "기반 내용은 작성되었으나 여전히 수정이 진행 중입니다",
+    wip = "활발히 작업 중이며 구조가 변경되거나 수정될 수 있습니다. 또한 내용이 불완전할 수 있습니다",
+    complete = "거의 완성되었으나, 작은 수정이나 문구 교정이 있을 수 있습니다",
     stop("Invalid `type`", call. = FALSE)
   )
 
@@ -96,9 +96,9 @@ status <- function(type) {
     "::: ",
     class,
     "\n",
-    "## Work-in-progress 🚧\n",
-    "You are reading the work-in-progress first edition of *Causal Inference in R*. ",
-    "This chapter ",
+    "## 작업 진행 중 🚧\n",
+    "여러분은 현재 작성 중인 *R을 이용한 인과 추론*의 초판본을 읽고 계십니다. ",
+    "이 장은 ",
     status,
     ". \n",
     ":::\n"

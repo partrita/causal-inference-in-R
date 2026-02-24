@@ -1,4 +1,4 @@
-# Expressing causal questions as DAGs {#sec-dags}
+# 인과적 질문을 DAG로 표현하기 {#sec-dags}
 
 {{< include 00-setup.qmd >}}
 

@@ -22,7 +22,7 @@ execute:
   fig.show: "hold"
   
 book:
-  title: "Causal Inference in R"
+  title: "R을 이용한 인과 추론"
   author: ["Malcolm Barrett", "Lucy D'Agostino McGowan", "Travis Gerke"]
   date: "today"
   repo-url: https://github.com/malcolmbarrett/causal-inference-in-r
@@ -31,7 +31,7 @@ book:
   chapters:
     - index.qmd
   
-    - part: Asking Causal Questions
+    - part: 인과적 질문 던지기
       chapters:
       - chapters/01-casual-to-causal.qmd
       - chapters/02-whole-game.qmd
@@ -40,13 +40,13 @@ book:
       - chapters/05-not-just-a-stats-problem.qmd
       - chapters/06-stats-models-ci.qmd
   
-    - part: The Design Phase
+    - part: 설계 단계
       chapters:
       - chapters/07-prep-data.qmd
       - chapters/08-propensity-scores.qmd
       - chapters/09-evaluating-ps.qmd
   
-    - part: Estimating Causal Effects
+    - part: 인과 효과 추정하기
       chapters:
       - chapters/10-estimands.qmd
       - chapters/11-outcome-model.qmd
@@ -77,6 +77,7 @@ format:
       - cosmo
       - style.scss
     include-in-header: "plausible.html"
+    lang: ko
   #pdf:
     #tbl-cap-location: bottom
     #documentclass: krantz

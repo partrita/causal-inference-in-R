@@ -59,7 +59,7 @@ cmake = "*"
 zlib = ">=1.3.1,<2"
 
 [tasks]
-install-r-deps = { cmd = "Rscript -e 'options(repos = c(CRAN = \"https://cran.rstudio.com/\"), timeout = 300); if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\"); deps <- c(\"ggokabeito\", \"PSW\", \"katex\", \"gadenbuie/grkstyle\", \"r-causal/ggdag\", \"r-causal/causalworkshop\", \"LucyMcGowan/touringplans\", \"r-causal/tidysmd\", \"r-causal/propensity\", \"r-causal/halfmoon\", \"r-causal/tipr\"); pak::pkg_install(deps)'", env = { DOWNLOAD_STATIC_LIBV8 = "1" } }
+install-r-deps = { cmd = "Rscript -e 'options(repos = c(CRAN = \"https://cran.rstudio.com/\"), timeout = 300); if (!requireNamespace(\"pak\", quietly = TRUE)) install.packages(\"pak\"); deps <- c(\"ggokabeito\", \"PSW\", \"katex\", \"gadenbuie/grkstyle\", \"hadley/emo\", \"r-causal/ggdag\", \"r-causal/causalworkshop\", \"LucyMcGowan/touringplans\", \"r-causal/tidysmd\", \"r-causal/propensity\", \"r-causal/halfmoon\", \"r-causal/tipr\"); pak::pkg_install(deps)'", env = { DOWNLOAD_STATIC_LIBV8 = "1" } }
 style = { cmd = "Rscript -e 'options(styler.addins_style_transformer = \"grkstyle::grk_style_transformer()\"); styler::style_dir(filetype = c(\".R\", \".qmd\"))'" }
 render = { depends-on = ["install-r-deps"], cmd = "quarto render" }
 render-only = "quarto render"

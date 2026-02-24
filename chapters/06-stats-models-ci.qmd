@@ -1,4 +1,4 @@
-# From question to answer: stratification and outcome models {#sec-strat-outcome}
+# 질문에서 답변으로: 층화 및 결과 모델 {#sec-strat-outcome}
 
 {{< include 00-setup.qmd >}}
 

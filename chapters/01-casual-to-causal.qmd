@@ -1,6 +1,6 @@
 \mainmatter
 
-# From casual to causal {#sec-causal-question}
+# 일상에서 인과로 {#sec-causal-question}
 
 {{< include 00-setup.qmd >}}
 
@@ -10,23 +10,23 @@
 status("complete")
 ```
 
-## Casual inference
+## 일상적인 추론 (Casual inference)
 
-The heart of causal analysis is the causal question; it dictates what data we analyze, how we analyze it, and to which populations our inferences apply.
-This book, being applied in nature, deals primarily with the analysis stage of causal inference.
-Relative to the complexity of specifying a good causal question, the analysis stage is considerably more straightforward.
-In the first six chapters of this book, we'll discuss what a causal question is, how to improve our questions, and consider some examples.
+인과 분석의 핵심은 인과적 질문입니다. 이 질문은 우리가 어떤 데이터를 분석할지, 어떻게 분석할지, 그리고 우리의 추론이 어떤 인구 집단에 적용될지를 결정합니다.
+이 책은 성격상 실무에 중점을 두고 있으며, 주로 인과 추론의 분석 단계(analysis stage)를 다룹니다.
+좋은 인과적 질문을 명시하는 복잡성에 비하면, 분석 단계는 상당히 간단합니다.
+이 책의 처음 6개 장에서는 인과적 질문이 무엇인지, 질문을 어떻게 개선할 수 있는지 논의하고 몇 가지 사례를 살펴볼 것입니다.
 
-Causal questions are part of a broader set of questions we can ask with statistical techniques related to the primary tasks of data science: description, prediction, and causal inference [@hernan2019].
-Unfortunately, these tasks are often muddled by the techniques we use (regression, for instance, is helpful for all three tasks) and how we talk about them.
-When researchers are interested in causal inference from non-randomized data, we often use euphemistic language like "association" instead of declaring our intent to estimate a causal effect [@Hernan2018].
+인과적 질문은 데이터 과학의 주요 과업인 묘사(description), 예측(prediction), 인과 추론(causal inference)과 관련된 통계적 기술로 던질 수 있는 더 넓은 범위의 질문 중 일부입니다 [@hernan2019].
+불행히도 이러한 과업들은 우리가 사용하는 기술(예를 들어 회귀 분석은 세 가지 과업 모두에 유용합니다)과 그것들에 대해 이야기하는 방식 때문에 종종 뒤섞이곤 합니다.
+연구자들이 무작위 배정되지 않은 데이터로부터 인과 추론에 관심을 가질 때, 인과 효과를 추정하려는 의도를 명확히 밝히는 대신 "연관성(association)"과 같은 완곡한 표현을 사용하는 경우가 많습니다 [@Hernan2018].
 
-In a recent study of the language of analyses in epidemiologic research, for instance, the most common root word describing the estimated effect was "associate," but many researchers also felt that "associate" implied at least *some* causal effect (@fig-word-ranking) [@haber_causal_language].
-Only around 1% of the studies analyzed used the root word "cause" at all.
-Yet, a third of studies had action recommendations, and researchers rated 80% of these recommendations as having at least some causal implication.
-Often, these studies have stronger action recommendations (alluding to causal effects) than those implied by the description of the effect (root words like "associate" and "compare").
-Despite how many studies implied that the goal was causal inference, only about 4% used formal causal models like those discussed in this book.
-However, most discussed how such a cause might be justified by previous research or theory.
+예를 들어, 최근 역학 연구의 분석 언어에 대한 연구에 따르면, 추정된 효과를 설명하는 가장 일반적인 어근은 "associate(연관시키다)"였지만, 많은 연구자는 "associate"가 적어도 *어느 정도의* 인과 효과를 암시한다고 느꼈습니다 (@fig-word-ranking) [@haber_causal_language].
+분석된 연구 중 약 1%만이 "cause(원인)"라는 어근을 전혀 사용했습니다.
+그럼에도 불구하고 연구의 1/3은 행동 권고안(action recommendations)을 담고 있었으며, 연구자들은 이러한 권고안의 80%가 적어도 어느 정도의 인과적 함의를 가지고 있다고 평가했습니다.
+종종 이러한 연구들은 효과에 대한 설명("associate"나 "compare"와 같은 어근)에서 암시하는 것보다 더 강력한 행동 권고(인과 효과를 암시함)를 내놓습니다.
+많은 연구가 목표가 인과 추론임을 암시했음에도 불구하고, 이 책에서 논의하는 것과 같은 공식적인 인과 모델을 사용한 연구는 약 4%에 불과했습니다.
+그러나 대부분은 그러한 원인이 이전 연구나 이론에 의해 어떻게 정당화될 수 있는지 논의했습니다.
 
 ```{r}
 #| label: "fig-word-ranking"

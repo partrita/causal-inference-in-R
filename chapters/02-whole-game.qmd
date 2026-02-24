@@ -1,4 +1,4 @@
-# The whole game: mosquito nets and malaria {#sec-whole-game}
+# 전체 게임: 말라리아와 모기장 {#sec-whole-game}
 
 {{< include 00-setup.qmd >}}
 
@@ -862,16 +862,16 @@ if (requireNamespace("tipr", quietly = TRUE)) {
     geom_line(color = "#009E73", linewidth = 1.1) +
     geom_point(fill = "#009E73", color = "white", size = 2.5, shape = 21) +
     labs(
-      x = "Confounder-Outcome Effect",
-      y = "Scaled mean differences in\n confounder between exposure groups"
+      x = "교란 요인-결과 효과 (Confounder-Outcome Effect)",
+      y = "노출군 간 교란 요인의\n 표준화된 평균 차이 (Scaled mean differences)"
     )
 } else {
-  # Simple message if tipr is not available
-  cat("Tipping point analysis requires the tipr package which is not available.\n")
-  cat("The analysis would show how strong an unmeasured confounder would need to be\n")
-  cat("to change our conclusions about the effect of bed nets on malaria risk.\n")
+  # tipr 패키지를 사용할 수 없는 경우 간단한 메시지 출력
+  cat("임계점 분석(Tipping point analysis)을 위해서는 tipr 패키지가 필요하지만 현재 사용할 수 없습니다.\n")
+  cat("이 분석은 측정되지 않은 교란 요인이 모기장이 말라리아 위험에 미치는 효과에 대한\n")
+  cat("결론을 바꾸기 위해 얼마나 강력해야 하는지를 보여줍니다.\n")
   
-  # Create a placeholder tipping_points for the text below
+  # 아래 텍스트를 위한 자리 표시용 tipping_points 생성
   tipping_points <- data.frame(
     confounder_outcome_effect = c(-0.15, -0.07, -0.05, -0.04, -0.03),
     exposure_confounder_effect = 1:5
@@ -879,24 +879,24 @@ if (requireNamespace("tipr", quietly = TRUE)) {
 }
 ```
 
-If we had an unmeasured confounder where the standardized mean difference between exposure groups was 1, the confounder would need to decrease malaria risk by about `r round(tipping_points$confounder_outcome_effect[[1]], digits = 1)`.
-That's pretty strong relative to other effects, but it may be feasible if we have an idea of something we might have missed.
-Conversely, suppose the relationship between net use and the unmeasured confounder is very strong, with a mean scaled difference of 5.
-In that case, the confounder-malaria relationship only needs to be `r round(tipping_points$confounder_outcome_effect[[5]], digits = 1)`.
-Now we have to consider: which of these scenarios are plausible given our domain knowledge and the effects we see in this analysis?
+만약 노출군 간의 표준화된 평균 차이가 1인 측정되지 않은 교란 요인이 있다면, 그 교란 요인은 말라리아 위험을 약 `r round(tipping_points$confounder_outcome_effect[[1]], digits = 1)`만큼 감소시켜야 합니다.
+이는 다른 효과들에 비해 상당히 강력하지만, 우리가 놓쳤을 법한 요인을 생각한다면 가능할 수도 있습니다.
+반대로, 모기장 사용과 측정되지 않은 교란 요인 사이의 관계가 매우 강력하여 표준화된 평균 차이가 5라고 가정해 봅시다.
+이 경우, 교란 요인과 말라리아 사이의 관계는 `r round(tipping_points$confounder_outcome_effect[[5]], digits = 1)` 정도만 되면 충분합니다.
+이제 우리는 이 시나리오 중 어느 것이 우리의 도메인 지식과 이 분석에서 관찰된 효과들에 비추어 볼 때 타당한지 고려해야 합니다.
 
-Now let's consider a much more specific sensitivity analysis.
-Some ethnic groups, such as the Fulani, have a genetic resistance to malaria [@arama2015].
-Let's say that in our simulated data, an unnamed ethnic group in the unnamed country shares this genetic resistance to malaria.
-For historical reasons, bed net use in this group is also very high.
-We don't have this variable in `net_data`, but let's say we know from the literature that in this sample, we can estimate at:
+이제 훨씬 더 구체적인 민감도 분석을 고려해 봅시다.
+풀라니(Fulani)족과 같은 일부 민족은 말라리아에 대한 유전적 저항력을 가지고 있습니다 [@arama2015].
+우리 시뮬레이션 데이터에서 가상의 국가에 있는 한 이름 없는 민족이 이러한 말라리아 유전적 저항력을 공유한다고 가정해 봅시다.
+역사적인 이유로, 이 그룹의 모기장 사용률 또한 매우 높습니다.
+`net_data`에는 이 변수가 없지만, 문헌을 통해 이 표본에서 다음과 같이 추정할 수 있다고 가정해 봅시다:
 
-1.  People with this genetic resistance have, on average, a lower malaria risk by about 10.
-2.  About 26% of people who use nets in our study have this genetic resistance.
-3.  About 5% of people who don't use nets have this genetic resistance.
+1.  유전적 저항력이 있는 사람들은 평균적으로 말라리아 위험이 약 10 정도 낮습니다.
+2.  우리 연구에서 모기장을 사용하는 사람들의 약 26%가 이 유전적 저항력을 가지고 있습니다.
+3.  모기장을 사용하지 않는 사람들의 약 5%가 이 유전적 저항력을 가지고 있습니다.
 
-With this amount of information, we can use tipr to adjust the estimates we calculated for the unmeasured confounder.
-We'll use `adjust_coef_with_binary()` to calculate the adjusted estimates.
+이 정도의 정보가 있으면, tipr를 사용하여 측정되지 않은 교란 요인에 대해 계산한 추정치를 조정할 수 있습니다.
+`adjust_coef_with_binary()`를 사용하여 조정된 추정치를 계산하겠습니다.
 
 ```{r}
 adjusted_estimates <- boot_estimate |>
@@ -911,16 +911,16 @@ adjusted_estimates <- boot_estimate |>
 adjusted_estimates
 ```
 
-The adjusted estimate for a situation where genetic resistance to malaria is a confounder is `r est_ci(adjusted_estimates$effect_adjusted)`.
+말라리아에 대한 유전적 저항력이 교란 요인인 상황에서 조정된 추정치는 `r est_ci(adjusted_estimates$effect_adjusted)`입니다.
 
-In fact, these data were simulated with just such a confounder.
-The true effect of net use on malaria is about -10, and the true DAG that generated these data is:
+사실 이 데이터는 바로 그러한 교란 요인을 포함하여 시뮬레이션되었습니다.
+모기장 사용이 말라리아에 미치는 실제 효과는 약 -10이며, 이 데이터를 생성한 실제 DAG는 다음과 같습니다:
 
 ```{r}
 #| label: fig-net-data-true-dag
 #| echo: false
 #| fig.cap: >
-#|   The true causal diagram for `net_data`. This DAG is identical to the one we proposed with one addition: genetic resistance to malaria causally reduces the risk of malaria and impacts net use. It's thus a confounder and a part of the minimal adjustment set required to get an unbiased effect estimate. In otherwords, by not including it, we've calculated the wrong effect.
+#|   `net_data`에 대한 실제 인과 다이어그램. 이 DAG는 우리가 제안한 것과 동일하지만 한 가지가 추가되었습니다: 말라리아에 대한 유전적 저항력이 인과적으로 말라리아 위험을 낮추고 모기장 사용에도 영향을 미칩니다. 따라서 이것은 교란 요인이며 편향되지 않은 효과 추정치를 얻기 위해 필요한 최소 조정 집합(minimal adjustment set)의 일부입니다. 즉, 이를 포함하지 않음으로써 우리는 잘못된 효과를 계산한 것입니다.
 mosquito_dag_full <- dagify(
   malaria_risk ~ net + income + health + temperature + insecticide_resistance + genetic_resistance,
   net ~ income + health + temperature + eligible + household + genetic_resistance,

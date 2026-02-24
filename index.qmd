@@ -1,52 +1,52 @@
-# Preface {.unnumbered}
+# 머리말 {.unnumbered}
 
-Welcome to *Causal Inference in R*.
-Answering causal questions is critical for scientific and business purposes, but techniques like randomized clinical trials and A/B testing are not always practical or successful.
-The tools in this book will allow readers to better make causal inferences with observational data with the R programming language.
-By its end, we hope to help you:
+*R을 이용한 인과 추론(Causal Inference in R)*에 오신 것을 환영합니다.
+인과 관계에 대한 질문에 답하는 것은 과학적 및 비즈니스 목적 모두에 중요하지만, 무작위 임상 시험(RCT)이나 A/B 테스트와 같은 기술이 항상 실용적이거나 성공적인 것은 아닙니다.
+이 책의 도구들은 독자들이 R 프로그래밍 언어를 사용하여 관측 데이터(observational data)로 더 나은 인과 추론을 할 수 있도록 도울 것입니다.
+이 책을 마칠 때쯤이면 다음을 할 수 있기를 바랍니다:
 
-1.  Ask better causal questions.
-2.  Understand the assumptions needed for causal inference
-3.  Identify the target population for which you want to make inferences
-4.  Fit causal models and check their problems
-5.  Conduct sensitivity analyses where the techniques we use might be imperfect
+1.  더 나은 인과 관계 질문 던지기.
+2.  인과 추론에 필요한 가정 이해하기.
+3.  추론을 하고자 하는 대상 인구(target population) 식별하기.
+4.  인과 모델을 적합시키고 문제점 확인하기.
+5.  사용된 기술이 불완전할 수 있는 상황에서 민감도 분석(sensitivity analysis) 수행하기.
 
-This book is for both academic researchers and data scientists.
-Although the questions may differ between these settings, many techniques are the same: causal inference is as helpful for asking questions about cancer as it is about clicks.
-We use a mix of examples from medicine, economics, tech, and other domains to demonstrate that you need a clear causal question and a willingness to be transparent about your assumptions.
+이 책은 학술 연구자와 데이터 과학자 모두를 위한 것입니다.
+이러한 환경에 따라 질문은 다를 수 있지만, 많은 기술은 동일합니다. 인과 추론은 암에 대한 질문을 던지는 것만큼이나 클릭 수에 대한 질문을 던지는 데에도 유용합니다.
+의학, 경제학, 기술 및 기타 분야의 다양한 사례를 혼합하여 사용하여 명확한 인과 관계 질문과 가정에 대해 투명하게 공개하려는 의지가 필요함을 보여줍니다.
 
-You'll learn a lot in this book, but ironically, you won't learn much about conducting randomized trials, one of the best tools for causal inferences.
-Randomized trials, and their cousins, A/B tests (standard in the tech world), are compelling because they alleviate many of the assumptions we need to make for valid inferences.
-They are also sufficiently complex in design to merit their own learning resources.
-Instead, we'll focus on observational data where we don't usually benefit from randomization.
-If you're interested in randomization techniques, don't put away this resource just yet: many causal inference techniques designed for observational data improve randomized analyses, too.
+이 책에서 많은 것을 배우겠지만, 아이러니하게도 인과 추론의 가장 좋은 도구 중 하나인 무작위 시험을 수행하는 방법에 대해서는 많이 배우지 않을 것입니다.
+무작위 시험과 그 사촌 격인 A/B 테스트(기술 분야의 표준)는 유효한 추론을 위해 우리가 해야 하는 많은 가정을 완화해주기 때문에 매우 강력합니다.
+또한 설계가 충분히 복잡하여 자체적인 학습 리소스가 필요할 정도입니다.
+대신, 우리는 일반적으로 무작위 배정의 이점을 누릴 수 없는 관측 데이터에 집중할 것입니다.
+무작위 배정 기술에 관심이 있더라도 이 리소스를 바로 덮지 마세요. 관측 데이터를 위해 설계된 많은 인과 추론 기술은 무작위 분석도 개선할 수 있습니다.
 
-We're making a few assumptions about you as a reader:
+우리는 독자인 여러분에 대해 몇 가지 가정을 하고 있습니다:
 
-1.  You're familiar with the [tidyverse](https://www.tidyverse.org/) ecosystem of R packages and their general philosophy. For instance, we use a lot of dplyr and ggplot2 in this book, but we won't explain their basic grammar. To learn more about starting with the tidyverse, we recommend [*R for Data Science*](https://r4ds.hadley.nz/).
-2.  You're familiar with basic statistical modeling in R. For instance, we'll fit many models with `lm()` and `glm()`, but we won't discuss how they work. If you want to learn more about R's powerful modeling functions, we recommend reading ["A Review of R Modeling Fundamentals"](https://www.tmwr.org/base-r.html) in [*Tidy Modeling with R*](https://www.tmwr.org).
-3.  We also assume you have familiarity with other R basics, such as [writing functions](https://r4ds.hadley.nz/functions.html). [*R for Data Science*](https://r4ds.hadley.nz/) is also a good resource for these topics. (For a deeper dive into the R programming language, we recommend [*Advanced R*](https://adv-r.hadley.nz/index.html), although we don't assume you have mastered its material for this book).
+1.  R 패키지의 [tidyverse](https://www.tidyverse.org/) 생태계와 그 일반적인 철학에 익숙합니다. 예를 들어, 이 책에서는 dplyr와 ggplot2를 많이 사용하지만 기초 문법을 설명하지는 않습니다. tidyverse 시작에 대해 더 자세히 알고 싶다면 [*R for Data Science*](https://r4ds.hadley.nz/)를 추천합니다.
+2.  R의 기본적인 통계 모델링에 익숙합니다. 예를 들어, `lm()`과 `glm()`을 사용하여 많은 모델을 적합시키겠지만, 그것들이 어떻게 작동하는지는 논의하지 않을 것입니다. R의 강력한 모델링 함수에 대해 더 배우고 싶다면 [*Tidy Modeling with R*](https://www.tmwr.org)의 ["A Review of R Modeling Fundamentals"](https://www.tmwr.org/base-r.html)를 읽어보시길 권장합니다.
+3.  또한 [함수 작성](https://r4ds.hadley.nz/functions.html)과 같은 다른 R 기초에 익숙하다고 가정합니다. [*R for Data Science*](https://r4ds.hadley.nz/) 역시 이러한 주제에 좋은 리소스입니다. (R 프로그래밍 언어에 대해 더 깊이 파고들고 싶다면 [*Advanced R*](https://adv-r.hadley.nz/index.html)을 추천하지만, 이 책을 위해 그 내용을 완전히 마스터했다고 가정하지는 않습니다.)
 
-We'll also use tools from the tidymodels ecosystem, a set of R packages for modeling related to the tidyverse.
-We don't assume you have used them before.
-tidymodels also focuses on predictive modeling, so many of its tools aren't appropriate for this book.
-Nevertheless, if you are interested in this topic, we recommend [*Tidy Modeling with R*](https://www.tmwr.org).
+또한 tidyverse와 관련된 모델링용 R 패키지 세트인 tidymodels 생태계의 도구도 사용할 것입니다.
+이전에 사용해 본 적이 없다고 가정합니다.
+tidymodels는 예측 모델링에도 중점을 두기 때문에 많은 도구가 이 책에 적합하지 않을 수 있습니다.
+그럼에도 불구하고 이 주제에 관심이 있다면 [*Tidy Modeling with R*](https://www.tmwr.org)을 추천합니다.
 
-There are also several other excellent books on causal inference.
-This book is different in its focus on R, but it's still helpful to see this area from other perspectives.
-A few books you might like:
+인과 추론에 관한 다른 훌륭한 책들도 많이 있습니다.
+이 책은 R에 집중한다는 점에서 차별화되지만, 다른 관점에서 이 분야를 바라보는 것도 도움이 됩니다.
+좋아할 만한 몇 권의 책들:
 
 -   [*Causal Inference: What If?*](https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/)
 -   [*Causal Inference: The Mixtape*](https://mixtape.scunning.com/)
 -   [*The Effect*](https://theeffectbook.net/)
 
-The first book is focused on epidemiology.
-The latter two are focused on econometrics.
-We also recommend *The Book of Why* @pearl2018why for more on causal diagrams.
+첫 번째 책은 역학(epidemiology)에 중점을 둡니다.
+나머지 두 권은 계량경제학(econometrics)에 중점을 둡니다.
+인과 다이어그램에 대해 더 자세히 알고 싶다면 *The Book of Why* @pearl2018why도 추천합니다.
 
-## Installation
+## 설치
 
-This book uses several packages that are under active development. To install the required development versions, use:
+이 책은 현재 활발히 개발 중인 여러 패키지를 사용합니다. 필요한 개발 버전을 설치하려면 다음을 사용하세요:
 
 ```{r}
 #| eval: false
@@ -61,48 +61,47 @@ pak::pak(c(
 ))
 ```
 
-These development versions include the latest features and bug fixes used throughout the book.
+이러한 개발 버전에는 책 전체에서 사용되는 최신 기능과 버그 수정이 포함되어 있습니다.
 
-## Conventions
+## 관례 (Conventions)
 
-### Modern R Features
+### 현대적인 R 기능
 
-We use two modern R features in R 4.1.0 and above in this book.
-The first is the native pipe, `|>`.
-This R feature is similar to the tidyverse's `%>%`, with which you may be more familiar.
-In typical cases, the two work interchangeably.
-One notable difference is that `|>` uses the `_` symbol to direct the pipe's results, e.g., `.df |> lm(y ~ x, data = _)`.
-See [this Tidyverse Blog post](https://www.tidyverse.org/blog/2023/04/base-vs-magrittr-pipe/) for more on this topic.
+이 책에서는 R 4.1.0 이상 버전의 두 가지 현대적인 R 기능을 사용합니다.
+첫 번째는 네이티브 파이프, `|>`입니다.
+이 R 기능은 여러분에게 더 익숙할 수 있는 tidyverse의 `%>%`와 유사합니다.
+일반적인 경우, 두 기능은 서로 바꿔서 사용할 수 있습니다.
+한 가지 눈에 띄는 차이점은 `|>`가 파이프의 결과를 전달하기 위해 `_` 기호를 사용한다는 점입니다(예: `.df |> lm(y ~ x, data = _)`).
+이 주제에 대한 자세한 내용은 [이 Tidyverse 블로그 포스트](https://www.tidyverse.org/blog/2023/04/base-vs-magrittr-pipe/)를 참조하세요.
 
-Another modern R feature we use is the native lambda, a way of writing short functions that looks like `\(.x) do_something(.x)`.
-It is similar to purrr's `~` lambda notation.
-It's also helpful to realize the native lambda is identical to `function(.x) do_something(.x)`, where `\` is shorthand for `function`.
-See [R for Data Science's chapter on iteration](https://r4ds.hadley.nz/iteration.html) for more on this topic.
+우리가 사용하는 또 다른 현대적인 R 기능은 네이티브 람다(native lambda)로, `\(.x) do_something(.x)`와 같이 짧은 함수를 작성하는 방식입니다.
+이는 purrr's `~` 람다 표기법과 유사합니다.
+또한 네이티브 람다가 `function(.x) do_something(.x)`와 동일하며, 여기서 `\`는 `function`의 약어임을 인식하는 것이 도움이 됩니다.
+이 주제에 대한 자세한 내용은 [R for Data Science의 반복(iteration) 장](https://r4ds.hadley.nz/iteration.html)을 참조하세요.
 
-## Theming
+## 테마 설정 (Theming)
 
-The plots in this book use a consistent theme that we don't include in every code chunk, meaning if you run the code for a visualization, you might get a slightly different-looking result.
-We set the following defaults related to ggplot2:
+이 책의 그래프들은 모든 코드 청크에 포함하지 않는 일관된 테마를 사용합니다. 즉, 시각화 코드를 직접 실행하면 약간 다르게 보일 수 있습니다.
+우리는 ggplot2와 관련된 다음과 같은 기본값을 설정했습니다:
 
 <!-- TODO: make sure these are up to date -->
 
 ```{r}
 #| eval: false
 options(
-  # set default colors in ggplot2 to colorblind-friendly
-  # Okabe-Ito and Viridis palettes
+  # ggplot2의 기본 색상을 색맹 친화적인 Okabe-Ito 및 Viridis 팔레트로 설정
   ggplot2.discrete.colour = ggokabeito::palette_okabe_ito(),
   ggplot2.discrete.fill = ggokabeito::palette_okabe_ito(),
   ggplot2.continuous.colour = "viridis",
   ggplot2.continuous.fill = "viridis",
-  # set theme font and size
+  # 테마 글꼴 및 크기 설정
   book.base_family = "sans",
   book.base_size = 14
 )
 
 library(ggplot2)
 
-# set default theme
+# 기본 테마 설정
 theme_set(
   theme_minimal(
     base_size = getOption("book.base_size"),
@@ -115,7 +114,7 @@ theme_set(
 )
 ```
 
-We also mask a few functions from ggdag that we like to customize:
+또한 우리가 커스터마이징하고 싶은 ggdag의 몇 가지 함수를 마스킹합니다:
 
 ```{r}
 #| eval: false
@@ -139,12 +138,12 @@ geom_dag_label_repel <- function(..., seed = 10) {
 }
 ```
 
-## Acknowledgements
+## 감사의 말 (Acknowledgements)
 
-This book isn't just the product of Malcolm, Lucy, and Travis; thanks so much to those of you in the R community who have contributed to this book!
+이 책은 단순히 Malcolm, Lucy, Travis만의 결과물이 아닙니다. 이 책에 기여해주신 R 커뮤니티의 모든 분들께 진심으로 감사드립니다!
 
-<!-- Contributors are automatically updated monthly via GitHub Actions -->
-<!-- To manually update: Rscript R/update-contributors.R -->
+<!-- 기여자는 GitHub Actions를 통해 매월 자동으로 업데이트됩니다. -->
+<!-- 수동 업데이트: Rscript R/update-contributors.R -->
 
 ```{r}
 #| results: asis
@@ -159,13 +158,13 @@ contributors <- contributors |>
     desc = ifelse(is.na(name), login, paste0(name, " (", login, ")"))
   )
 
-cat("This book is currently being written in the open and ",nrow(contributors), " people contributed via pull requests (so far)! Huge thanks to everyone who has contributed improvements via GitHub pull requests (in alphabetical order by username): ", sep = "")
+cat("이 책은 현재 공개적으로 작성되고 있으며 지금까지 ",nrow(contributors), "명의 사람들이 풀 리퀘스트를 통해 기여했습니다! GitHub 풀 리퀘스트를 통해 개선에 도움을 주신 모든 분들께 큰 감사를 드립니다(사용자 이름순): ", sep = "")
 cat(paste0(contributors$desc, collapse = ", "))
 cat(".\n")
 ```
 
-## License
+## 라이선스 (License)
 
-<p xmlns:cc="http://creativecommons.org/ns#" >This work is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/?ref=chooser-v1" target="_blank" rel="license noopener noreferrer" style="display:inline-block;">CC BY-NC 4.0<img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt=""><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1" alt=""><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1" alt=""></a>: "This license requires that reusers give credit to the creator. It allows reusers to distribute, remix, adapt, and build upon the material in any medium or format, for noncommercial purposes only."</p>
+<p xmlns:cc="http://creativecommons.org/ns#" >이 저작물은 <a href="https://creativecommons.org/licenses/by-nc/4.0/?ref=chooser-v1" target="_blank" rel="license noopener noreferrer" style="display:inline-block;">CC BY-NC 4.0<img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt=""><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1" alt=""><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1" alt=""></a> 라이선스에 따라 이용할 수 있습니다: "이 라이선스는 재사용자가 원저작자를 표시할 것을 요구합니다. 비영리 목적으로만 저작물을 재배포, 리믹스, 변형 및 기반 저작물 작성이 가능합니다."</p>
 
-The code in this book is also available under the [MIT license](https://opensource.org/licenses/MIT). Under the MIT license, you are free to use the code in your own work, so long as you cite the source.
+이 책의 코드 또한 [MIT 라이선스](https://opensource.org/licenses/MIT)에 따라 사용할 수 있습니다. MIT 라이선스에 따라, 출처를 인용하는 한 여러분의 작업에 자유롭게 코드를 사용할 수 있습니다.

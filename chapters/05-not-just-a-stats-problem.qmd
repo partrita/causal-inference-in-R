@@ -1,4 +1,4 @@
-# Causal inference is not (just) a statistical problem {#sec-quartets}
+# 인과 추론은 (단지) 통계적인 문제만은 아닙니다 {#sec-quartets}
 
 {{< include 00-setup.qmd >}}
 
