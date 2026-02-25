@@ -8,10 +8,10 @@
 status("unstarted")
 ```
 
-## Difference-in-Difference
+## 이중 차분법 (Difference-in-Difference)
 
 ```{r}
 rnorm(5)
 ```
 
-## Synthetic controls
+## 합성 대조군 (Synthetic controls)

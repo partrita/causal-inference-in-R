@@ -18,44 +18,39 @@ library(propensity)
 library(gt)
 ```
 
-Because many of the assumptions of causal inference are unverifiable, it's reasonable to be concerned about the validity of your results.
-In this chapter, we'll provide some ways to probe our assumptions and results for strengths and weaknesses.
-We'll explore two main ways to do so: exploring the logical implications of the causal question and related DAGs and using mathematical techniques to quantify how different our results would be under other circumstances, such as in the presence of unmeasured confounding.
-These approaches are known as *sensitivity analyses*: How sensitive is our result to conditions other than those laid out in our assumptions and analysis?
+인과 추론의 많은 가정이 검증 불가능하기 때문에, 여러분의 결과가 타당한지 걱정하는 것은 합리적입니다.
+이 장에서는 우리의 가정과 결과의 강점 및 약점을 조사하는 몇 가지 방법을 제공할 것입니다.
+우리는 두 가지 주요 방법을 탐구할 것입니다: 인과적 질문 및 관련 DAG의 논리적 함의를 탐구하는 것과, 측정되지 않은 교란(unmeasured confounding)이 있는 경우와 같은 다른 상황에서 우리의 결과가 얼마나 달라질지 수학적 기술을 사용하여 정량화하는 것입니다.
+이러한 접근 방식은 **민감도 분석(sensitivity analyses)**으로 알려져 있습니다: 우리의 결과가 가정과 분석에서 설정한 조건 이외의 조건에 얼마나 민감한가?
 
-## Checking DAGs for robustness
+## DAG의 강건성(Robustness) 확인하기
 
-Let's start with where we began the modeling process: creating causal diagrams.
-Because DAGs encode the assumptions on which we base our analysis, they are natural points of critique for both others and ourselves.
+모델링 프로세스를 시작했던 지점, 즉 인과 다이어그램 작성부터 시작해 봅시다.
+DAG는 우리가 분석의 기초로 삼는 가정을 인코딩하기 때문에, 타인과 우리 자신 모두에게 자연스러운 비판의 지점이 됩니다.
 
-### Alternate adjustment sets and alternate DAGs
+### 대안적 조정 집합(Adjustment sets)과 대안적 DAG
 
-The same mathematical underpinnings of DAGs that allow us to to query them for things like adjustment sets also allow us to query other implications of DAGs.
-One of the simplest is that if your DAG is correct and your data are well-measured, any valid adjustment set should result in an unbiased estimate of the causal effect.
-Let's consider the DAG we introduced in @fig-dag-magic.
+조정 집합 등을 찾기 위해 DAG를 쿼리할 수 있게 해주는 동일한 수학적 기초를 사용하여 DAG의 다른 함의들도 쿼리할 수 있습니다.
+가장 단순한 것 중 하나는, 여러분의 DAG가 옳고 데이터가 잘 측정되었다면, 어떤 유효한 조정 집합을 사용하더라도 인과 효과에 대해 편향되지 않은 추정치를 얻어야 한다는 것입니다.
+@fig-dag-magic 에서 소개했던 DAG를 고려해 봅시다.
 
 ```{r}
 #| label: fig-dag-magic-orig
 #| code-fold: true
 #| fig-cap: >
-#|   The original proposed DAG for the relationship between Extra Magic Hours
-#|   in the morning at a particular park and the average wait
-#|   time between 9 am and 10 am.
-#|   As before, we are saying that we believe 1) Extra Magic Hours impacts
-#|   average wait time and 2) both Extra Magic Hours and average wait time
-#|   are determined by the time the park closes, historic high temperatures,
-#|   and ticket season.
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 사이의 관계에 대해 원래 제안된 DAG.
+#|   이전과 마찬가지로, 우리는 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고, 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐쇄 시간, 과거 최고 기온, 그리고 티켓 시즌에 의해 결정된다고 믿는다는 것을 말하고 있습니다.
 coord_dag <- list(
   x = c(park_ticket_season = 0, park_close = 0, park_temperature_high = -1, park_extra_magic_morning = 1, wait_minutes_posted_avg = 2),
   y = c(park_ticket_season = -1, park_close = 1, park_temperature_high = 0, park_extra_magic_morning = 0, wait_minutes_posted_avg = 0)
 )
 
 labels <- c(
-  park_extra_magic_morning = "Extra Magic\nMorning",
-  wait_minutes_posted_avg = "Average\nwait",
-  park_ticket_season = "Ticket\nSeason",
-  park_temperature_high = "Historic high\ntemperature",
-  park_close = "Time park\nclosed"
+  park_extra_magic_morning = "엑스트라 매직 아워",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고 기온",
+  park_close = "공원 폐쇄\n시간"
 )
 
 emm_wait_dag <- dagify(
@@ -89,17 +84,15 @@ emm_wait_dag |>
   )
 ```
 
-In @fig-dag-magic-orig, there's only one adjustment set because all three confounders represent independent backdoor paths.
-Let's say, though, that we had used @fig-dag-magic-missing instead, which is missing arrows from the park close time and historical temperature to whether there was an Extra Magic Morning.
+@fig-dag-magic-orig 에는 세 개의 교란 요인이 모두 독립적인 백도어 경로를 나타내기 때문에 단 하나의 조정 집합만 존재합니다.
+하지만 만약 우리가 @fig-dag-magic-missing 을 대신 사용했다고 가정해 봅시다. 여기에는 공원 폐쇄 시간과 과거 기온에서 아침 엑스트라 매직 아워 여부로 가는 화살표가 누락되어 있습니다.
 
 ```{r}
 #| label: fig-dag-magic-missing
 #| code-fold: true
 #| fig-cap: >
-#|   An alternative DAG for the relationship between Extra Magic Hours
-#|   in the morning at a particular park and the average wait
-#|   time between 9 am and 10 am.
-#|   This DAG has no arrows from park close time and historical temperature to Extra Magic Hours.
+#|   특정 공원의 아침 엑스트라 매직 아워와 평균 대기 시간 사이의 관계에 대한 대안적 DAG.
+#|   이 DAG는 공원 폐쇄 시간과 과거 최고 기온에서 엑스트라 매직 아워로 가는 화살표가 없습니다.
 emm_wait_dag_missing <- dagify(
   wait_minutes_posted_avg ~ park_extra_magic_morning + park_close + park_ticket_season + park_temperature_high,
   park_extra_magic_morning ~ park_ticket_season,
@@ -109,11 +102,11 @@ emm_wait_dag_missing <- dagify(
   outcome = "wait_minutes_posted_avg"
 )
 
-# produces below:
+# 생성된 조정 집합:
 # park_ticket_season, park_close + park_ticket_season, park_temperature_high + park_ticket_season, or park_close + park_temperature_high + park_ticket_season
 adj_sets <- unclass(dagitty::adjustmentSets(emm_wait_dag_missing, type = "all")) |>
   map_chr(\(.x) glue::glue('{unlist(glue::glue_collapse(.x, sep = " + "))}')) |>
-  glue::glue_collapse(sep = ", ", last = ", or ")
+  glue::glue_collapse(sep = ", ", last = ", 또는 ")
 
 curvatures <- rep(0, 5)
 curvatures[3] <- .3
@@ -137,37 +130,37 @@ emm_wait_dag_missing |>
   )
 ```
 
-Now there are `r length(dagitty::adjustmentSets(emm_wait_dag_missing, type = "all"))` potential adjustment sets: `park_ticket_season, park_close + park_ticket_season`, `park_temperature_high + park_ticket_season`, or `park_close + park_temperature_high + park_ticket_season`.
-@tbl-alt-sets presents the IPW estimates for each adjustment set.
-The effects are quite different.
-Some slight variation in the estimates is expected since they are estimated using different variables that may not be measured perfectly; if this DAG were right, however, we should see them much more closely aligned than this.
-In particular, there seems to be a 3-minute difference between the models with and without park close time.
-The difference in these results implies that there is something off about the causal structure we specified.
+이제 `r length(dagitty::adjustmentSets(emm_wait_dag_missing, type = "all"))`개의 잠재적인 조정 집합이 있습니다: `r adj_sets`.
+@tbl-alt-sets 은 각 조정 집합에 대한 IPW 추정치를 보여줍니다.
+효과들이 꽤 다릅니다.
+완벽하게 측정되지 않았을 수 있는 서로 다른 변수들을 사용하여 추정되었기 때문에 추정치에 약간의 변동이 있는 것은 예상할 수 있는 일입니다; 하지만 만약 이 DAG가 옳았다면, 지금보다 훨씬 더 서로 일치하는 결과가 나타나야 합니다.
+특히 공원 폐쇄 시간이 포함된 모델과 포함되지 않은 모델 사이에 약 3분의 차이가 있어 보입니다.
+이러한 결과의 차이는 우리가 명시한 인과 구조에 무언가 잘못된 부분이 있음을 시사합니다.
 
 ```{r}
 #| label: tbl-alt-sets
-#| tbl-cap: "A table of ATE estimates from the IPW estimator. Each estimate was calculated for one of the valid adjustment sets for the DAG. The estimates are sorted by effect size in order. If the DAG is right and all the data well measured, different adjustment sets should give roughly the same answer."
+#| tbl-cap: "IPW 추정량으로부터 얻은 ATE 추정치 표. 각 추정치는 DAG의 유효한 조정 집합 중 하나를 사용하여 계산되었습니다. 추정치들은 효과 크기 순으로 정렬되었습니다. 만약 DAG가 옳고 모든 데이터가 잘 측정되었다면, 서로 다른 조정 집합들은 대략적으로 같은 답을 주어야 합니다."
 #| code-fold: true
 seven_dwarfs <- touringplans::seven_dwarfs_train_2018 |>
   filter(wait_hour == 9)
 
-# we'll use `.data` and `.trt` later
+# 나중에 `.data`와 `.trt`를 사용할 것입니다
 fit_ipw_effect <- function(.fmla, .data = seven_dwarfs, .trt = "park_extra_magic_morning", .outcome_fmla = wait_minutes_posted_avg ~ park_extra_magic_morning) {
   .trt_var <- rlang::ensym(.trt)
 
-  # fit propensity score model
+  # 성향 점수 모델 적합
   propensity_model <- glm(
     .fmla,
     data = .data,
     family = binomial()
   )
 
-  # calculate ATE weights
+  # ATE 가중치 계산
   .df <- propensity_model |>
     augment(type.predict = "response", data = .data) |>
     mutate(w_ate = wt_ate(.fitted, !!.trt_var, exposure_type = "binary"))
 
-  # fit ipw model
+  # IPW 모델 적합
   lm(.outcome_fmla, data = .df, weights = w_ate) |>
     tidy() |>
     filter(term == .trt) |>
@@ -184,11 +177,11 @@ effects <- list(
   map_dbl(fit_ipw_effect)
 
 tibble(
-  `Adjustment Set` = c(
-    "Ticket season",
-    "Close time, ticket season",
-    "Historic temperature, ticket season",
-    "Historic temperature, close time, ticket season"
+  `조정 집합` = c(
+    "티켓 시즌",
+    "폐쇄 시간, 티켓 시즌",
+    "과거 최고 기온, 티켓 시즌",
+    "과거 최고 기온, 폐쇄 시간, 티켓 시즌"
   ),
   ATE = effects
 ) |>
@@ -196,63 +189,62 @@ tibble(
   gt()
 ```
 
-### Negative controls
+### 부정 대조군 (Negative controls)
 
-Alternate adjustment sets are a way of probing the logical implications of your DAG: if it's correct, there could be many ways to account for the open backdoor paths correctly.
-The reverse is also true: the causal structure of your research question also implies relationships that should be *null*.
-One way that researchers take advantage of this implication is through *negative controls*.
-A negative control is either an exposure (negative exposure control) or outcome (negative outcome control) similar to your question in as many ways as possible, except that there *shouldn't* be a causal effect.
-@Lipsitch2010 describe negative controls for observational research.
-In their article, they reference standard controls in bench science.
-In a lab experiment, any of these actions should lead to a null effect:
+대안적 조정 집합(alternate adjustment sets)은 여러분의 DAG가 갖는 논리적 함의를 조사하는 한 가지 방법입니다: 만약 DAG가 옳다면, 열린 백도어 경로들을 올바르게 통제하는 데는 여러 가지 방법이 있을 수 있습니다.
+그 반대도 마찬가지입니다: 연구 질문의 인과 구조는 또한 **무효(null)**여야 하는 관계들도 함의합니다.
+연구자들이 이러한 함의를 이용하는 한 가지 방법은 *부정 대조군(negative controls)*을 통하는 것입니다.
+부정 대조군은 여러분의 질문과 가능한 한 많은 면에서 유사하지만, 인과적 효과가 *없어야* 하는 노출(부정 노출 대조군) 또는 결과(부정 결과 대조군)입니다.
+@Lipsitch2010 은 관찰 연구를 위한 부정 대조군에 대해 설명합니다.
+그들의 논문에서는 기초 과학(bench science)에서의 표준적인 대조군들을 언급합니다.
+실험실 실험에서, 다음과 같은 조치들 중 어느 것이라도 무효 효과(null effect)로 이어져야 합니다:
 
-1.  Leave out an essential ingredient.
-2.  Inactivate the hypothesized active ingredient.
-3.  Check for an effect that would be impossible by the hypothesized outcome.
+1.  필수 성분을 빠뜨린다.
+2.  가설상의 활성 성분을 비활성화한다.
+3.  가설상의 결과에 의해 불가능할 효과를 확인한다.
 
-There's nothing unique to lab work here; these scientists merely probe the logical implications of their understanding and hypotheses.
-To find a good negative control, you usually need to extend your DAG to include more of the causal structure surrounding your question.
-Let's look at some examples.
+실험실 작업에만 국한된 독특한 것은 없습니다; 이 과학자들은 단지 자신의 이해와 가설이 갖는 논리적 함의를 조사할 뿐입니다.
+좋은 부정 대조군을 찾으려면 대개 질문을 둘러싼 인과 구조를 더 많이 포함하도록 DAG를 확장해야 합니다.
+몇 가지 예시를 살펴봅시다.
 
-#### Negative exposures
+#### 부정 노출 (Negative exposures)
 
-First, we'll look at a negative exposure control.
-If Extra Magic Mornings really cause an increase in wait time, it stands to reason that this effect is time-limited.
-In other words, there should be some period after which the effect of Extra Magic Morning dissipates.
-Let's call today *i* and the previous day *i - n*, where *n* is the number of days before the outcome that the negative exposure control occurs.
-First, let's explore `n = 63`, e.g., whether or not there was an Extra Magic Morning nine weeks ago.
-That is a pretty reasonable starting point: it's unlikely that the effect on wait time would still be present 63 days later.
-This analysis is an example of leaving out an essential ingredient: we waited too long for this to be a realistic cause.
-Any remaining effect is likely due to residual confounding.
+먼저 부정 노출 대조군을 살펴보겠습니다.
+만약 엑스트라 매직 아워가 실제로 대기 시간의 증가를 유발한다면, 이 효과는 시간적으로 제한되어 있다고 보는 것이 타당합니다.
+다시 말해, 일정 기간이 지나면 엑스트라 매직 아워의 효과가 사라져야 합니다.
+오늘을 *i*라고 부르고, 이전 날을 *i - n*이라고 합시다. 여기서 *n*은 결과가 발생하기 며칠 전에 부정 노출 대조군이 발생하는지를 나타내는 일수입니다.
+먼저 `n = 63`인 경우를 조사해 봅시다. 즉, 9주 전에 엑스트라 매직 아워가 있었는지 여부입니다.
+이는 꽤 합리적인 시작점입니다: 대기 시간에 미치는 효과가 63일 후에도 여전히 남아있을 가능성은 낮기 때문입니다.
+이 분석은 '필수 성분을 빠뜨리는' 사례입니다: 우리는 이것이 현실적인 원인이 되기에는 너무 오래 기다렸습니다.
+남아있는 어떤 효과라도 있다면 그것은 잔차 교란(residual confounding) 때문일 가능성이 큽니다.
 
-Let's look at a DAG to visualize this situation.
-In @fig-dag-day-i, we've added an identical layer to our original one: now there are two Extra Magic Mornings: one for day `i` and one for day `i - 63`.
-Similarly, there are two versions of the confounders for each day.
-One crucial detail in this DAG is that we're assuming that there *is* an effect of day `i - 63`'s Extra Magic Morning on day `i`'s; whether or not there is an Extra Magic Morning one day likely affects whether or not it happens on another day.
-The decision about where to place them across the year is not random.
-If this is true, we *would* expect an effect: the indirect effect via day `i`'s Extra Magic Morning status.
-To get a valid negative control, we need to *inactivate this effect*, which we can do statistically by controlling for day `i`'s Extra Magic Morning status.
-So, given the DAG, our adjustment set is any combination of the confounders (as long as we have at least one version of each) and day `i`'s Extra Magic Morning (suppressing the indirect effect).
+이 상황을 시각화하기 위해 DAG를 살펴봅시다.
+@fig-dag-day-i 에서 우리는 원래의 구조에 동일한 레이어를 하나 더 추가했습니다: 이제 두 개의 엑스트라 매직 아워가 있습니다: 하나는 `i`일의 것이고 하나는 `i - 63`일의 것입니다.
+마찬가지로 각 날짜에 대해 두 가지 버전의 교란 요인들이 있습니다.
+이 DAG에서 한 가지 중요한 세부 사항은, `i - 63`일의 엑스트라 매직 아워가 `i`일의 상태에 영향을 미친다고 가정한다는 점입니다; 특정 날에 엑스트라 매직 아워가 있는지 여부는 다른 날에 그것이 일어날지 여부에 영향을 줄 가능성이 큽니다.
+연중 어디에 이를 배치할지에 대한 결정은 무작위가 아니기 때문입니다.
+이것이 사실이라면, 우리는 효과를 기대하게 될 것입니다: `i`일의 엑스트라 매직 아워 상태를 통한 간접 효과입니다.
+유효한 부정 대조군을 얻으려면 이 효과를 *비활성화*해야 하며, 통계적으로 `i`일의 엑스트라 매직 아워 상태를 통제함으로써 이를 수행할 수 있습니다.
+따라서 이 DAG가 주어졌을 때, 우리의 조정 집합은 교란 요인들의 임의의 조합(각 날짜의 버전 중 적어도 하나씩만 있다면)과 `i`일의 엑스트라 매직 아워(간접 효과를 억제하기 위함)입니다.
 
 ```{r}
 #| label: fig-dag-day-i
 #| code-fold: true
 #| fig-cap: >
-#|   An expansion of the causal structure presented in @fig-dag-magic.
-#|   In this DAG, the exposure is instead whether or not there were Extra Magic Hours
-#|   63 days before the day's wait time we are examining.
-#|   Because of the long period, there should be no effect.
-#|   Similarly, the DAG also has earlier confounders related to day `i - 63`.
+#|   @fig-dag-magic 에서 제시된 인과 구조의 확장.
+#|   이 DAG에서 노출은 우리가 조사하고 있는 대기 시간 발생일의 63일 전에 엑스트라 매직 아워가 있었는지 여부입니다.
+#|   오랜 기간이 지났기 때문에 아무런 효과가 없어야 합니다.
+#|   마찬가지로, DAG에는 `i - 63`일과 관련된 이전의 교란 요인들도 포함되어 있습니다.
 labels <- c(
-  x63 = "Extra Magic\nMorning (i-63)",
-  x = "Extra Magic\nMorning (i)",
-  y = "Average\nwait",
-  season = "Ticket\nSeason",
-  weather = "Historic\nhigh\ntemperature",
-  close = "Time park\nclosed (i)",
-  season63 = "Ticket Season\n(i-63)",
-  weather63 = "Historic\nhigh\ntemperature\n(i-63)",
-  close63 = "Time park\nclosed (i-63)"
+  x63 = "엑스트라 매직 아워 (i-63)",
+  x = "엑스트라 매직 아워 (i)",
+  y = "평균 대기 시간",
+  season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "폐쇄 시간 (i)",
+  season63 = "티켓 시즌\n(i-63)",
+  weather63 = "과거 최고 기온\n(i-63)",
+  close63 = "폐쇄 시간 (i-63)"
 )
 
 dagify(
@@ -281,8 +273,8 @@ dagify(
   coord_cartesian(clip = "off")
 ```
 
-Since the exposure is on day `i - 63`, we prefer to control for the confounders related to that day, so we'll use the `i - 63` versions.
-We'll use `lag()` from dplyr to get those variables.
+노출이 `i - 63`일의 데이터이므로, 우리는 해당 날짜와 관련된 교란 요인들을 통제하는 것을 선호합니다. 따라서 우리는 `i - 63` 버전의 변수들을 사용할 것입니다.
+dplyr의 `lag()` 함수를 사용하여 해당 변수들을 가져오겠습니다.
 
 ```{r}
 #| eval: false
@@ -335,16 +327,16 @@ result63 <- calculate_coef(63) |>
   round(2)
 ```
 
-When we use these data for the IPW effect, we get `r result63` minutes, much closer to null than we found on day `i`.
-Let's take a look at the effect over time.
-While there might be a lingering effect of Extra Magic Mornings for a little while (say, the span of an average trip to Disney World), it should quickly approach null.
-However, in @fig-sens-i-63, we see that, while it eventually approaches null, there is quite a bit of lingering effect.
-If these results are accurate, it implies that we have some residual confounding in our effect.
+이 데이터를 IPW 효과에 사용하면 `r result63`분을 얻는데, 이는 `i`일에 발견한 것보다 훨씬 무효(null)에 가깝습니다.
+시간에 따른 효과를 살펴봅시다.
+엑스트라 매직 아워의 효과가 잠시 동안(예를 들어, 디즈니 월드 평균 여행 기간 동안)은 남아있을 수 있지만, 곧 무효에 가까워져야 합니다.
+그러나 @fig-sens-i-63 에서 볼 수 있듯이, 결국 무효에 가까워지기는 하지만 꽤 오랫동안 효과가 남아있습니다.
+만약 이 결과가 정확하다면, 이는 우리의 효과 추정치에 약간의 잔차 교란(residual confounding)이 존재함을 시사합니다.
 
 ```{r}
 #| label: fig-sens-i-63
 #| fig-cap: >
-#|    A scatterplot with a smoothed regression of the relationship between wait times on day `i` and whether there were Extra Magic Hours on day `i - n`, where `n` represents the number of days previous to day `i`. We expect this relationship to rapidly approach the null, but the effect hovers above null for quite some time. This lingering effect implies we have some residual confounding present.
+#|    `i`일의 대기 시간과 `i - n`일의 엑스트라 매직 아워 여부 사이의 관계를 나타낸 산점도와 평활 회귀선. 여기서 `n`은 `i`일 이전의 일수를 나타냅니다. 우리는 이 관계가 빠르게 무효로 수렴할 것으로 기대하지만, 효과는 꽤 오랫동안 무효값 위에 머물러 있습니다. 이렇게 지속되는 효과는 잔차 교란이 존재함을 의미합니다.
 #| code-fold: true
 #| warning: false
 #| message: false
@@ -354,25 +346,25 @@ ggplot(tibble(coefs = coefs, x = 1:63), aes(x = x, y = coefs)) +
   geom_hline(yintercept = 0) +
   geom_point() +
   geom_smooth(se = FALSE) +
-  labs(y = "difference in wait times (minutes)\n on day (i) for EMM on day (i - n)", x = "day (i - n)")
+  labs(y = "대기 시간 차이 (분)\n (`i`일 대기 시간 vs `i-n`일 EMM)", x = "`i - n`일")
 ```
 
-#### Negative outcomes
+#### 부정 결과 (Negative outcomes)
 
-Now, let's examine an example of a negative control outcome: the wait time for a ride at Universal Studios.
-Universal Studios is also in Orlando, so the set of causes for wait times are likely comparable to those at Disney World on the same day.
-Of course, whether or not there are Extra Magic Mornings at Disney shouldn't affect the wait times at Universal on the same day: they are separate parks, and most people don't visit both within an hour of one another.
-This negative control is an example of an effect implausible by the hypothesized mechanism.
+이제 부정 대조군 결과의 예시를 살펴보겠습니다: 유니버설 스튜디오(Universal Studios)의 놀이기구 대기 시간입니다.
+유니버설 스튜디오 또한 올랜도에 있기 때문에, 대기 시간을 유발하는 요인들은 같은 날의 디즈니 월드와 비슷할 가능성이 큽니다.
+물론 디즈니에 엑스트라 매직 아워가 있는지 여부가 같은 날 유니버설의 대기 시간에 영향을 주어서는 안 됩니다: 그들은 서로 다른 공원이며, 대부분의 사람들은 한 시간 내에 두 곳을 모두 방문하지 않기 때문입니다.
+이 부정 대조군은 가설상의 메커니즘으로는 불가능한 효과의 예시입니다.
 
-We don't have Universal's ride data, so let's simulate what would happen with and without residual confounding.
-We'll generate wait times based on the historical temperature, park close time, and ticket season (the second two are technically specific to Disney, but we expect a strong correlation with the Universal versions).
-Because this is a negative outcome, it is not related to whether or not there were Extra Magic Morning hours at Disney.
+우리는 유니버설의 놀이기구 데이터가 없으므로, 잔차 교란이 있을 때와 없을 때 어떤 일이 일어날지 시뮬레이션해 봅시다.
+우리는 과거 기온, 공원 폐쇄 시간, 그리고 티켓 시즌을 바탕으로 대기 시간을 생성할 것입니다(뒤의 두 변수는 엄밀히 말하면 디즈니에 특화된 것이지만, 유니버설 버전과 강한 상관관계가 있을 것으로 기대합니다).
+이것은 부정 결과이므로, 디즈니에 엑스트라 매직 아워가 있었는지 여부와는 관련이 없습니다.
 
 ```{r}
 seven_dwarfs_sim <- seven_dwarfs_train_2018 |>
   mutate(
-    # we scale each variable and add a bit of random noise
-    # to simulate reasonable Universal wait times
+    # 합리적인 유니버설 대기 시간을 시뮬레이션하기 위해
+    # 각 변수를 스케일링하고 약간의 무작위 노이즈를 추가합니다
     wait_time_universal =
       park_temperature_high / 150 +
         as.numeric(park_close) / 1500 +
@@ -393,9 +385,9 @@ wait_universal <- seven_dwarfs_sim |>
   round(2)
 ```
 
-If we calculate the IPW effect of `park_extra_magic_morning` on `wait_time_universal`, we get `r wait_universal` minutes, a roughly null effect, as expected.
-But what if we missed an unmeasured confounder, `u`, which caused Extra Magic Mornings and wait times at both Disney and Universal?
-Let's simulate that scenario but augment the data further.
+만약 우리가 `wait_time_universal`에 대한 `park_extra_magic_morning`의 IPW 효과를 계산하면, 예상대로 거의 무효에 가까운 `r wait_universal`분을 얻게 됩니다.
+하지만 만약 우리가 디즈니와 유니버설 모두의 엑스트라 매직 아워와 대기 시간을 유발하는 측정되지 않은 교란 요인 `u`를 놓쳤다면 어떨까요?
+데이터를 더 보강하여 그 시나리오를 시뮬레이션해 봅시다.
 
 ```{r}
 seven_dwarfs_sim2 <- seven_dwarfs_train_2018 |>
@@ -436,39 +428,40 @@ universal <- seven_dwarfs_sim2 |>
   round(2)
 ```
 
-Now, the effect for both Disney and Universal wait times is different.
-If we had seen `r disney` minutes for the effect for Disney, we wouldn't necessarily know that we had a confounded result.
-However, since we know the wait times at Universal should be unrelated, it's suspicious that the result, `r universal` minutes, is not null.
-That is evidence that we have unmeasured confounding.
+이제 디즈니와 유니버설 대기 시간 모두에 대한 효과가 달라집니다.
+만약 우리가 디즈니에 대해 `r disney`분의 효과를 보았다면, 그것이 교란된 결과라는 것을 반드시 알 수는 없었을 것입니다.
+그러나 유니버설의 대기 시간은 관련이 없어야 한다는 것을 알고 있기 때문에, 그 결과인 `r universal`분이 무효가 아니라는 점은 의심스럽습니다.
+이는 우리에게 측정되지 않은 교란이 존재한다는 증거가 됩니다.
 
-### DAG-data consistency
+### DAG-데이터 일관성
 
-Negative controls use the logical implications of the causal structure you assume.
-We can extend that idea to the entire DAG.
-If the DAG is correct, there are many implications for statistically determining how different variables in the DAG should and should not be related to each other.
-Like negative controls, we can check if variables that *should* be independent *are* independent in the data.
-Sometimes, the way that DAGs imply independence between variables is *conditional* on other variables.
-Thus, this technique is sometimes called implied conditional independencies [@Textor2016]*.* Let's query our original DAG to find out what it says about the relationships among the variables.
+부정 대조군은 여러분이 가정한 인과 구조의 논리적 함의를 사용합니다.
+우리는 그 아이디어를 전체 DAG로 확장할 수 있습니다.
+만약 DAG가 옳다면, DAG 내의 서로 다른 변수들이 통계적으로 어떻게 관련되어야 하는지(혹은 관련되지 않아야 하는지) 결정하기 위한 많은 함의가 존재합니다.
+부정 대조군과 마찬가지로, 데이터에서 독립적이어야 할 변수들이 실제로 독립적인지 확인할 수 있습니다.
+때때로 DAG가 변수들 사이의 독립성을 함의하는 방식은 다른 변수들에 대한 *조건부*입니다.
+따라서 이 기술은 때때로 함의된 조건부 독립성(implied conditional independencies)이라고 불리기도 합니다 [@Textor2016].
+우리 원래의 DAG를 쿼리하여 변수들 사이의 관계에 대해 무엇을 말하고 있는지 알아봅시다.
 
 ```{r}
 query_conditional_independence(emm_wait_dag) |>
   unnest(conditioned_on)
 ```
 
-In this DAG, three relationships should be null: 1) `park_close` and `park_temperature_high`, 2) `park_close` and `park_ticket_season`, and 3) `park_temperature_high` and `park_ticket_season`.
-None of these relationships need to condition on another variable to achieve independence; in other words, they should be unconditionally independent.
-We can use simple techniques like correlation and regression, as well as other statistical tests, to see if nullness holds for these relationships.
-Conditional independencies quickly grow in number in complex DAGs, and so dagitty implements a way to automate checks for DAG-data consistency given these implied nulls.
-dagitty checks if the residuals of a given conditional relationship are correlated, which can be modeled automatically in several ways.
-We'll tell dagitty to calculate the residuals using non-linear models with `type = "cis.loess"`.
-Since we're working with correlations, the results should be around 0 if our DAG is right.
-As we see in @fig-conditional-ind, though, one relationship doesn't hold.
-There is a correlation between the park's close time and ticket season.
+이 DAG에서 세 가지 관계는 무효(null)여야 합니다: 1) `park_close`와 `park_temperature_high`, 2) `park_close`와 `park_ticket_season`, 3) `park_temperature_high`와 `park_ticket_season`.
+이들 중 어떤 관계도 독립성을 달성하기 위해 다른 변수를 조건부화할 필요가 없습니다; 다시 말해, 이들은 무조건부 독립(unconditionally independent)이어야 합니다.
+우리는 이러한 관계들에 대해 무효성이 유지되는지 확인하기 위해 상관관계나 회귀 분석, 그리고 다른 통계적 테스트들과 같은 간단한 기술들을 사용할 수 있습니다.
+복잡한 DAG에서는 조건부 독립성(conditional independencies)의 수가 급격히 늘어나므로, `{dagitty}`는 이러한 함의된 무효성들에 대해 DAG와 데이터의 일관성을 자동으로 확인하는 방법을 구현하고 있습니다.
+`{dagitty}`는 주어진 조건부 관계의 잔차(residuals)들이 서로 상관되어 있는지 확인하며, 이는 여러 방식으로 자동 모델링될 수 있습니다.
+우리는 `type = "cis.loess"`를 사용하여 비선형 모델로 잔차를 계산하도록 `{dagitty}`에 지시할 것입니다.
+우리는 상관관계를 다루고 있으므로, 우리 DAG가 옳다면 결과는 0 근처여야 합니다.
+하지만 @fig-conditional-ind 에서 볼 수 있듯이, 한 관계가 성립하지 않습니다.
+공원 폐쇄 시간과 티켓 시즌 사이에 상관관계가 존재합니다.
 
 ```{r}
 #| label: fig-conditional-ind
 #| fig-cap: >
-#|    A plot of the estimates and 95% confidence intervals of the correlations between the residuals resulting from a regression of variables in the DAG that should have no relationship. While two relationships appear null, park close time and ticket season seem to be correlated, suggesting we have misspecified the DAG. One source of this misspecification may be missing arrows between the variables. Notably, the adjustment sets are identical with and without this arrow.
+#|    관계가 없어야 하는 DAG 내 변수들에 대한 회귀 분석 결과 잔차들 사이의 상관관계 추정치와 95% 신뢰 구간 그래프. 두 관계는 무효로 보이지만, 공원 폐쇄 시간과 티켓 시즌은 상관관계가 있는 것으로 보이며, 이는 우리가 DAG를 잘못 명시했음을 시사합니다. 이러한 오명시의 한 가지 원인은 변수들 사이에 빠진 화살표일 수 있습니다. 특히, 이 화살표가 있든 없든 조정 집합은 동일합니다.
 test_conditional_independence(
   emm_wait_dag,
   data = seven_dwarfs_train_2018 |>
@@ -479,38 +472,37 @@ test_conditional_independence(
     ) |>
     as.data.frame(),
   type = "cis.loess",
-  # use 200 bootstrapped samples to calculate CIs
+  # 신뢰 구간 계산을 위해 200개의 부트스트랩 샘플 사용
   R = 200
 ) |>
   ggdag_conditional_independence()
 ```
 
-Why might we be seeing a relationship when there isn't supposed to be one?
-A simple explanation is chance: just like in any statistical inference, we need to be cautious about over-extrapolating what we see in our limited sample.
-Since we have data for every day in 2018, we could probably rule that out.
-Another reason is that we're missing direct arrows from one variable to the other, e.g. from historic temperature to park close time.
-Adding additional arrows is reasonable: park close time and ticket season closely track the weather.
-That's a little bit of evidence that we're missing an arrow.
+왜 관계가 없어야 할 곳에서 관계가 나타나는 것일까요?
+간단한 설명은 우연입니다: 모든 통계적 추론에서와 마찬가지로, 우리는 제한된 샘플에서 보는 것을 과하게 일반화하지 않도록 주의해야 합니다.
+하지만 우리는 2018년의 모든 날짜 데이터를 가지고 있으므로, 우연일 가능성은 배제할 수 있을 것입니다.
+또 다른 이유는 한 변수에서 다른 변수로 가는 직접적인 화살표가 누락되었기 때문일 수 있습니다. 예를 들어 과거 기온에서 공원 폐쇄 시간으로 가는 화살표 같은 것들입니다.
+추가 화살표를 더하는 것은 합리적입니다: 공원 폐쇄 시간과 티켓 시즌은 날씨와 밀접하게 연동되기 때문입니다.
+이것이 바로 화살표가 누락되었다는 작은 증거입니다.
 
-At this point, we need to be cautious about overfitting the DAG to the data.
-DAG-data consistency tests *cannot* prove your DAG right and wrong, and as we saw in @sec-quartets, statistical techniques alone cannot determine the causal structure of a problem.
-So why use these tests?
-As with negative controls, they provide a way to probe your assumptions.
-While we can never be sure about them, we *do* have information in the data.
-Finding that conditional independence holds is a little more evidence supporting your assumptions.
-There's a fine line here, so we recommend being transparent about these types of checks: if you make changes based on the results of these tests, you should report your original DAG, too.
-Notably, in this case, adding direct arrows to all three of these relationships results in an identical adjustment set.
+이 시점에서 우리는 데이터를 DAG에 과적합(overfitting)시키지 않도록 주의해야 합니다.
+DAG-데이터 일관성 테스트는 여러분의 DAG가 옳고 그름을 *증명할 수 없으며*, @sec-quartets 에서 보았듯이 통계적 기술만으로는 문제의 인과 구조를 결정할 수 없습니다.
+그렇다면 왜 이런 테스트를 사용할까요?
+부정 대조군과 마찬가지로, 이들은 여러분의 가정을 조사하는 방법을 제공합니다.
+우리가 결코 확신할 수는 없지만, 데이터 속에 정보가 있는 것은 사실입니다.
+조건부 독립성이 성립한다는 것을 발견하는 것은 여러분의 가정을 뒷받침하는 조금 더 많은 증거가 됩니다.
+여기에는 미묘한 경계가 있으므로, 우리는 이러한 종류의 확인 작업에 대해 투명하게 공개할 것을 권장합니다: 만약 이 테스트 결과에 기반하여 수정을 가했다면, 원래의 DAG도 함께 보고해야 합니다.
+특히 이 사례에서, 이 세 관계 모두에 직접적인 화살표를 추가하더라도 조정 집합은 동일하게 유지됩니다.
 
-Let's look at an example that is more likely to be misspecified, where we remove the arrows from park close time and ticket season to Extra Magic Morning.
+레이아웃이나 화살표가 누락되어 오명시될 가능성이 높은 예시를 살펴봅시다. 공원 폐쇄 시간과 티켓 시즌에서 엑스트라 매직 아워로 가는 화살표를 제거해 보겠습니다.
 
 ```{r}
-#| echo: false
 labels <- c(
-  park_extra_magic_morning = "Extra Magic\nMorning",
-  wait_minutes_posted_avg = "Average\nwait",
-  park_ticket_season = "Ticket\nSeason",
-  park_temperature_high = "Historic high\ntemperature",
-  park_close = "Time park\nclosed"
+  park_extra_magic_morning = "엑스트라 매직\n아워",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고\n기온",
+  park_close = "공원 폐쇄\n시간"
 )
 ```
 
@@ -529,74 +521,39 @@ query_conditional_independence(emm_wait_dag2) |>
   unnest(conditioned_on)
 ```
 
-This alternative DAG introduces two new relationships that should be independent.
-In @fig-conditional-ind-misspec, we see an additional association between ticket season and Extra Magic Morning.
-
-```{r}
-#| label: fig-conditional-ind-misspec
-#| fig-cap: >
-#|    A plot of the estimates and 95% confidence intervals of the correlations between the residuals resulting from a regression of variables in the DAG that should have no relationship. While two relationships appear null, park close time and ticket season seem to be correlated, suggesting we have misspecified the DAG. One source of this misspecification may be missing arrows between the variables.
-test_conditional_independence(
-  emm_wait_dag2,
-  data = seven_dwarfs_train_2018 |>
-    filter(wait_hour == 9) |>
-    mutate(
-      across(where(is.character), factor),
-      park_close = as.numeric(park_close),
-    ) |>
-    as.data.frame(),
-  type = "cis.loess",
-  R = 200
-) |>
-  ggdag_conditional_independence()
-```
-
-So, is this DAG wrong?
-Based on our understanding of the problem, it seems likely that's the case, but interpreting DAG-data consistency tests has a hiccup: different DAGs can have the same set of conditional independencies.
-In the case of our DAG, one other DAG can generate the same implied conditional independencies (@fig-equiv-dag).
-These are called *equivalent* DAGs because their implications are the same.
-
-```{r}
-#| eval: false
-ggdag_equivalent_dags(emm_wait_dag2)
-```
+이 대안적 DAG는 독립적이어야 할 두 가지 새로운 관계를 도입합니다.
+문제 이해도에 비추어 볼 때 그럴 가능성이 높아 보이지만, DAG-데이터 일관성 테스트를 해석하는 데는 걸림돌이 있습니다: 서로 다른 DAG들이 동일한 조건부 독립성 집합을 가질 수 있다는 점입니다.
 
 ```{r}
 #| label: fig-equiv-dag
 #| code-fold: true
 #| fig-width: 9
 #| fig-cap: >
-#|    Equivalent DAGs for the likely misspecified version of @fig-dag-magic.
-#|    These two DAGs produce the same set of implied conditional independencies.
-#|    The difference between them is only the direction of the arrow between
-#|    historic high temperature and Extra Magic Hours.
+#|    @fig-dag-magic 의 오명시 가능성이 높은 버전에 대한 동등한 DAG들.
+#|    이 두 DAG는 동일한 조건부 독립성 집합을 생성합니다.
+#|    둘 사이의 차이점은 오직 과거 최고 기온과 엑스트라 매직 아워 사이의 화살표 방향뿐입니다.
 curvatures <- rep(0, 10)
-curvatures[c(4, 9)] <- .25
+curvatures[3] <- .25
+curvatures[8] <- .25
 
 ggdag_equivalent_dags(emm_wait_dag2, use_edges = FALSE, use_text = FALSE) +
-  geom_dag_edges_arc(data = function(x) distinct(x), curvature = curvatures, edge_color = "grey80") +
-  geom_dag_edges_link(data = function(x) filter(x, (name == "park_extra_magic_morning" & to == "park_temperature_high") | (name == "park_temperature_high" & to == "park_extra_magic_morning")), edge_color = "black") +
-  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("Extra Magic\nMorning", "Historic high\ntemperature")), box.padding = 15, seed = 12, color = "#494949") +
+  geom_dag_edges_arc(curvature = curvatures, edge_color = "grey90") +
+  geom_dag_point() +
+  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("엑스트라 매직\n아워", "과거 최고\n기온")), box.padding = 15, seed = 12, color = "#494949") +
   theme_dag()
 ```
 
-Equivalent DAGs are generated by *reversing* arrows.
-The subset of DAGs with reversible arrows that generate the same implications is called an *equivalence class*.
-While technical, this connection can condense the visualization to a single DAG where the reversible edges are denoted by a straight line without arrows.
-
-```{r}
-#| eval: false
-ggdag_equivalent_class(emm_wait_dag2, use_text = FALSE, use_labels = TRUE)
-```
+이들은 함의하는 바가 같기 때문에 *동등한(equivalent)* DAG라고 불립니다.
+동등한 DAG들은 화살표를 *반전(reversing)*시킴으로써 생성됩니다.
+동일한 함의를 생성하면서 반전 가능한 화살표를 가진 DAG들의 하위 집합을 *동등류(equivalence class)*라고 부릅니다.
+기술적인 내용이지만, 이러한 연결을 통해 반전 가능한 에지를 화살표가 없는 직선으로 표시함으로써 시각화 결과를 하나의 DAG로 응축할 수 있습니다 (@fig-equiv-class).
 
 ```{r}
 #| label: fig-equiv-class
 #| code-fold: true
 #| fig-width: 5
 #| fig-cap: >
-#|    An alternative way of visualizing @fig-equiv-dag where all the equivalent
-#|    DAGs are condensed to a single version where the *reversible* edges are denoted
-#|    with edges without arrows.
+#|    @fig-equiv-dag 를 시각화하는 대안적인 방법. 모든 동등한 DAG들을 하나의 버전으로 응축하여, *반전 가능한* 에지들을 화살표가 없는 에지로 표시했습니다.
 curvatures <- rep(0, 4)
 curvatures[3] <- .25
 
@@ -605,59 +562,54 @@ emm_wait_dag2 |>
   ggdag(use_edges = FALSE, use_text = FALSE) +
   geom_dag_edges_arc(data = function(x) filter(x, !reversable), curvature = curvatures, edge_color = "grey90") +
   geom_dag_edges_link(data = function(x) filter(x, reversable), arrow = NULL) +
-  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("Extra Magic\nMorning", "Historic high\ntemperature")), box.padding = 16, seed = 12, size = 5, color = "#494949") +
+  geom_dag_text_repel(aes(label = label), data = function(x) filter(x, label %in% c("엑스트라 매직\n아워", "과거 최고\n기온")), box.padding = 16, seed = 12, size = 5, color = "#494949") +
   theme_dag()
 ```
 
-So, what do we do with this information?
-Since many DAGs can produce the same set of conditional independencies, one strategy is to find all the adjustment sets that would be valid for every equivalent DAG.
-dagitty makes this straightforward by calling `equivalenceClass()` and `adjustmentSets()`, but in this case, there are *no* overlapping adjustment sets.
+그렇다면 이 정보를 가지고 우리는 무엇을 할 수 있을까요?
+많은 DAG가 동일한 조건부 독립성 집합을 생성할 수 있으므로, 한 가지 전략은 모든 동등한 DAG에 대해 유효한 모든 조정 집합을 찾는 것입니다.
+`{dagitty}`는 `equivalenceClass()`와 `adjustmentSets()`를 호출하여 이를 간단하게 수행할 수 있게 해주지만, 이 사례에서는 겹치는 조정 집합이 *전혀* 없습니다.
 
 ```{r}
 library(dagitty)
-# determine valid sets for all equiv. DAGs
+# 모든 동등한 DAG에 대해 유효한 집합 결정
 equivalenceClass(emm_wait_dag2) |>
   adjustmentSets(type = "all")
 ```
 
-We can see that by looking at the individual equivalent DAGs.
+개별적인 동등 DAG들을 살펴봄으로써 이를 확인할 수 있습니다.
 
 ```{r}
 dags <- equivalentDAGs(emm_wait_dag2)
 
-# no overlapping sets
+# 겹치는 집합이 없음
 dags[[1]] |> adjustmentSets(type = "all")
 dags[[2]] |> adjustmentSets(type = "all")
 ```
 
-The good news is that, in this case, one of the equivalent DAGs doesn't make logical sense: the reversible edge is from historical weather to Extra Magic Morning, but that is impossible for both time-ordering reasons (historical temperature occurs in the past) and for logical ones (Disney may be powerful, but to our knowledge, they can't yet control the weather).
-Even though we're using more data in these types of checks, we need to consider the logical and time-ordered plausibility of possible scenarios.
+다행히 이 사례에서는 동등한 DAG 중 하나가 논리적으로 말이 되지 않습니다: 반전 가능한 에지가 과거 날씨에서 엑스트라 매직 아워로 향하고 있는데, 이는 시간 순서(과거 기온은 과거에 발생함)로 보나 논리적으로 보나(디즈니가 아무리 강력해도 아직 날씨를 조절할 수는 없음) 불가능하기 때문입니다.
+이러한 종류의 확인 작업을 할 때 더 많은 데이터를 사용하고 있더라도, 가능한 시나리오들의 논리적이고 시간적인 타당성을 고려해야 합니다.
 
-### Alternate DAGs
+### 대안적 DAG (Alternate DAGs)
 
-<!-- TODO: I think this should be an extension of what we do in the machine learning chapter, e.g., we throw a more complex set of covariates at TMLE, and then we revisit that analysis here. In other words, this alt dag should have a little bit of a thread through the book. -->
-
-As we mentioned in @sec-dags-iterate, you should specify your DAG ahead of time with ample feedback from other experts.
-Let's now take the opposite approach to the last example: what if we used the original DAG but received feedback after the analysis that we should add more variables?
-Consider the expanded DAG in @fig-dag-extra-days.
-We've added two new confounders: whether it's a weekend or a holiday.
-This analysis differs from when we checked alternate adjustment sets in the same DAG; in that case, we checked the DAG's logical consistency.
-In this case, we're considering a different causal structure.
+@sec-dags-iterate 에서 언급했듯이, 다른 전문가들로부터 충분한 피드백을 받아 미리 DAG를 명시해야 합니다.
+@fig-dag-extra-days 의 확장된 DAG를 고려해 봅시다.
+우리는 두 개의 새로운 교란 요인을 추가했습니다: 주말인지 혹은 휴일인지 여부입니다.
+우리는 공원이 주말이나 휴일에 더 붐비기 때문에 폐쇄 시간이 늦어지고, 동시에 엑스트라 매직 아워의 배정과 대기 시간에도 영향을 미칠 것이라고 믿습니다.
 
 ```{r}
 #| label: fig-dag-extra-days
 #| fig-cap: >
-#|    An expansion of @fig-dag-magic, which now includes two new variables on their own backdoor paths: whether or not it's a holiday and/or a weekend.
+#|    @fig-dag-magic 의 확장 버전. 이제 주말과 휴일 여부가 추가되었습니다.
 #| code-fold: true
-
 labels <- c(
-  park_extra_magic_morning = "Extra Magic\nMorning",
-  wait_minutes_posted_avg = "Average\nwait",
-  park_ticket_season = "Ticket\nSeason",
-  park_temperature_high = "Historic high\ntemperature",
-  park_close = "Time park\nclosed",
-  is_weekend = "Weekend",
-  is_holiday = "Holiday"
+  park_extra_magic_morning = "엑스트라 매직\n아워",
+  wait_minutes_posted_avg = "평균\n대기 시간",
+  park_ticket_season = "티켓\n시즌",
+  park_temperature_high = "과거 최고\n기온",
+  park_close = "공원 폐쇄\n시간",
+  is_weekend = "주말",
+  is_holiday = "휴일"
 )
 
 emm_wait_dag3 <- dagify(
@@ -688,67 +640,49 @@ emm_wait_dag3 |>
   coord_cartesian(clip = "off")
 ```
 
-We can calculate these features from `park_date` using the timeDate package.
+`timeDate` 패키지를 사용하여 `park_date`로부터 이러한 특징들을 계산할 수 있습니다.
 
 ```{r}
 library(timeDate)
-
-holidays <- c(
-  "USChristmasDay",
-  "USColumbusDay",
-  "USIndependenceDay",
-  "USLaborDay",
-  "USLincolnsBirthday",
-  "USMemorialDay",
-  "USMLKingsBirthday",
-  "USNewYearsDay",
-  "USPresidentsDay",
-  "USThanksgivingDay",
-  "USVeteransDay",
-  "USWashingtonsBirthday"
-) |>
-  holiday(2018, Holiday = _) |>
+# 2018년 휴일 목록 가져오기
+holidays <- holidayNYSE(2018) |>
   as.Date()
 
-seven_dwarfs_with_days <- seven_dwarfs_train_2018 |>
+seven_dwarfs_with_days <- seven_dwarfs |>
   mutate(
     is_holiday = park_date %in% holidays,
-    is_weekend = isWeekend(park_date)
-  ) |>
-  filter(wait_hour == 9)
+    is_weekend = isWeekday(park_date, wday = 1:5) == FALSE
+  )
 ```
 
-Both Extra Magic Morning hours and posted wait times are associated with whether it's a holiday or weekend.
+엑스트라 매직 아워와 게시 대기 시간 모두 휴일이나 주말 여부와 연관되어 있습니다 (@tbl-days).
 
 ```{r}
 #| label: tbl-days
 #| tbl-cap: >
-#|    The descriptive associations between the two new variables, holiday and weekend, and the exposure and outcome. The average posted waiting time differs on both holidays and weekends, as do the occurrences of Extra Magic Hours. While we can't determine a confounding relationship from descriptive statistics alone, this adds to the evidence that these are confounders.
+#|    두 개의 새로운 변수인 휴일 및 주말과 노출 및 결과 사이의 기술적 연관성. 평균 게시 대기 시간은 휴일과 주말 모두에서 다르며, 엑스트라 매직 아워의 발생 빈도 또한 다릅니다. 기술 통계만으로는 교란 관계를 확정할 수 없지만, 이는 이들이 교란 요인이라는 근거를 더해줍니다.
 #| code-fold: true
-tbl_data_days <- seven_dwarfs_with_days |>
-  select(wait_minutes_posted_avg, park_extra_magic_morning, is_weekend, is_holiday)
-
 library(labelled)
-var_label(tbl_data_days) <- list(
-  is_weekend = "Weekend",
-  is_holiday = "Holiday",
-  park_extra_magic_morning = "Extra Magic Morning",
-  wait_minutes_posted_avg = "Posted Wait Time"
+var_label(seven_dwarfs_with_days) <- list(
+  is_weekend = "주말",
+  is_holiday = "휴일",
+  park_extra_magic_morning = "엑스트라 매직 아워",
+  wait_minutes_posted_avg = "게시 대기 시간"
 )
 
 tbl1 <- gtsummary::tbl_summary(
-  tbl_data_days,
+  seven_dwarfs_with_days,
   by = is_weekend,
-  include = -is_holiday
+  include = c(park_extra_magic_morning, wait_minutes_posted_avg)
 )
 
 tbl2 <- gtsummary::tbl_summary(
-  tbl_data_days,
+  seven_dwarfs_with_days,
   by = is_holiday,
-  include = -is_weekend
+  include = c(park_extra_magic_morning, wait_minutes_posted_avg)
 )
 
-gtsummary::tbl_merge(list(tbl1, tbl2), c("Weekend", "Holiday"))
+gtsummary::tbl_merge(list(tbl1, tbl2), c("주말", "휴일"))
 ```
 
 ```{r}
@@ -757,55 +691,43 @@ ipw_results_with_days <- fit_ipw_effect(
   park_extra_magic_morning ~ park_temperature_high +
     park_close + park_ticket_season + is_weekend + is_holiday,
   .data = seven_dwarfs_with_days
-) |> round(2)
+) |>
+  round(2)
 ```
 
-When we refit the IPW estimator, we get `r ipw_results_with_days` minutes, slightly bigger than we got without the two new confounders.
-Because it was a deviation from the analysis plan, you should likely report both effects.
-That said, this new DAG is probably more correct than the original one.
-From a decision point of view, though, the difference is slight in absolute terms (about a minute) and the effect in the same direction as the original estimate.
-In other words, the result is not terribly sensitive to this change regarding how we might act on the information.
+IPW 추정량을 다시 적합시켰을 때 우리는 `r ipw_results_with_days`분을 얻었는데, 이는 두 개의 새로운 교란 요인이 없었을 때보다 약간 더 큰 수치입니다.
+이는 분석 계획으로부터의 일탈이었으므로, 아마도 두 효과를 모두 보고해야 할 것입니다.
+그렇기는 하지만, 이 새로운 DAG가 원래의 것보다 더 정확할 가능성이 높습니다.
+의사 결정의 관점에서 보면, 절대적인 수치 차이는 미미하며(약 1분) 효과의 방향도 원래의 추정치와 동일합니다.
+가용한 정보에 비추어 볼 때 이 결과는 그리 민감하지 않습니다.
 
-One other point here: sometimes, people present the results of using increasingly complicated adjustment sets.
-This comes from the tradition of comparing complex models to parsimonious ones.
-That type of comparison is a sensitivity analysis in its own right, but it should be principled: rather than fitting simple models for simplicity's sake, you should compare *competing* adjustment sets or conditions.
-For instance, you may feel like these two DAGs are equally plausible or want to examine if adding other variables better captures the baseline crowd flow at the Magic Kingdom.
+여기서 한 가지 더 짚고 넘어갈 점이 있습니다: 때때로 사람들은 점점 더 복잡한 조정 집합을 사용한 결과들을 제시하곤 합니다.
+이는 복잡한 모델을 단순한 모델과 비교하는 전통에서 기인합니다.
+그러한 종류의 비교는 그 자체로 일종의 민감도 분석이지만, 원칙이 있어야 합니다: 단순히 단순함을 위해 단순한 모델을 적합시키기보다는, *경쟁하는* 조정 집합이나 조건들을 비교해야 합니다.
+예를 들어, 여러분은 이 두 DAG가 똑같이 타당하다고 느끼거나, 다른 변수들을 추가하는 것이 매직 킹덤의 기준점 군중 흐름을 더 잘 포착하는지 조사하고 싶을 수 있습니다.
 
-## Quantitative bias analyses
+## 정량적 편향 분석 (Quantitative bias analyses)
 
-Thus far, we've probed some of the assumptions we've made about the causal structure of the question.
-We can take this further using quantitative bias analysis, which uses mathematical assumptions to see how results would change under different conditions.
+지금까지 우리는 인과 구조에 대해 세운 몇 가지 가정을 조사해 보았습니다.
+우리는 수학적 가정을 사용하여 서로 다른 조건 하에서 결과가 어떻게 달라질지 살펴보는 정량적 편향 분석을 통해 이를 더 확장할 수 있습니다.
 
-### Sensitivity analyses for unmeasured confounders
+### 측정되지 않은 교란 요인에 대한 민감도 분석
 
-Sensitivity analyses for unmeasured confounding are important tools in observational studies to assess how robust findings are to potential unmeasured factors [@d2022sensitivity].
-These analyses rely on three key components:
+측정되지 않은 교란 요인에 대한 민감도 분석은 관찰 연구에서 잠재적인 측정되지 않은 요인들에 대해 결과가 얼마나 강건한지 평가하는 중요한 도구입니다 [@d2022sensitivity].
+이러한 분석은 세 가지 핵심 요소에 의존합니다:
 
-1)  the observed exposure-outcome effect after adjusting for measured confounders,\
-2)  the estimated relationship between a hypothetical unmeasured confounder and the exposure, and\
-3)  the estimated relationship between that unmeasured confounder and the outcome.
+1)  측정된 교란 요인들을 조정한 후의 관찰된 노출-결과 효과,
+2)  가상의 측정되지 않은 교란 요인과 노출 사이의 추정된 관계, 그리고
+3)  그 측정되지 않은 교란 요인과 결과 사이의 추정된 관계.
 
-By specifying plausible values for these relationships, researchers can quantify how much the observed effect might change if such an unmeasured confounder existed.
-
-Let's think about why this works in the context of our example above.
-Let's assume @fig-dag-magic-sens displays the true relationship between our exposure and outcome of interest.
-Suppose we hadn't measured historic high temperature, denoted by the dashed lines; we have an unmeasured confounder.
-The three key components above are described by 1) the arrow between 'Extra Magic Morning' and 'Average wait', 2) The arrow between 'Historic high temperature' and 'Extra Magic Morning', and 3) the arrow between 'Historic high temperature' and 'Average wait'.
+연구자들이 이러한 관계들에 대해 타당한 값들을 지정함으로써, 만약 그러한 측정되지 않은 교란 요인이 존재한다면 관찰된 효과가 얼마나 바뀔지 정량화할 수 있습니다.
+위의 예시 상황에서 이것이 왜 효과가 있는지 생각해 봅시다.
 
 ```{r}
 #| label: fig-dag-magic-sens
 #| code-fold: true
 #| fig-cap: >
-#|   The original proposed DAG for the relationship between Extra Magic Hours
-#|   in the morning at a particular park and the average wait
-#|   time between 9 am and 10 am with the line type of each edge displaying
-#|   what is measured. Here, we have not measured Historic high temperature.
-#|   As before, we are saying that we believe 1) Extra Magic Hours impacts
-#|   average wait time and 2) both Extra Magic Hours and average wait time
-#|   are determined by the time the park closes, historic high temperatures,
-#|   and ticket season.
-curvatures <- rep(0, 7)
-curvatures[5] <- 0.3
+#|   @fig-dag-magic 에서 원래 제안된 DAG. 점선은 '과거 최고 기온'이 측정되지 않은 교란 요인으로 취급되고 있음을 나타냅니다.
 emm_wait_dag |>
   tidy_dagitty() |>
   node_status() |>
@@ -826,141 +748,123 @@ emm_wait_dag |>
   )
 ```
 
-Various methods are available depending on the type of outcome (e.g. continuous, binary, time-to-event) and how much is known about potential unmeasured confounders.
-While these analyses cannot prove the absence of unmeasured confounding, they provide valuable insight into how sensitive results are to violations of the "no unmeasured confounders" assumption that is crucial for causal inference in observational studies.
+결과의 유형(예: 연속형, 이진형, 시간-사건형)과 잠재적인 측정되지 않은 교란 요인에 대해 얼마나 알고 있는지에 따라 다양한 방법이 가능합니다.
+이러한 분석들이 측정되지 않은 교란의 부재를 증명할 수는 없지만, 관찰 연구의 인과 추론에 필수적인 "측정되지 않은 교란이 없다"는 가정이 위배되었을 때 결과가 얼마나 민감한지에 대한 귀중한 통찰을 제공합니다.
 
-#### Observed exposure-outcome effect
+#### 관찰된 노출-결과 효과 (Observed exposure-outcome effect)
 
-The first componenet, the observed exposure-outcome effect, is the proposed causal effect of interest, i.e. the effect you would like to perform a sensitivity analysis on.
-The effect itself will depend on the choice of outcome model, which in turn often depends on the distribution of the outcome and the desired effect measure:
+첫 번째 요소인 관찰된 노출-결과 효과는 관심 있는 제안된 인과 효과입니다. 즉, 여러분이 민감도 분석을 수행하고자 하는 효과입니다.
+효과 자체는 결과 모델의 선택에 따라 달라질 것이며, 이는 다시 결과의 분포와 원하는 효과 척도에 따라 결정됩니다:
 
-1.  For continuous outcomes: Linear models or generalized linear models (GLMs) with Gaussian distribution and identity link are used, typically estimating a coefficient.
+1.  연속형 결과의 경우: 가우시안 분포와 항등 연결 함수(identity link)를 사용하는 선형 모델이나 일반화 선형 모델(GLM)이 사용되며, 일반적으로 계수(coefficient)를 추정합니다.
+2.  이진 결과의 경우, 몇 가지 선택지가 있습니다:
+    -   이항 분포와 로그 연결 함수를 사용하는 GLM
+    -   포아송 분포와 로그 연결 함수를 사용하는 GLM
+    -   이항 분포와 로짓 연결 함수를 사용하는 GLM. 이들은 계수를 추정하며, 이를 지수화하여 위험비(risk ratios, 로그 연결 모델)나 오즈비(odds ratios, 로짓 연결 모델)를 얻을 수 있습니다.
+3.  시간-사건 결과의 경우: 콕스 비례 위험 모델(Cox proportional hazards models)이 사용되며, 계수를 지수화하여 위험비(hazard ratio)를 얻습니다.
 
-2.  For binary outcomes, we have a few choices:
+'공원 폐쇄 시간'과 '티켓 시즌'만 조정한 @tbl-alt-sets 의 분석 결과를 사용해 봅시다.
+@fig-dag-magic-sens 에 따르면 '과거 최고 기온' 또한 교란 요인이지만, 이것이 *측정되지 않았다*고 가정하여 실제 조정 집합에는 포함할 수 없다고 해봅시다.
+이로 인해 관찰된 효과는 `r round(effects[2], 2)`가 되었습니다.
 
--   GLMs with binomial distribution and log link
--   GLMs with Poisson distribution and log link
--   GLMs with binomial distribution and logit link These estimate coefficients, which can be exponentiated to obtain risk ratios (log link models) or odds ratios (logit link models).
+#### 측정되지 않은 교란 요인-노출 효과 (Unmeasured confounder-exposure effect)
 
-3.  For time-to-event outcomes: Cox proportional hazards models are used, with the hazard ratio obtained by exponentiating the coefficient.
+측정되지 않은 교란 요인과 노출 사이의 관계는 세 가지 방식으로 특징지어질 수 있습니다:
 
-Let's use the analysis from @tbl-alt-sets where we only adjusted for 'Time park closed' and 'Ticket season'.
-According to @fig-dag-magic-sens, we know 'Historic high temperature' is also a confounder, but it is *unmeasured* so we cannot include it in our practical adjustment set.
-This resulted in an observed effect of `r round(effects[2], 2)`.
+1.  이진형 측정되지 않은 교란 요인의 경우:
+    -   노출군에서의 측정되지 않은 교란 요인의 유병률(prevalence)
+    -   비노출군에서의 측정되지 않은 교란 요인의 유병률
+2.  연속형 측정되지 않은 교란 요인의 경우(정규 분포 및 단위 분산을 가정):
+    -   노출군과 비노출군 사이의 측정되지 않은 교란 요인의 평균 차이
+3.  분포 무관(Distribution-agnostic) 접근 방식:
+    -   부분 $R^2$ (Partial $R^2$): 측정된 교란 요인들을 조정한 후, 측정되지 않은 교란 요인에 의해 설명되는 노출의 변동 비율
 
-#### Unmeasured confounder-exposure effect
+이러한 특징화는 연구자들이 서로 다른 유형의 교란 요인과 그 분포에 대한 지식 수준에 맞춰 민감도 분석에서 측정되지 않은 교란 요인과 노출 사이의 관계를 지정할 수 있게 해줍니다.
 
-The relationship between an unmeasured confounder and the exposure can be characterized in three ways:
+여기서 우리의 측정되지 않은 교란 요인인 '과거 최고 기온'은 연속형입니다.
+이 예시를 위해 그것이 정규 분포를 따른다고 가정해 봅시다.
+"단위 분산(unit variance)"(분산이 1)을 가정하는 이유는 교란 요인의 영향을 표준 편차 단위로 이야기하는 것이 더 쉽기 때문입니다.
+엑스트라 매직 아워가 있었던 날의 과거 최고 기온이 평균 80.5도, 표준 편차 9도인 정규 분포를 따른다고 가정해 봅시다.
+마찬가지로, 엑스트라 매직 아워가 없었던 날의 과거 최고 기온은 평균 82도, 표준 편차 9도인 정규 분포를 따른다고 가정합시다.
+우리는 이 변수들을 표준 편차인 9로 나눔으로써 '단위 분산' 정규 분포 변수로 변환할 수 있습니다(이를 변수를 *표준화*한다고 부르기도 합니다); 이렇게 하면 엑스트라 매직 아워가 있었던 날의 표준화된 평균은 8.94이고 그렇지 않은 날은 9.11이 되어, 평균 차이는 -0.17이 됩니다.
+이 숫자를 기억해 두십시오; 다음 섹션에서 민감도 분석을 위해 이 숫자를 사용할 것입니다.
 
-1.  For a binary unmeasured confounder:
+#### 측정되지 않은 교란 요인-결과 효과 (Unmeasured confounder-outcome effect)
 
--   Prevalence of the unmeasured confounder in the exposed group
--   Prevalence of the unmeasured confounder in the unexposed group
+측정되지 않은 교란 요인과 결과 사이의 관계는 두 가지 주요 방식으로 정량화될 수 있습니다:
 
-2.  For a continuous unmeasured confounder (assuming a normal distribution and unit variance):
+1.  계수 기반(Coefficient-based) 접근 방식: 완전히 조정된 결과 모델에서 측정되지 않은 교란 요인의 계수를 추정합니다.
+    또한 지수화된 계수(위험비, 오즈비, 또는 하위 위험비)를 추정할 수도 있습니다.
+2.  분포 무관 접근 방식(연속형 결과의 경우): 부분 $R^2$ 를 사용하여, 노출과 측정된 교란 요인들을 조정한 후 측정되지 않은 교란 요인에 의해 설명되는 결과 변동의 비율을 나타냅니다.
 
--   Difference in means of the unmeasured confounder between exposed and unexposed groups
+계수 기반 접근 방식을 사용해 봅시다.
+우리의 사례에서는 표준화된 '과거 최고 기온' 변수와 우리 결과 사이의 계수가, 노출 및 다른 측정된 교란 요인들(이 경우 티켓 시즌과 공원 폐쇄 시간)을 조정한 후에 어떠할지 추정해야 합니다.
+이 문제의 맥락에서 이 효과를 설명하는 또 다른 방법은 다음과 같습니다: "만약 우리가 엑스트라 매직 아워 여부, 공원 폐쇄 시간, 그리고 티켓 시즌을 조정한 후 과거 최고 기온을 1표준 편차만큼 변화시킨다면, 평균 게시 대기 시간은 어떻게 변할 것인가?" 우리가 이 변화가 -2.3분일 것이라고 생각한다고 가정해 봅시다.
+즉, 만약 과거 최고 기온이 1표준 편차만큼 높다면(우리 시나리오에서는 9도 더 따뜻하다면), 평균 게시 대기 시간은 2.3분 감소할 것으로 예상합니다.
 
-3.  Distribution-agnostic approach:
+이러한 수치들에 대한 수학적 설명은 @d2022sensitivity 를 참조하십시오.
 
--   Partial $R^2$, representing the proportion of variation in the exposure explained by the unmeasured confounder after accounting for measured confounders
+#### 구성 요소들을 하나로 합치기 (Putting the components together)
 
-These characterizations allow researchers to specify the unmeasured confounder-exposure relationship in sensitivity analyses, accommodating different types of confounders and levels of knowledge about their distribution.
+위의 세 가지 수치를 추정했다면, 지정된 것과 같은 측정되지 않은 요인을 고려하여 노출과 결과 사이의 업데이트된 효과 추정치를 계산할 수 있습니다.
+우리는 이러한 분석을 수행하기 위해 `{tipr}` R 패키지를 사용할 수 있습니다.
+함수 이름은 `{action}_{effect}_with_{what}` 형태를 따릅니다.
 
-Our unmeasured confounder here, 'Historic high temperature', is continuous.
-For this example, let's assume it is normally distributed.
-We say to assume "unit variance" (a variance of 1), because it makes it easier to talk about the impact of the confounder in standard-deviation terms.
-Let's assume that on days with extra magic morning hours the historic high temperature is normally distributed with a mean of 80.5 degrees and a standard deviation of 9 degrees.
-Likewise, assume that on days without extra magic morning hours the historic high temperature is normally distributed with a mean of 82 degrees and a standard deviation of 9 degrees.
-We can convert these to 'unit variance' normally distributed variables by dividing by that standard deviation, 9 (sometimes we refer to this as *standardizing* our variable); this gives us a standardized mean of 8.94 for days with extra magic morning hours and 9.11 for the others, or a mean difference of -0.17.
-Hold on to this number; we'll use it in conjunction with the next section for our sensitivity analysis.
+예를 들어, 이진형 측정되지 않은 교란 요인(`what`)을 사용하여 계수(`effect`)를 조정(`action`)하려면, `adjust_coef_with_binary()` 함수를 사용합니다.
 
-#### Unmeasured confounder-outcome effect
+아래는 이 패키지에 관한 @lucy2022tipr 의 표를 변형한 것입니다.
 
-The relationship between an unmeasured confounder and the outcome can be quantified in two main ways:
-
-1.  Coefficient-based approach: Estimate the coefficient for an unmeasured confounder in a fully adjusted outcome model.
-    You can also estimate the exponentiated coefficient (risk ratio, odds ratio, or hazard ratio)
-
-2.  Distribution-agnostic approach (for continuous outcomes): Use partial $R^2$, representing the proportion of variation in the outcome explained by the unmeasured confounder after accounting for the exposure and measured confounders
-
-Let's do the coeffient-based approach.
-In our case, we need to estimate what we think the coefficient bewteen our standardized 'Historic high temperature' variable and our outcome after adjusting for our exposure as well as the other measured confounders (in this case ticket season and the time the park closed).
-Another way to describe this effect in the context of this problem is: "How would the average posted wait time change if we changed the historic high temperature by one standard deviation, after adjusting for whether there were extra magic morning hours, the park close time, and the ticket season?" Let's suppose we think this would change by -2.3 minutes.
-That is, if the historic high temperature is one standard deviation unit higher (in our scenario, 9 degrees warmer), we expect this to decrease the average posted wait time by 2.3 minutes.
-
-For a mathematical explanation of these quantities, see @d2022sensitivity.
-
-#### Putting the components together
-
-Once you have estimated the above three quantities, we can calculate a updated effect estimate between the exposure and outcome that takes into account an unmeasured factor like the one specified.
-We can use the {tipr} R package to perform these analyses.
-The functions in the {tipr} package follow a unified grammar.
-The function names follow this form: `{action}_{effect}_with_{what}`.
-
-For example, to adjust (`action`) a coefficient (`effect`) with a binary unmeasured confounder (`what`), we use the function `adjust_coef_with_binary()`.
-
-Below is a copy of the table included in @lucy2022tipr about this package.
-
-| category   | Function term | Use                                                                                                                                                                                                                                                                   |
+| 카테고리 | 함수 용어 | 용도 |
 |----------------|-----------------|---------------------------------------|
-| **action** | `adjust`      | These functions adjust observed effects, requiring both the unmeasured \| confounder-exposure relationship and unmeasured confounder-outcome relationship to be specified.                                                                                            |
-|            | `tip`         | These functions tip observed effects. Only one relationship, either the unmeasured confounder-exposure relationship or unmeasured confounder-outcome relationship needs to be specified.                                                                              |
-| **effect** | `coef`        | These functions specify an observed coefficient from a linear, log-linear, logistic, or Cox proportional hazards model                                                                                                                                                |
-|            | `rr`          | These functions specify an observed relative risk                                                                                                                                                                                                                     |
-|            | `or`          | These functions specify an observed odds ratio                                                                                                                                                                                                                        |
-|            | `hr`          | These functions specify an observed hazard ratio                                                                                                                                                                                                                      |
-| **what**   | `continuous`  | These functions specify an unmeasured standardized Normally distributed confounder. These functions will include the parameters `exposure_confounder_effect` and `confounder_outcome_effect`                                                                          |
-|            | `binary`      | These functions specify an unmeasured binary confounder. These functions will include the parameters `exposed_confounder_prev`, `unexposed_confounder_prev`, and `confounder_outcome_effect`                                                                          |
-|            | `r2`          | These functions specify an unmeasured confounder parameterized by specifying the percent of variation in the exposure / outcom explained by the unmeasured confounder. These functions will include the parameters `confounder_exposure_r2` and `outcome_exposure_r2` |
+| **action** | `adjust`      | 관찰된 효과를 조정합니다. 측정되지 않은 교란 요인-노출 관계와 측정되지 않은 교란 요인-결과 관계를 모두 지정해야 합니다. |
+|            | `tip`         | 관찰된 효과를 임계점으로 밀어냅니다(tipping). 측정되지 않은 교란 요인-노출 관계나 측정되지 않은 교란 요인-결과 관계 중 하나만 지정하면 됩니다. |
+| **effect** | `coef`        | 선형, 로그 선형, 로지스틱, 또는 콕스 비례 위험 모델로부터 얻은 관찰된 계수를 지정합니다. |
+|            | `rr`          | 로그 선형 또는 콕스 비례 위험 모델로부터 얻은 관찰된 위험비(RR)를 지정합니다. |
+|            | `or`          | 로지스틱 회귀 모델로부터 얻은 관찰된 오즈비(OR)를 지정합니다. |
+|            | `hr`          | 콕스 비례 위험 모델로부터 얻은 관찰된 하위 위험비(HR)를 지정합니다. |
+| **what**   | `binary`      | 측정되지 않은 교란 요인이 이진형인 경우입니다. |
+|            | `continuous`  | 측정되지 않은 교란 요인이 연속형인 경우입니다. |
+|            | `unspecified` | 측정되지 않은 교란 요인의 분포가 지정되지 않은 경우입니다. |
 
-: Grammar of `tipr` functions. {#tbl-sens}
+: {tipr} 패키지의 함수 문법 체계 {#tbl-tipr-grammar}
 
-You can find full documentation here: [r-causal.github.io/tipr/](https://r-causal.github.io/tipr/)
+우리는 연속형 측정되지 않은 교란 요인을 가지고 있으므로 `adjust_coef_with_continuous()` 함수를 사용할 것입니다.
+우리가 추정한 세 가지 수치는 다음과 같습니다:
 
-#### Example
+1.  관찰된 노출-결과 효과: `r round(effects[2], 2)` (계수)
+2.  측정되지 않은 교란 요인-노출 효과: -0.17 (평균 차이)
+3.  측정되지 않은 교란 요인-결과 효과: -2.3 (계수)
 
-Ok, now we have everything we need to perform our sensitivity analysis.
-@tbl-sens provides what we need; we can use the {tipr} R package to apply these; we will use the `adjust_coef` function.
-Let's plug in the quantities we established above for each of the three parameters, `effect_observed`, `exposure_confounder_effect`, and `confounder_outcome_effect`.
+이제 이를 함수에 대입해 봅시다:
 
 ```{r}
 library(tipr)
-adjust_coef(
-  effect_observed = 6.58,
-  exposure_confounder_effect = -.17,
+adjust_coef_with_continuous(
+  effect = effects[2],
+  exposure_confounder_effect = -0.17,
   confounder_outcome_effect = -2.3
 )
 ```
 
-Examining this output, we see that if there were an unmeasured confounder like the one we specified above, our observed effect, 6.58, would be attenuated to 6.19.
-That is, rather than the effect of extra magic morning hours increasing the average posted wait time at 9am by 6.58 minutes, the true effect would be 6.19 minutes, assuming our specifications about the unmeasured confounder were correct.
-Take a look at @tbl-alt-sets, this number should look familiar.
+이 결과를 살펴보면, 우리가 지정한 것과 같은 측정되지 않은 교란 요인이 있었다면 효과가 `r round(effects[2], 2)`에서 `r round(adjust_coef_with_continuous(effects[2], -0.17, -2.3), 2)`로 변했을 것임을 알 수 있습니다.
+이 경우, 측정되지 않은 교란 요인과 노출 및 결과 사이의 관계에 대한 우리의 "추측"은 우리의 결론을 크게 바꾸지 않습니다.
+하지만 만약 우리가 틀렸고 그 관계들이 더 강력했다면 어떨까요?
 
-In this case, our "guesses" about the relationship between our unmeasured confounder and the exposure and outcome were accurate because it was, in fact, measured!
-In reality, we often have to use other techniques to come up with these guesses.
-Sometimes, we have access to different data or previous studies that would allow us to quantify these effects.
-Sometimes, we have some information about one of the effects, but not the other (i.e., we have a guess for the impact of the historic high temperature on the average posted wait time, but not on whether there are extra magic morning hours).
-In these cases, one solution is an *array*-based approach where we specify the effect we are sure of and vary the one we are not.
-Let's see an example of that.
-We can plot this array to help us see the impact of this potential confounder.
-Examining @fig-sens-array, we can see, for example, that if there was a one standard deviation difference in historic high temperature such that extra magic morning hours were 9 degrees cooler on average than days without extra magic morning hours, the true causal effect of extra magic morning hours on the average posted wait time at 9am would be 4.28 minutes, rather than the observed 6.58 minutes.
+우리는 이러한 분석 결과를 시각화하여 보여줄 수 있습니다.
+@fig-sens-array 는 정규 분포를 따르는 측정되지 않은 교란 요인과 결과 사이의 가상의 관계가 -2.3분일 때, 노출-측정되지 않은 교란 요인 관계를 변화시킴에 따라 조정된 효과가 어떻게 달라지는지 보여줍니다.
+엑스트라 매직 아워가 있는 날과 없는 날 사이의 기온 차이가 커질수록(즉, x축의 값이 왼쪽으로 갈수록), 실제 인과 효과 추정치는 더 작아지는 것을 볼 수 있습니다.
 
 ```{r}
 #| label: fig-sens-array
 #| fig-cap: >
-#|   Impact of a normally distributed unmeasured confounder with an assumed
-#|   confounder-outcome effect of -2.3 on an observed coefficient of 6.58 (dashed line).
-#|   The x-axis shows the assumed relationship between the exposure and unmeasured confounder.
-#|   The y-axis shows the corresponding relationship between the exposure and outcome after
-#|   adjusting for the unmeasured confounder
+#|   가정된 교란 요인-결과 효과가 -2.3일 때, 정규 분포를 따르는 측정되지 않은 교란 요인이 관찰된 계수 6.58(점선)에 미치는 영향.
+#|   x축은 노출과 측정되지 않은 교란 요인 사이의 가정된 관계를 보여줍니다.
+#|   y축은 측정되지 않은 교란 요인을 조정한 후의 대응하는 노출-결과 관계를 보여줍니다.
 
-library(tipr)
-adjust_df <- adjust_coef(
-  effect_observed = 6.58,
+adjust_df <- adjust_coef_with_continuous(
+  effect = 6.58,
   exposure_confounder_effect = seq(0, -1, by = -0.05),
-  confounder_outcome_effect = -2.3,
-  verbose = FALSE
+  confounder_outcome_effect = -2.3
 )
 
 ggplot(
@@ -974,35 +878,34 @@ ggplot(
   geom_point() +
   geom_line() +
   labs(
-    x = "Exposure - unmeasured confounder effect",
-    y = "Adjusted Effect"
+    x = "노출 - 측정되지 않은 교란 요인 효과",
+    y = "조정된 효과"
   )
 ```
 
-Many times, we find ourselves without any certainty about a potential unmeasured confounder's impact on the exposure and outcome.
-One approach could be to decide on a range of *both* values to examine.
-@fig-sens-array-2 is an example of this.
-One thing we can learn by looking at this graph is that the adjusted effect will cross the null when a one standard deviation change in the historic high temperature changes the average posed wait time by at least \~7 minutes and there is around a one standard deviation difference between the average historic temperature on extra magic morning days compared to those without.
-This is known as a *tipping point*.
+대부분의 경우, 우리는 잠재적인 측정되지 않은 교란 요인이 노출과 결과에 미치는 영향에 대해 확실하지 않은 상황에 처하게 됩니다.
+한 가지 접근 방식은 조사할 두 값의 범위를 결정하는 것입니다.
+@fig-sens-array-2 가 그 예시입니다.
+이 그래프를 통해 알 수 있는 한 가지는, 과거 최고 기온의 1 표준 편차 변화가 평균 게시 대기 시간을 최소 약 7분 변화시키고, 엑스트라 매직 아워가 있는 날과 없는 날 사이의 평균 과거 최고 기온 차이가 약 1 표준 편차일 때, 조정된 효과가 무효(null)를 가로지르게 된다는 점입니다.
+이를 **임계점(tipping point)**이라고 합니다.
 
 ```{r}
 #| label: fig-sens-array-2
 #| fig-cap: >
-#|   Impact of a normally distributed unmeasured confounder with an observed coefficient of #|   6.58 (dashed line).
-#|   The dotted line shows were the effect crosses the *null*, that is, where the adjusted
-#|   effect is actually 0.
-#|   The x-axis shows the assumed relationship between the exposure and unmeasured confounder;
-#|   each line represents a different relationship between the unmeasured confounder and the
-#|   outcome, varied from -1 to -7, as labeled on the left.
-#|   The y-axis shows the corresponding relationship between the exposure and outcome after
-#|   adjusting for each unmeasured confounder.
+#|   관찰된 계수가 6.58(점선)인 정규 분포를 따르는 측정되지 않은 교란 요인의 영향.
+#|   짧은 점선은 효과가 *무효(null)*를 가로지르는 지점, 즉 조정된 효과가 실제로 0이 되는 지점을 보여줍니다.
+#|   x축은 노출과 측정되지 않은 교란 요인 사이의 가정된 관계를 보여줍니다;
+#|   각 선은 오른쪽의 레이블에 표시된 대로 -1에서 -7까지 변화하는, 측정되지 않은 교란 요인과
+#|   결과 사이의 서로 다른 관계를 나타냅니다.
+#|   y축은 각 측정되지 않은 교란 요인을 조정한 후의 노출과 결과 사이의 대응하는 관계를 보여줍니다.
 
-library(tipr)
-adjust_df <- adjust_coef(
-  effect_observed = 6.58,
-  exposure_confounder_effect = rep(seq(0, -1, by = -0.05), each = 7),
-  confounder_outcome_effect = rep(seq(-1, -7, by = -1), times = 21),
-  verbose = FALSE
+adjust_df <- map_df(
+  seq(-1, -7, by = -1),
+  ~ adjust_coef_with_continuous(
+    effect = 6.58,
+    exposure_confounder_effect = seq(0, -1, by = -0.05),
+    confounder_outcome_effect = .x
+  )
 )
 
 ggplot(
@@ -1010,7 +913,7 @@ ggplot(
   aes(
     x = exposure_confounder_effect,
     y = effect_adjusted,
-    group = confounder_outcome_effect
+    group = factor(confounder_outcome_effect)
   )
 ) +
   geom_hline(yintercept = 6.58, lty = 2) +
@@ -1018,54 +921,52 @@ ggplot(
   geom_point() +
   geom_line() +
   geom_label(
-    data = adjust_df[141:147, ],
-    aes(
-      x = exposure_confounder_effect,
-      y = effect_adjusted,
-      label = confounder_outcome_effect
-    )
+    data = adjust_df |> filter(exposure_confounder_effect == -1),
+    aes(label = confounder_outcome_effect),
+    hjust = 1.1
   ) +
   labs(
-    x = "Exposure - unmeasured confounder effect",
-    y = "Adjusted Effect"
+    x = "노출 - 측정되지 않은 교란 요인 효과",
+    y = "조정된 효과"
   )
 ```
 
-#### Tipping point analyses
+#### 임계점 분석 (Tipping point analyses)
 
-Tipping point sensitivity analyses aim to determine the characteristics of an unmeasured confounder that would change the observed effect to a specific value, often the null.
-Instead of exploring a range of values for unknown sensitivity parameters, it identifies the value that would "tip" the observed effect.
-This approach can be applied to point estimates or confidence interval bounds.
-The analysis calculates the smallest possible effect of an unmeasured confounder that would cause this tipping.
-By rearranging equations and setting the adjusted outcome to the null (or any value of interest), we can solve for a single sensitivity parameter, given other parameters.
-The {tipr} R package also provides functions to perform these calculations for various scenarios, including different effect measures, confounder types, and known relationships.
+임계점 민감도 분석의 목적은 관찰된 효과를 특정 값(종종 무효값)으로 바꿀 수 있는 측정되지 않은 교란 요인의 특성을 결정하는 것입니다.
+알려지지 않은 민감도 파라미터들에 대해 일일이 값의 범위를 탐색하는 대신, 관찰된 효과를 '뒤집는(tip)' 값을 식별합니다.
+이 접근 방식은 점 추정치나 신뢰 구간 경계값에 적용될 수 있습니다.
+이 분석은 이러한 뒤집기를 유발할 수 있는 측정되지 않은 교란 요인의 최소한의 효과를 계산합니다.
+방정식을 재배열하고 조정된 결과를 무효(또는 관심 있는 임의의 값)로 설정함으로써, 다른 파라미터들이 주어졌을 때 단일 민감도 파라미터에 대해 풀 수 있습니다.
+`{tipr}` R 패키지는 서로 다른 효과 측정치, 교란 요인 유형, 그리고 알려진 관계들을 포함하여 다양한 시나리오에 대해 이러한 계산을 수행하는 함수들을 제공합니다.
 
-Using the example above, let's use the `tip_coef` function to see what would tip our observed coefficient.
-For this, we only need to specify one, either the exposure-unmeasured confounder effect *or* the unmeasured confounder-outcome effect and the function will calculate the other that would result in "tipping" the observed effect to the null.
-Let's first replicate what we saw in @fig-sens-array-2.
-Let's specify the unmeasured confounder effect-outcome effect of -7 minutes.
-The output below tells us that if there is an unmeasured confounder with an effect on the outcome of -7 minutes, it would need to have a diffence of -0.94 in order to tip our observed effect of 6.58 minutes.
+위의 예시를 사용하여, `tip_coef_with_continuous()` 함수를 통해 우리의 관찰된 계수를 무엇이 뒤집을 수 있는지 확인해 봅시다.
+이를 위해 우리는 노출-측정되지 않은 교란 요인 효과 *또는* 측정되지 않은 교란 요인-결과 효과 중 하나만 명시하면 되며, 그러면 함수는 관찰된 효과를 무효로 "뒤집는" 데 필요한 나머지 하나를 계산해 줄 것입니다.
+먼저 @fig-sens-array-2 에서 보았던 것을 재현해 봅시다.
+측정되지 않은 교란 요인-결과 효과를 -7분으로 명시하겠습니다.
+아래의 출력값은 결과에 -7분의 효과를 미치는 측정되지 않은 교란 요인이 있다면, 관찰된 6.58분의 효과를 뒤집기 위해 -0.94의 차이가 필요하다는 것을 알려줍니다.
 
 ```{r}
-tip_coef(
-  effect_observed = 6.58,
+tip_coef_with_continuous(
+  effect = 6.58,
   confounder_outcome_effect = -7
 )
 ```
 
-Instead, let's suppose we were pretty sure about the unmeasured confounder-outcome effect we assumed above, -2.3, but we weren't sure what to expect in terms of the relationship between historic high temperature and whether the day had extra magic morning hours.
-Let's see how big the difference there would have to be for a confounder like this to make our observed effect of 6.58 minutes tip to 0 minutes.
+대신, 위에서 가정했던 측정되지 않은 교란 요인-결과 효과인 -2.3분에 대해서는 확신이 있지만, 과거 최고 기온과 그날 엑스트라 매직 아워가 있었는지 여부 사이의 관계에 대해서는 확신이 없다고 가정해 봅시다.
+이러한 교란 요인이 우리의 관찰된 효과인 6.58분을 0분으로 뒤집으려면 그 차이가 얼마나 커야 하는지 확인해 봅시다.
+
 
 ```{r}
-tip_coef(
-  effect_observed = 6.58,
+tip_coef_with_continuous(
+  effect = 6.58,
   confounder_outcome_effect = -2.3
 )
 ```
 
-This shows that we would need an effect of -2.86 between the expsoure and the confounder.
-In other words, for this particular example, we would need the average difference in historic temperature to be \~25 degrees (-2.86 times our standard deviation, 9), to change our effect to the null.
-This is a pretty huge, and potentially implausible, effect.
-If we were missing historic high temperature, and assuming we are correct about our -2.3 estimate, we could feel pretty confident that missing this variable is not skewing our result so much that we are directionally wrong.
+이는 노출과 교란 요인 사이에 -2.86의 효과가 필요함을 보여줍니다.
+다시 말해, 이 특정 예시의 경우, 우리의 효과를 무효로 바꾸려면 과거 최고 기온의 평균 차이가 약 25도(-2.86에 표준 편차 9를 곱함)여야 합니다.
+이는 상당히 크며, 잠재적으로 비현실적인 효과입니다.
+만약 우리가 과거 최고 기온 데이터를 놓치고 있었고 -2.3이라는 추정치가 정확하다고 가정한다면, 이 변수를 빠뜨린 것이 결과의 방향이 틀릴 정도로 결과를 왜곡하지는 않을 것이라고 꽤 자신할 수 있습니다.
 
-### Other types of QBA
+### 다른 유형의 QBA (Other types of QBA)

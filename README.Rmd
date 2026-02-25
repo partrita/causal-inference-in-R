@@ -13,21 +13,21 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Causal Inference in R
+# R을 이용한 인과 추론 (Causal Inference in R)
 
 <!-- badges: start -->
 
 <!-- badges: end -->
 
-This repository contains the source code for the book *Causal Inference in R.*
+이 저장소는 도서 *R을 이용한 인과 추론(Causal Inference in R)*의 소스 코드를 포함하고 있습니다.
 
-## Installation
+## 설치
 
-After cloning this repository, you can install the package dependencies for this book with:
+이 저장소를 클론한 후, 다음 명령어를 통해 이 책에 필요한 패키지 의존성들을 설치할 수 있습니다:
 
 ``` r
 # install.packages("remotes")
 remotes::install_deps(dependencies = TRUE)
 ```
 
-We use [Quarto](https://quarto.org/) to render this book.
+우리는 이 책을 렌더링하기 위해 [Quarto](https://quarto.org/)를 사용합니다.

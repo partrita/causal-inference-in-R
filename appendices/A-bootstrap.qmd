@@ -8,50 +8,50 @@
 status("polishing")
 ```
 
-## Overview {#sec-boot-alg}
+## 개요 {#sec-boot-alg}
 
-The bootstrap is a simple but flexible algorithm for calculating statistics using resampling with replacement.
-It's handy when a closed-form solution doesn't exist to calculate something, as is commonly the case in causal inference (particularly for standard errors), or when we suspect the assumptions used for a parametric approach are not valid for a given situation.
+부트스트랩(bootstrap)은 복원 추출(resampling with replacement)을 사용하여 통계량을 계산하는 단순하면서도 유연한 알고리즘입니다.
+어떤 값을 계산하기 위한 닫힌 형태의 해(closed-form solution)가 존재하지 않을 때 매우 유용하며, 인과 추론에서(특히 표준 오차 계산 시) 흔히 발생하는 경우입니다. 또한 특정 상황에서 모수적 접근법(parametric approach)에 사용된 가정이 유효하지 않다고 의심될 때도 유용합니다.
 
-Bootstrapping in R has a long tradition of writing functions to calculate the statistic of interest, starting with the classic boot package.
-Throughout the book, we'll use rsample, a more modern alternative for resampling, but generally, we start with writing a function to calculate the estimate we're interested in.
+R에서의 부트스트래핑은 고전적인 `boot` 패키지를 시작으로, 관심 있는 통계량을 계산하는 함수를 작성하는 오랜 전통을 가지고 있습니다.
+이 책 전반에 걸쳐 우리는 재표본 추출을 위한 더 현대적인 대안인 `rsample`을 사용할 것이지만, 일반적으로는 우리가 관심 있는 추정치를 계산하는 함수를 작성하는 것부터 시작합니다.
 
-Let's say we want to calculate `some_statistic()` for `this_data`.
-To bootstrap for *R* resamples, we:
+`this_data`에 대해 `some_statistic()`을 계산하고 싶다고 가정해 봅시다.
+*R*번의 재표본 추출을 위해 부트스트랩을 수행하려면 다음 단계를 따릅니다:
 
-1. Resample` this_data` with replacement.
-    The same row may appear multiple (or no) times in a given bootstrap resample, simulating the sampling process in the underlying population.
+1. `this_data`를 복원 추출로 재표본 추출합니다.
+    동일한 행이 주어진 부트스트랩 재표본에 여러 번 나타나거나 전혀 나타나지 않을 수 있으며, 이는 기저 모집단에서의 샘플링 과정을 시뮬레이션합니다.
 
     ``` r
     indices <- sample(
-      # create a vector of indices:
-      # 1 through the number of rows
+      # 인덱스 벡터 생성:
+      # 1부터 행의 수까지
       seq_len(nrow(this_data)), 
-      # sample a vector indices 
-      # that's the same length as `this_data`
+      # this_data와 동일한 길이의
+      # 인덱스 벡터를 샘플링
       size = nrow(this_data), 
       replace = TRUE
     )
     bootstrap_resample <- this_data[indices, ]
     ```
 
-2.  Fit `some_statistic()` on the `bootstrap_resample`
+2.  `bootstrap_resample`에 대해 `some_statistic()`을 적합시킵니다.
 
     ``` r
     estimate <- some_statistic(bootstrap_resample)
     ```
 
-3.  Repeat *R* times
+3.  *R*번 반복합니다.
 
-We then end up with a distribution of `estimate`s, with which we can calculate population statistics, such as point estimates, standard errors, and confidence intervals.
+그러면 우리는 `estimate`들의 분포를 얻게 되며, 이를 통해 점 추정치, 표준 오차, 신뢰 구간과 같은 모집단 통계량을 계산할 수 있습니다.
 
-## Bootstrapping with rsample
+## rsample을 이용한 부트스트래핑
 
-rsample is a resampling package from the tidymodels framework, but it works well for problems outside of tidymodels.
-It has a little more overhead than the boot package, but consequently, it's more flexible.
+`rsample`은 tidymodels 프레임워크의 재표본 추출 패키지이지만, tidymodels 밖의 문제들에도 잘 작동합니다.
+`boot` 패키지보다 오버헤드가 조금 더 있지만, 그 결과로 더 유연합니다.
 
-Let's say we have some sampled data with three variables, `x`, `z`, and `y`, and we want to calculate confidence intervals for the coefficients of `x` and `z` in a linear regression with the outcome as `y`.
-We can calculate them using the bootstrap (in addition to the closed-form solutions provided with R).
+`x`, `z`, `y`라는 세 가지 변수를 가진 샘플링된 데이터가 있고, `y`를 결과로 하는 선형 회귀에서 `x`와 `z` 계수의 신뢰 구간을 계산하고 싶다고 가정해 봅시다.
+우리는 부트스트랩을 사용하여 이를 계산할 수 있습니다(R에서 제공하는 닫힌 형태의 해 외에도).
 
 ```{r}
 library(tidyverse)
@@ -67,7 +67,7 @@ sampled_data <- tibble(
 lm(y ~ x + z, data = sampled_data)
 ```
 
-First, we use the `bootstraps()` function to create a nested dataset with each resampled dataset stored as `rsplit` objects.
+먼저, `bootstraps()` 함수를 사용하여 각 재표본 추출된 데이터셋이 `rsplit` 객체로 저장된 중첩된(nested) 데이터셋을 생성합니다.
 
 ```{r}
 bootstrapped_resamples <- bootstraps(sampled_data, times = 10)
@@ -75,10 +75,10 @@ bootstrapped_resamples <- bootstraps(sampled_data, times = 10)
 bootstrapped_resamples$splits[[1]]
 ```
 
-Here, the first bootstrapped dataset contains `r n_distinct(bootstrapped_resamples$splits[[1]]$in_id)` of the original rows, and `r n - n_distinct(bootstrapped_resamples$splits[[1]]$in_id)` were not included.
-If we look at the resulting data frame, we see `r n` rows, the same as in the original dataset.
-That means that some of the included rows are there more than once; each row is sampled *with replacement*.
-This spread is close to what we expect on average: about two-thirds of the original dataset ends up in each bootstrapped dataset.
+여기서 첫 번째 부트스트랩 데이터셋에는 원래 행의 `r n_distinct(bootstrapped_resamples$splits[[1]]$in_id)`개가 포함되어 있고, `r n - n_distinct(bootstrapped_resamples$splits[[1]]$in_id)`개는 포함되지 않았습니다.
+결과 데이터 프레임을 살펴보면 원래 데이터셋과 동일한 `r n`개의 행이 있음을 알 수 있습니다.
+이는 포함된 일부 행이 두 번 이상 나타난다는 것을 의미하며, 각 행은 *복원 추출*되었습니다.
+이 분포는 우리가 평균적으로 기대하는 바와 가깝습니다: 원래 데이터셋의 약 2/3가 각 부트스트랩 데이터셋에 포함됩니다.
 
 ```{r}
 boot_resample <- bootstrapped_resamples$splits[[1]] |>
@@ -87,13 +87,13 @@ boot_resample <- bootstrapped_resamples$splits[[1]] |>
 boot_resample
 ```
 
-As described in the algorithm in @sec-boot-alg, we'll fit the model on each bootstrapped dataset.
+@sec-boot-alg 의 알고리즘에 설명된 대로, 각 부트스트랩 데이터셋에 대해 모델을 적합시킬 것입니다.
 
 ```{r}
 lm(y ~ x + z, data = boot_resample)
 ```
 
-Let's express this as a function.
+이를 함수로 표현해 봅시다.
 
 ```{r}
 fit_lm <- function(.split) {
@@ -105,25 +105,25 @@ bootstrapped_resamples$splits[[1]] |>
   fit_lm()
 ```
 
-Rather than doing this one by one, we'll use iteration to run the regression on each resample.
-`bootstrapped_resamples$splits` is a list, so we could iterate over that with `map()` and get a list back.
-`bootstrapped_resamples$splits` is specifically a list-column, a list that is a column in a data frame.
-We'll take advantage of the existing structure in `bootstrapped_resamples` to store the results as another list-column.
+하나씩 차례대로 수행하는 대신, 반복문(iteration)을 사용하여 각 재표본에 대해 회귀 분석을 실행할 것입니다.
+`bootstrapped_resamples$splits`는 리스트이므로, 우리는 `map()`을 사용하여 이를 반복 처리하고 리스트를 결과로 받을 수 있습니다.
+`bootstrapped_resamples$splits`는 구체적으로 리스트-열(list-column)로, 데이터 프레임의 한 열로 존재하는 리스트입니다.
+우리는 `bootstrapped_resamples`의 기존 구조를 활용하여 결과도 또 다른 리스트-열에 저장할 것입니다.
 
 ```{r}
 bootstrapped_resamples <- bootstrapped_resamples |>
   mutate(lm_results = map(splits, fit_lm))
 ```
 
-Now each element of `lm_results` is an `lm` object---the regression fit to the bootstrapped resample.
-Here's the model from the last resample.
+이제 `lm_results`의 각 요소는 `lm` 객체 — 즉, 부트스트랩 재표본에 적합된 회귀 결과 — 입니다.
+다음은 마지막 재표본으로부터 얻은 모델입니다.
 
 ```{r}
 bootstrapped_resamples$lm_results[[10]]
 ```
 
-Now, we have ten estimates of each of the three coefficients in the model (the intercept, `x`, and `z`).
-@fig-r-10 presents their distributions.
+이제 모델의 세 가지 계수(절편, `x`, `z`) 각각에 대해 10개의 추정치를 갖게 되었습니다.
+@fig-r-10 은 이들의 분포를 보여줍니다.
 
 ```{r}
 library(broom)
@@ -137,21 +137,21 @@ unnested_results <- bootstrapped_resamples |>
 unnested_results
 ```
 
-```{r}
 #| label: fig-r-10
-#| fig-cap: "The bootstrapped distributions of the coefficients from the model `lm(y ~ x + z, data = .df)`. The distributions were calculated with 10 bootstrapped resamples."
+#| fig-cap: "`lm(y ~ x + z, data = .df)` 모델로부터 얻은 계수들의 부트스트랩 분포. 10개의 부트스트랩 재표본으로 계산되었습니다."
+#| fig-cap: "`lm(y ~ x + z, data = .df)` 모델로부터 얻은 계수들의 부트스트랩 분포. 10개의 부트스트랩 재표본으로 계산되었습니다."
 unnested_results |>
   ggplot(aes(estimate)) +
   geom_density(fill = "steelblue", color = NA) +
   facet_wrap(~term, scales = "free")
 ```
+재표본 추출 횟수가 많아질수록 추정치들의 분포는 더 매끄러워집니다.
+다음은 1,000번 반복한 결과입니다 (@fig-r-1000).
+다음은 1,000번 반복한 결과입니다 (@fig-r-1000).
 
-The more times we resample, the smoother the distribution of estimates.
-Here's 1000 times (@fig-r-1000).
-
-```{r}
 #| label: fig-r-1000
-#| fig-cap: "The bootstrapped distributions of the coefficients from the model `lm(y ~ x + z, data = .df)`. The distributions were calculated with 1000 bootstrapped resamples."
+#| fig-cap: "`lm(y ~ x + z, data = .df)` 모델로부터 얻은 계수들의 부트스트랩 분포. 1,000개의 부트스트랩 재표본으로 계산되었습니다."
+#| fig-cap: "`lm(y ~ x + z, data = .df)` 모델로부터 얻은 계수들의 부트스트랩 분포. 1,000개의 부트스트랩 재표본으로 계산되었습니다."
 bootstrapped_resamples_1k <- bootstraps(
   sampled_data,
   times = 1000
@@ -169,27 +169,27 @@ bootstrapped_resamples_1k |>
   facet_wrap(~term, scales = "free")
 ```
 
-We can calculate information about the spread of these coefficients using the confidence interval functions in rsample, which follow the pattern `int_*(nested_results, list_column_name)`.
-rsample expects the result to be either the results of `broom::tidy()` or a data frame with similar columns.
+우리는 `int_*(nested_results, list_column_name)` 패턴을 따르는 `rsample`의 신뢰 구간 함수들을 사용하여 이러한 계수들의 퍼짐 정도에 관한 정보를 계산할 수 있습니다.
+`rsample`은 결과가 `broom::tidy()`의 결과물이거나 유사한 열들을 가진 데이터 프레임일 것을 기대합니다.
 
-Let's get simple percentile-based confidence intervals with `int_pctl()`.
-These will get the lower 2.5% and upper 97.5% quantiles.
+`int_pctl()`을 사용하여 간단한 백분위수 기반의 신뢰 구간을 구해 봅시다.
+이는 하위 2.5%와 상위 97.5% 분위수를 구할 것입니다.
 
 ```{r}
 int_pctl(bootstrapped_resamples_1k, tidy_results)
 ```
 
-Now, we've got a data frame with each of our estimates and their bootstrapped confidence intervals.
-The remarkable thing about the bootstrap is that we can apply this recipe to an astonishing array of statistical problems, including problems that would otherwise be impossible to solve.
+이제 각 추정치와 그에 대한 부트스트랩 신뢰 구간이 포함된 데이터 프레임을 갖게 되었습니다.
+부트스트랩의 놀라운 점은 이 레시피를 다른 방식으로는 해결하기 불가능했을 문제들을 포함하여, 놀라울 정도로 다양한 통계적 문제들에 적용할 수 있다는 것입니다.
 
-## Why does it work?
+## 왜 작동하는가?
 
-Why does this remarkably simple algorithm work so well for so many problems?
-We direct you to the original paper and book on the bootstrap [@efron1979; @EfroTibs93] for the technical details.
-But let's build some intuition for what's happening.
+왜 이 놀랍도록 간단한 알고리즘이 그토록 많은 문제들에 대해 잘 작동할까요?
+기술적인 세부 사항에 대해서는 부트스트랩에 관한 원본 논문과 서적[@efron1979; @EfroTibs93]을 참조하시기 바랍니다.
+여기서는 어떤 일이 일어나고 있는지에 대한 직관을 길러 봅시다.
 
-Consider a population we want to understand.
-Sometimes, we have data on every observation in the population, but often, we need to sample the population, either out of necessity or efficiency.
+우리가 이해하고자 하는 모집단(population)을 생각해 봅시다.
+때때로 우리는 모집단의 모든 관측치에 대한 데이터를 가지고 있지만, 종종 필요에 의해서나 효율성을 위해 모집단을 샘플링해야 합니다.
 
 ```{r}
 library(tidyverse)
@@ -201,10 +201,10 @@ population <- tibble(
 )
 ```
 
-`population` has a million observations, but we will randomly sample 200 observations from the whole population.
-If we need to conduct more sampling, we do so independently of the original sample.
-A given observation may end up in more than one study.
-Suppose 20 such studies have been done, all from the same population.
+`population`은 100만 개의 관측치를 가지고 있지만, 우리는 전체 모집단에서 무작위로 200개의 관측치를 샘플링할 것입니다.
+만약 더 많은 샘플링을 수행해야 한다면, 원래의 샘플과는 독립적으로 수행합니다.
+특정 관측치는 둘 이상의 연구에 포함될 수 있습니다.
+동일한 모집단으로부터 20개의 그러한 연구가 수행되었다고 가정해 봅시다.
 
 ```{r}
 samples <- map(1:20, ~ population[sample(n, size = 200), ]) |>
@@ -212,12 +212,12 @@ samples <- map(1:20, ~ population[sample(n, size = 200), ]) |>
   mutate(sample = as.numeric(sample))
 ```
 
-Because of random sampling variation, each sample's mean of `x` is slightly different than in `population`, which is `r mean(population$x)`.
-Each of these sample estimates hovers around the population estimate (@fig-pop-samples).
+무작위 샘플링 변동(random sampling variation) 때문에, 각 샘플의 `x`의 평균은 `population`의 평균인 `r mean(population$x)`와 약간씩 다릅니다.
+각각의 샘플 추정치는 모집단 추정치 주변을 맴돕니다 (@fig-pop-samples).
 
 ```{r}
 #| label: fig-pop-samples
-#| fig-cap: "The distributions of the sample means of `x` for twenty samples. Each sample is sampled from `population` and has a sample size of 200."
+#| fig-cap: "20개 샘플에 대한 `x`의 표본 평균 분포. 각 샘플은 `population`으로부터 샘플링되었으며 표본 크기는 200입니다."
 #| warning: false
 sample_means <- samples |>
   group_by(sample) |>
@@ -234,11 +234,11 @@ samples |>
   facet_wrap(~sample)
 ```
 
-You may notice that sampling from the population bears a similarity to the sampling we do in the bootstrap.
-We're treating the resample as representative of the population from which it comes.
-This helps us translate the distribution we see into terms of the original population, much the same way we get when we use parametric confidence intervals.
-A key difference from sampling the population is that the bootstrap will determine the spread around the *sample* estimate, not the population estimate.
-Let's look at sample 8 a bit closer.
+모집단으로부터 샘플링하는 것이 부트스트랩에서 수행하는 샘플링과 유사하다는 점을 눈치채셨을 것입니다.
+우리는 재표본(resample)을 그것이 나온 모집단을 대표하는 것으로 취급합니다.
+이는 우리가 모수적 신뢰 구간(parametric confidence intervals)을 사용할 때와 마찬가지로, 우리가 관찰하는 분포를 원래 모집단의 관점에서 해석하는 데 도움을 줍니다.
+모집단 샘플링과 부트스트랩의 핵심적인 차이점은, 부트스트랩은 모집단 추정치가 아닌 *표본* 추정치 주변의 퍼짐 정도를 결정한다는 점입니다.
+샘플 8을 좀 더 자세히 살펴봅시다.
 
 ```{r}
 sample_8 <- samples |>
@@ -248,15 +248,15 @@ sample_8 |>
   summarize(across(everything(), mean))
 ```
 
-The sample mean of `x` is `r round(mean(sample_8$x), 2)`.
-Now, let's bootstrap this sample and calculate the mean of `x` for each bootstrapped resample.
-The distribution of bootstrapped estimates in @fig-boot-x falls symmetrically around the sample mean.
-
-```{r}
+`x`의 샘플 평균은 `r round(mean(sample_8$x), 2)`입니다.
+이제 이 샘플을 부트스트랩하고 각 부트스트랩 재표본에 대해 `x`의 평균을 계산해 봅시다.
+`x`의 샘플 평균은 `r round(mean(sample_8$x), 2)`입니다.
+이제 이 샘플을 부트스트랩하고 각 부트스트랩 재표본에 대해 `x`의 평균을 계산해 봅시다.
+@fig-boot-x 의 부트스트랩 추정치 분포는 샘플 평균을 중심으로 대칭적으로 나타납니다.
 #| label: fig-boot-x
-#| fig-cap: "The bootstrapped distribution of x for a single sample. While we are simulating the sampling process from the underlying population, the distribution is centered around the sample mean, not the population mean."
-#| warning: false
-calculate_mean <- function(.split, what = "x", ...) {
+#| fig-cap: "단일 샘플에 대한 x의 부트스트랩 분포. 기저 모집단으로부터의 샘플링 과정을 시뮬레이션하고 있지만, 분포는 모집단 평균이 아닌 샘플 평균을 중심으로 합니다."
+#| label: fig-boot-x
+#| fig-cap: "단일 샘플에 대한 x의 부트스트랩 분포. 기저 모집단으로부터의 샘플링 과정을 시뮬레이션하고 있지만, 분포는 모집단 평균이 아닌 샘플 평균을 중심으로 합니다."
   .df <- as.data.frame(.split)
   t <- t.test(.df[[what]])
 
@@ -280,16 +280,16 @@ s8_boots |>
     aes(xintercept = x),
     color = "firebrick"
   )
-```
-
-Even though the distribution of estimates is around the sample mean, the bootstrap, by simulating the process of sampling from the population, grants us a population interpretation of the confidence intervals.
-A confidence interval is a frequentist concept related to multiple samplings from the same population.
-For 95% confidence intervals, 95% of confidence intervals estimated from samples will contain the actual population estimate.
-When this is true (e.g., 95 of 100 studies sampled from the population estimate confidence intervals that contain the population estimate), we say that the confidence intervals have *nominal* coverage.
-
-For instance, let's get the proportion of confidence intervals that contain the population mean of `x`.
-We'll also increase the number of resamples to approximate the coverage better.
-(The more we increase the number of samples, the closer we'll get to 95%.)
+추정치들의 분포가 샘플 평균을 중심으로 형성되어 있음에도 불구하고, 부트스트랩은 모집단으로부터의 샘플링 과정을 시뮬레이션함으로써 우리에게 신뢰 구간에 대한 모집단 해석을 가능하게 해줍니다.
+신뢰 구간은 동일한 모집단으로부터의 여러 번의 샘플링과 관련된 빈도주의적(frequentist) 개념입니다.
+95% 신뢰 구간의 경우, 샘플들로부터 추정된 신뢰 구간의 95%가 실제 모집단 추정치를 포함하게 됩니다.
+이것이 참일 때(예: 모집단으로부터 샘플링된 100개의 연구 중 95개가 모집단 추정치를 포함하는 신뢰 구간을 추정한 경우), 우리는 신뢰 구간이 *명목상(nominal)* 커버리지를 갖는다고 말합니다.
+95% 신뢰 구간의 경우, 샘플들로부터 추정된 신뢰 구간의 95%가 실제 모집단 추정치를 포함하게 됩니다.
+예를 들어, 모집단 평균 `x`를 포함하는 신뢰 구간의 비율을 구해 봅시다.
+커버리지를 더 잘 근사하기 위해 샘플 수를 늘려보겠습니다.
+(샘플 수를 늘릴수록 95%에 더 가까워질 것입니다.)
+커버리지를 더 잘 근사하기 위해 샘플 수를 늘려보겠습니다.
+(샘플 수를 늘릴수록 95%에 더 가까워질 것입니다.)
 
 ```{r}
 n_samples <- 1000
@@ -308,10 +308,10 @@ between(
   cis$conf.high
 ) |>
   mean()
-```
-
-Bootstrapping allows us to attain confidence intervals with nominal coverage under many circumstances, the same as we see with the well-defined parametric approach above.
-We won't run this since it requires `r_bootstraps * n_samples` calculations, but the results are similar.
+부트스트래핑은 위에서 본 잘 정의된 모수적 접근법과 마찬가지로 많은 상황에서 명목상 커버리지를 갖는 신뢰 구간을 얻게 해줍니다.
+이 코드는 `r_bootstraps * n_samples`번의 계산이 필요하기 때문에 여기서는 직접 실행하지 않겠지만, 결과는 비슷하게 나타납니다.
+부트스트래핑은 위에서 본 잘 정의된 모수적 접근법과 마찬가지로 많은 상황에서 명목상 커버리지를 갖는 신뢰 구간 을 얻게 해줍니다.
+이 코드는 `r_bootstraps * n_samples`번의 계산이 필요하기 때문에 여기서는 직접 실행하지 않겠지만, 결과 는 비슷하게 나타납니다.
 
 ```{r}
 #| eval: false
@@ -335,35 +335,35 @@ coverage <- between(
 ) |>
   mean()
 ```
+## 왜 복원 추출인가?
+## 왜 복원 추출인가?
+부트스트랩을 처음 접하는 사람들은 우리가 복원 추출(resampling with replacement)을 한다는 점과 동일한 관측치가 부트스트랩 샘플에 두 번 이상 나타날 수 있다는 점에 종종 놀라곤 합니다.
+수학적인 세부 사항은 위에서 인용한 출처들에 나와 있지만, 왜 복원 추출이 효과가 있는지에 대한 직관을 기르는 데 도움이 될 몇 가지 실무적인 이유가 있습니다.
+첫째, 만약 *비복원(without replacement)* 추출을 한다면, 매번 원래의 데이터셋을 그대로 얻게 되므로 매번 동일한 추정치를 얻게 될 것입니다.
+샘플들을 뒤섞음으로써(jittering) 추정치에 변동을 주는 것입니다.
+또한 하위 샘플링(sub-sampling)을 할 수도 있습니다: 원래 데이터셋보다 작은 크기로 비복원 추출을 하는 것입니다.
+하지만 이는 다른 문제들에는 유용할 수 있어도 복원 추출만큼 잘 작동하지는 않습니다.
+그 이유는 원래의 모집단과 그것이 샘플링되는 방식과 관련이 있습니다.
+각 샘플은 서로 독립적이며, 이는 한 개인이 하나 이상의 샘플에 포함될 수 있음을 의미합니다.
+만약 이전 샘플에 포함된 개인을 제외하도록 샘플링을 제한한다면, 여러분의 샘플링 계획은 더 이상 독립적이지 않게 될 것입니다; 각 샘플이 이전 샘플들에 의존하게 되기 때문입니다.
+재표본 추출에서 각 관측치를 독립적으로 허용하는 것은, 마치 역확률 가중치 부여에서 샘플들의 가중치를 높이는 것과 비슷하게( [Chapter -@sec-using-ps] 참조), 해당 관측치가 원래 모집단에서 자신과 유사한 다른 관측치들을 대리할 수 있게 해줍니다.
+재표본 추출에서 각 관측치를 독립적으로 허용하는 것은, 마치 역확률 가중치 부여에서 샘플들의 가중치를 높이는  것과 비슷하게( [Chapter -@sec-using-ps] 참조), 해당 관측치가 원래 모집단에서 자신과 유사한 다른 관측치들을  대리할 수 있게 해줍니다.
 
-## Why resampling with replacement?
+## 부트스트랩 재표본은 몇 번이나 해야 할까요?
 
-People first encountering the bootstrap are often surprised to learn that we are resampling with replacement and that the same observation may appear in a bootstrapped sample more than once.
-The mathematic details are in the sources we cite above, but there are a few practical reasons to help build your intuition about why resampling with replacement works.
-Firstly, if you sampled *without* replacement, you would end up with the same estimate every time because you'd just have the original dataset.
-Jittering the samples varies the estimate.
-You could also sub-sample: sample a dataset *without* replacement smaller than the original dataset.
-However, this doesn't work as well as resampling with replacement, although it can be useful for other problems.
-The reason why relates to the original population and how it's sampled.
-Each sample is independent of one another, meaning an individual could end up in more than one sample.
-If you restricted the sample to individuals who were not in previous samples, your sampling scheme would no longer be independent; each sample would depend on the previous ones.
-Allowing each observation to be independent in resampling also lets it represent others like it in the original population, much like when we up-weight samples in inverse probability weighting (see [Chapter -@sec-using-ps]).
+이 책에서는 안정성과 계산 속도의 균형을 맞추기 위해 대부분의 문제에 1,000번의 부트스트랩 재표본을 사용합니다.
+여러분의 실제 분석에서는 몇 번을 사용해야 할까요?
 
-## How many bootstrapped resamples?
-
-In this book, we use a thousand bootstrapped resamples for most problems to balance stability and computational speed.
-How many should you use in your real analysis?
-
-You'll often see older recommendations in the tens or hundreds of resamples, but these are from a time when processing power was more limited.
-On modern computers (even personal laptops), it's practical to do many more.
-@Hesterberg2015 suggests a thousand resamples for rough estimates and ten to fifteen thousand resamples for when accuracy matters.
-By "accuracy," we mean minimal variance due to the bootstrap simulation itself.
-A practical test for this is to try out `R` resamples more than once and increase `R` until you are satisfied with the degree of stability in your results.
+수십 번이나 수백 번의 재표본을 권장하는 오래된 지침들을 자주 보게 되지만, 이는 처리 능력이 더 제한적이었던 시절의 이야기입니다.
+현대적인 컴퓨터(개인용 노트북조차도)에서는 훨씬 더 많이 수행하는 것이 실용적입니다.
+@Hesterberg2015 는 대략적인 추정치를 위해서는 1,000번의 재표본을, 정확도가 중요할 때는 10,000~15,000번의 재표본을 권장합니다.
+여기서 "정확도"란 부트스트랩 시뮬레이션 자체로 인한 분산을 최소화하는 것을 의미합니다.
+이에 대한 실무적인 테스트 방법은 `R`번의 재표본 추출을 여러 번 시도해보고, 결과의 안정성 정도에 만족할 때까지 `R`을 늘려보는 것입니다.
 
 ::: callout-tip
-Each bootstrap calculation is independent of the other, meaning that for a large number of resamples, you might want to use parallel processing.
-With the rsample approach we've shown, you can use furrr as a parallelized drop-in replacement for `map()`.
-furrr is a purrr-like API to the future framework.
+각 부트스트랩 계산은 서로 독립적이므로, 재표본 횟수가 많을 경우 병렬 처리(parallel processing)를 사용하는 것이 좋습니다.
+우리가 보여준 `rsample` 방식에서는 `map()` 대신 병렬화된 대체 함수로 `furrr` 패키지를 사용할 수 있습니다.
+`furrr`는 `future` 프레임워크에 대한 `purrr` 스타일의 API입니다.
 
 ```{r}
 #| eval: false
@@ -377,20 +377,20 @@ s8_boots <- s8_boots |>
 ```
 :::
 
-## Which confidence intervals to use?
+## 어떤 신뢰 구간을 사용해야 할까요?
 
-Thus far, we've been using percentile-based confidence intervals.
-These are literally the 2.5% and 97.5% percentiles of the distribution of bootstrapped estimates.
-It's fast, simple, and intuitive.
-However, several other types of bootstrap confidence intervals exist, and they can have better nominal coverage under some circumstances.
-rsample includes two others at the time of this writing: `int_t()` and `int_bca()`.
-`int_t()` calculates confidence intervals from the bootstrapped T-statistic.
-`int_bca()` calculates bias-corrected and accelerated confidence intervals.
+지금까지 우리는 백분위수 기반의 신뢰 구간(percentile-based confidence intervals)을 사용해 왔습니다.
+이는 말 그대로 부트스트랩 추정치 분포의 2.5%와 97.5% 백분위수입니다.
+빠르고, 단순하며, 직관적입니다.
+하지만 부트스트랩 신뢰 구간에는 여러 다른 유형이 존재하며, 특정 상황에서는 이들이 더 나은 명목상 커버리지(nominal coverage)를 가질 수 있습니다.
+이 글을 쓰는 시점에 `rsample`은 두 가지를 추가로 포함하고 있습니다: `int_t()`와 `int_bca()`입니다.
+`int_t()`는 부트스트랩 T-통계량으로부터 신뢰 구간을 계산합니다.
+`int_bca()`는 편향 수정 및 가속(bias-corrected and accelerated, BCa) 신뢰 구간을 계산합니다.
 
-You need estimates from the original data set for these types of confidence intervals.
-You can tell rsample to include the original one with `bootstraps(data, times = 1000, apparent = TRUE)` (we've already done that for `s8_boots`).
-That will result in 1001 datasets: the original plus 1000 bootstrapped datasets.
-For `int_bca()`, you also need to provide the function (to the `.fn` argument) you used to calculate the estimate, in this case, `calculate_mean`.
+이러한 유형의 신뢰 구간을 위해서는 원래 데이터셋에서의 추정치가 필요합니다.
+`bootstraps(data, times = 1000, apparent = TRUE)`와 같이 `apparent = TRUE`를 사용하여 원래 데이터셋을 포함하도록 `rsample`에 지시할 수 있습니다(우리는 이미 `s8_boots`에 대해 그렇게 했습니다).
+그러면 원래 데이터셋 1개와 1,000개의 부트스트랩 데이터셋을 합쳐 총 1,001개의 데이터셋이 생성됩니다.
+`int_bca()`의 경우, 추정치를 계산하는 데 사용한 함수(이 경우 `calculate_mean`)를 `.fn` 인자에 제공해야 합니다.
 
 ```{r}
 ints <- bind_rows(
@@ -402,11 +402,11 @@ ints <- bind_rows(
 ints
 ```
 
-In this case, the confidence intervals are very close.
-That's because they all perform well for the normally distributed data like `x`.
+이 사례에서 신뢰 구간들은 매우 비슷합니다.
+`x`와 같이 정규 분포를 따르는 데이터에 대해서는 모두 잘 작동하기 때문입니다.
 
-A subtle detail of nominal coverage in confidence intervals is that the proportion of estimates that fall outside of the intervals should be roughly the same on either side of the confidence intervals.
-We see that, for instance, with confidence intervals from the traditional t-test for `x`.
+신뢰 구간의 명목상 커버리지에 대한 미묘한 세부 사항은, 구간 밖에 떨어지는 추정치의 비율이 구간의 양쪽에서 대략적으로 같아야 한다는 점입니다.
+예를 들어 `x`에 대한 전통적인 t-테스트의 신뢰 구간에서 이를 확인할 수 있습니다.
 
 ```{r}
 c(
@@ -415,44 +415,44 @@ c(
 )
 ```
 
-This symmetry doesn't hold for many types of confidence intervals when the data are skewed.
-For example, a right-skewed distribution may result in nominal coverage of 95% for intervals but with 1% of the values below the lower bound (the left side of the distribution) and 4% above the upper bound (the right side of the distribution).
+이러한 대칭성은 데이터가 비대칭(skewed)일 때 많은 유형의 신뢰 구간에서 유지되지 않습니다.
+예를 들어, 오른쪽으로 꼬리가 긴 분포는 95%의 명목상 커버리지를 가질 수 있지만, 하한값 아래(분포의 왼쪽)에 1%의 값이 있고 상한값 위(분포의 오른쪽)에 4%의 값이 있을 수 있습니다.
 
-BCa intervals and bootstrap t-statistic intervals work better on skewed data.
-Notably, means approach the normal distribution as the sample size increases due to the central limit theorem regardless of the data's distribution (although for skewed distributions, the required sample size can be in the thousands rather than the commonly cited 30).
-The same is often true of coefficients in regression models, which are conditional means.
-If the central limit theorem has taken effect, percentiles and other types of confidence intervals will likely also have good coverage.
+BCa 구간과 부트스트랩 t-통계량 구간은 비대칭 데이터에서 더 잘 작동합니다.
+주목할 점은, 데이터의 분포와 관계없이 중심 극한 정리(central limit theorem)에 의해 표본 크기가 커질수록 평균은 정규 분포에 접근한다는 것입니다(비록 비대칭 분포의 경우 필요한 표본 크기가 흔히 언급되는 30개가 아니라 수천 개가 될 수도 있지만요).
+조건부 평균인 회귀 모델의 계수들에 대해서도 흔히 이와 같은 현상이 나타납니다.
+중심 극한 정리가 효과를 발휘했다면, 백분위수 및 다른 유형의 신뢰 구간들도 아마 좋은 커버리지를 가질 것입니다.
 
 ::: callout-tip
-When you have a result where you have reason to believe the bootstrapped distribution should look a certain way, such as means being normally distributed, it offers a potential diagnosis for your analysis. For instance, in causal inference, if you see a coefficient that is skewed or has another unexpected distribution, that may be a sign that you have a violation of the positivity assumption (see [Chapter -@sec-counterfactuals]). Keep an eye out for unexpected instability between bootstrapped resamples.
+평균이 정규 분포를 따르는 것과 같이 부트스트랩 분포가 특정한 모양을 가져야 한다고 믿을 만한 이유가 있는 결과가 있다면, 이는 여러분의 분석에 대한 잠재적인 진단 도구를 제공합니다. 예를 들어, 인과 추론에서 계수가 비대칭이거나 예상치 못한 다른 분포를 보인다면, 이는 긍정성 가정(positivity assumption)이 위배되었다는 신호일 수 있습니다(@sec-counterfactuals 를 참조하십시오). 부트스트랩 재표본 사이의 예상치 못한 불안정성을 주의 깊게 살펴보십시오.
 :::
 
-Percentile and BCa intervals are transformation invariant, meaning that you can transform the estimate you bootstrapped and get the same result as if you had bootstrapped the transformation.
-An example of this is the log odds ratio versus the odds ratio.
-With a bootstrapped t-statistic interval, you may end up with different results depending on which you actually bootstrapped.
-So, if you're working with data you want to view on more than one scale, you might want to use one of these.
+백분위수 구간과 BCa 구간은 변환 불변성(transformation invariant)을 가집니다. 즉, 부트스트랩한 추정치를 변환한 결과가 변환된 추정치를 부트스트랩한 결과와 같다는 뜻입니다.
+이에 대한 예로 로그 오즈비 대 오즈비가 있습니다.
+부트스트랩 t-통계량 구간의 경우, 실제로 어떤 것을 부트스트랩했느냐에 따라 결과가 달라질 수 있습니다.
+따라서 하나 이상의 척도에서 보고 싶은 데이터를 다루고 있다면, 백분위수나 BCa 구간 중 하나를 사용하는 것이 좋습니다.
 
-A final consideration is computational speed.
-Percentiles are extremely fast and don't require additional information.
-Bootstrap t-intervals and BCa intervals require information from the original dataset.
-The BCa is the most computationally intensive of the three.
-For many problems, the difference in speed is negligible on modern computers, but it may be useful to use percentile confidence intervals when you think they'd work well and BCa is taking a particularly long time.
+마지막 고려 사항은 계산 속도입니다.
+백분위수 방식은 매우 빠르며 추가 정보가 필요하지 않습니다.
+부트스트랩 t-구간과 BCa 구간은 원래 데이터셋의 정보가 필요합니다.
+BCa 방식은 세 가지 중 계산 집약도가 가장 높습니다.
+현대적인 컴퓨터에서는 많은 문제에 대해 속도 차이가 미미하지만, 백분위수 신뢰 구간이 잘 작동할 것으로 생각되고 BCa가 특히 오래 걸릴 때는 백분위수 방식을 사용하는 것이 유용할 수 있습니다.
 
-## When does the bootstrap not work out of the box?
+## 부트스트랩이 바로 작동하지 않는 경우는 언제인가요?
 
-The algorithm we've presented here is simple and powerful for many calculations, but some types of estimates are known not to work with the bootstrap or require a variation of the algorithm to calculate nominal confidence intervals.
-A typical example of this is extrema, such as the minimum or maximum value.
-For example, bootstrapping the minimum of `x` results in a strange distribution.
+여기서 제시한 알고리즘은 많은 계산에 있어 단순하고 강력하지만, 일부 유형의 추정치는 부트스트랩으로 작동하지 않거나 명목 신뢰 구간을 계산하기 위해 알고리즘의 변형이 필요한 것으로 알려져 있습니다.
+전형적인 예로 최솟값이나 최댓값과 같은 극단값(extrema)이 있습니다.
+예를 들어, `x`의 최솟값을 부트스트래핑하면 이상한 분포가 나타납니다.
 
 ```{r}
 #| label: fig-boot-min
-#| fig-cap: "The bootstrapped distribution of the sample minimum of `x`. The bootstrap struggles to calculate a distribution for extrema."
+#| fig-cap: "표본 `x`의 최솟값에 대한 부트스트랩 분포. 부트스트랩은 극단값에 대한 분포를 계산하는 데 어려움을 겪습니다."
 #| warning: false
 calculate_min <- function(.split, what = "x", ...) {
   .df <- as.data.frame(.split)
 
   tibble(
-    term = paste("min of", what),
+    term = paste(what, "의 최솟값"),
     estimate = min(.df[[what]])
   )
 }
@@ -466,7 +466,7 @@ s8_boots |>
   geom_histogram()
 ```
 
-Other common situations where the bootstrap doesn't work out of the box are regularized regression (like lasso regression) and data with a strong correlational structure, like time series.
-Often, there exists a modified version of the bootstrap that does work for a given problem.
-Thomas Lumley, author of the survey package and an R Core member, has an excellent summary of common situations where the bootstrap doesn't work out of the box (and some examples of modified bootstraps that work in those scenarios) [@Lumley_2017].
-Also see @Hesterberg2015.
+부트스트랩이 바로 작동하지 않는 다른 흔한 상황으로는 규제 회귀(lasso 회귀 등)와 시계열과 같이 강한 상관 구조를 가진 데이터가 있습니다.
+종종 그러한 문제들에 대해 작동하는 부트스트랩의 변형 버전이 존재합니다.
+`survey` 패키지의 저자이자 R 코어 멤버인 Thomas Lumley는 부트스트랩이 바로 작동하지 않는 흔한 상황들(그리고 그러한 시나리오에서 작동하는 변형된 부트스트랩의 예시들)에 대한 훌륭한 요약을 제공합니다 [@Lumley_2017].
+또한 @Hesterberg2015 도 참조하십시오.

@@ -8,9 +8,9 @@
 status("unstarted")
 ```
 
-## Functional form, hetereogenous effects, and joint causes
+## 함수 형태, 이질적 효과, 그리고 공동 원인 (Functional form, hetereogenous effects, and joint causes)
 
-## Fitting interaction terms in causal models
+## 인과 모델에서 상호작용 항 적합시키기 (Fitting interaction terms in causal models)
 
 <!-- Maybe also: -->
 

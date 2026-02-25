@@ -8,12 +8,12 @@
 status("unstarted")
 ```
 
-## Estimating direct effects
+## 직접 효과 추정하기 (Estimating direct effects)
 
 ```{r}
 rnorm(5)
 ```
 
-## Estimating indirect effects
+## 간접 효과 추정하기 (Estimating indirect effects)
 
-## Allowing for interactions
+## 상호작용 고려하기 (Allowing for interactions)

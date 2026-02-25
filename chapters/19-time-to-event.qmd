@@ -8,12 +8,12 @@
 status("unstarted")
 ```
 
-## Preparing data for time-to-event analysis
+## 시간-사건 분석을 위한 데이터 준비 (Preparing data for time-to-event analysis)
 
 ```{r}
 rnorm(5)
 ```
 
-## Pooled logistic regression
+## 풀링된 로지스틱 회귀 (Pooled logistic regression)
 
-## Confidence intervals for causal time-to-event models
+## 인과 시간-사건 모델의 신뢰 구간 (Confidence intervals for causal time-to-event models)

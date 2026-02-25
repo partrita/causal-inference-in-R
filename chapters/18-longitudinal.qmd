@@ -8,10 +8,10 @@
 status("unstarted")
 ```
 
-## Loss to follow-up
+## 추적 관찰 소실 (Loss to follow-up)
 
 ```{r}
 rnorm(5)
 ```
 
-## Time-varying confounding and exposures
+## 시간 가변적 교란 및 노출 (Time-varying confounding and exposures)

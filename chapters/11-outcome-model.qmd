@@ -5,13 +5,13 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("polishing")
+status("complete")
 ```
 
-## Using matched data sets
+## 매칭된 데이터셋 사용하기
 
-When fitting an outcome model on matched data sets, we can simply subset the original data to only those who were matched and then fit a model on these data as we would otherwise.
-For example, re-performing the matching as we did in @sec-using-ps, we can extract the matched observations in a dataset called `matched_data` as follows.
+매칭된 데이터셋에 대해 결과 모델을 적합시킬 때, 우리는 단순히 원본 데이터를 매칭된 관측치들로만 부분 집합화(subset)한 다음, 평소와 같이 이 데이터에 대해 모델을 적합시키면 됩니다.
+예를 들어, @sec-using-ps 에서 했던 것처럼 매칭을 다시 수행하고, 다음과 같이 `matched_data`라는 데이터셋에 매칭된 관측치들을 추출할 수 있습니다.
 
 ```{r}
 #| message: false
@@ -30,22 +30,22 @@ m <- matchit(
 matched_data <- get_matches(m)
 ```
 
-We can then fit the outcome model on this data.
-For this analysis, we are interested in the impact of extra magic morning hours on the average posted wait time between 9 and 10am.
-The linear model below will estimate this in the matched cohort.
+그런 다음 이 데이터에 대해 결과 모델을 적합시킬 수 있습니다.
+이 분석에서 우리는 아침 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 영향에 관심이 있습니다.
+아래의 선형 모델은 매칭된 코호트(cohort)에서 이를 추정할 것입니다.
 
 ```{r}
 lm(wait_minutes_posted_avg ~ park_extra_magic_morning, data = matched_data) |>
   tidy(conf.int = TRUE)
 ```
 
-Recall that by default `{MatchIt}` estimates an average treatment effect among the treated.
-This means among days that have extra magic hours, the expected impact of having extra magic hours on the average posted wait time between 9 and 10am is 7.9 minutes (95% CI: 1.2-14.5).
+`{MatchIt}`은 기본적으로 처치군에 대한 평균 처치 효과(ATT)를 추정한다는 점을 기억하십시오.
+이는 엑스트라 매직 아워가 있는 날들 중에서, 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 기대 영향이 7.9분(95% CI: 1.2-14.5)임을 의미합니다.
 
-## Using weights in outcome models
+## 결과 모델에서 가중치 사용하기
 
-Now let's use propensity score weights to estimate this same estimand.
-We will use the ATT weights so the analysis matches that for matching above.
+이제 성향 점수 가중치를 사용하여 동일한 추정 대상을 추정해 봅시다.
+앞서 수행한 매칭 분석과 일치하도록 ATT 가중치를 사용할 것입니다.
 
 ```{r}
 #| message: false
@@ -64,7 +64,7 @@ seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
   mutate(w_att = wt_att(.fitted, park_extra_magic_morning))
 ```
 
-We can fit a *weighted* outcome model by using the `weights` argument.
+우리는 `weights` 인자를 사용하여 *가중(weighted)* 결과 모델을 적합시킬 수 있습니다.
 
 ```{r}
 lm(
@@ -75,13 +75,13 @@ lm(
   tidy()
 ```
 
-Using weighting, we estimate that among days that have extra magic hours, the expected impact of having extra magic hours on the average posted wait time between 9 and 10am is 6.2 minutes.
-While this approach will get us the desired estimate for the point estimate, the default output using the `lm` function for the uncertainty (the standard errors and confidence intervals) are not correct.
+가중치 부여를 사용하여, 엑스트라 매직 아워가 있는 날들 중에서 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 기대 영향이 6.2분이라고 추정합니다.
+이 접근 방식은 점 추정치(point estimate)에 대해서는 원하는 값을 얻게 해주지만, 불확실성(표준 오차 및 신뢰 구간)에 대한 `lm` 함수의 기본 출력값은 정확하지 않습니다.
 
 ::: callout-tip
-## Causal inference with `group_by()` and `summarize()`, revisted
+## `group_by()`와 `summarize()`를 이용한 인과 추론, 다시 보기
 
-For this simple example, the weighted outcome model is equivalent to taking the difference in the weighted means.
+이 간단한 예시에서 가중 결과 모델은 가중 평균의 차이를 구하는 것과 동일합니다.
 
 ```{r}
 wt_means <- seven_dwarfs_9_with_wt |>
@@ -91,42 +91,42 @@ wt_means <- seven_dwarfs_9_with_wt |>
 wt_means
 ```
 
-The difference is `r round(wt_means$average_wait[[2]] - wt_means$average_wait[[1]], 2)`, the same as the weighted outcome model.
+차이는 `r round(wt_means$average_wait[[2]] - wt_means$average_wait[[1]], 2)`분이며, 이는 가중 결과 모델의 결과와 같습니다.
 
-The weighted population is a psuedo-population where there is no confounding by the variables in the propensity score.
-Philosophically and practically, we can make calculations with the data from this population.
-Causal inference with `group_by()` and `summarize()` works just fine now, since we've already accounted for confounding in the weights.
+가중치가 적용된 인구는 성향 점수에 포함된 변수들에 의한 교란이 없는 가상 인구(pseudo-population)입니다.
+철학적으로나 실무적으로나 우리는 이 인구의 데이터를 사용하여 계산을 수행할 수 있습니다.
+이미 가중치에서 교란 요인을 고려했기 때문에, 이제 `group_by()`와 `summarize()`를 이용한 인과 추론이 잘 작동합니다.
 :::
 
-## Estimating uncertainty
+## 불확실성 추정 (Estimating uncertainty)
 
-There are three ways to estimate the uncertainty:
+불확실성을 추정하는 데는 세 가지 방법이 있습니다:
 
-1.  A bootstrap
-2.  A sandwich estimator that only takes into account the outcome model
-3.  A sandwich estimator that takes into account the propensity score model
+1.  부트스트랩 (The bootstrap)
+2.  결과 모델(outcome model)만 고려하는 샌드위치 추정량 (A sandwich estimator)
+3.  성향 점수 모델과 결과 모델을 모두 고려하는 샌드위치 추정량
 
-The first option can be computationally intensive, but should get you the correct estimates.
-The second option is computationally the easiest, but tends to overestimate the variability.
-There are not many current solutions in R (aside from coding it up yourself) for the third; however, the `{PSW}` package will do this.
+첫 번째 옵션은 계산 집약적일 수 있지만, 정확한 추정치를 제공할 것입니다.
+두 번째 옵션은 계산상 가장 간단하지만, 변동성을 과대 추정하는 경향이 있습니다.
+세 번째 옵션에 대해서는 (직접 코딩하는 것 외에) 현재 R에서 제공되는 솔루션이 많지 않지만, `{propensity}` 패키지의 `ipw()` 함수가 이를 지원합니다.
 
-### The bootstrap
+### 부트스트랩 (The bootstrap)
 
-1.  Create a function to run your analysis once on a sample of your data
+1.  데이터 샘플에 대해 분석을 한 번 실행하는 함수를 만듭니다.
 
 ```{r}
 fit_ipw <- function(.split, ...) {
-  # get bootstrapped data frame
+  # 부트스트랩된 데이터 프레임 가져오기
   .df <- as.data.frame(.split)
 
-  # fit propensity score model
+  # 성향 점수 모델 적합시키기
   propensity_model <- glm(
     park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
-    data = seven_dwarfs_9,
+    data = .df,
     family = binomial()
   )
 
-  # calculate inverse probability weights
+  # 역확률 가중치 계산하기
   .df <- propensity_model |>
     augment(type.predict = "response", data = .df) |>
     mutate(wts = wt_att(
@@ -135,7 +135,7 @@ fit_ipw <- function(.split, ...) {
       exposure_type = "binary"
     ))
 
-  # fit correctly bootstrapped ipw model
+  # 올바르게 부트스트랩된 ipw 모델 적합시키기
   lm(
     wait_minutes_posted_avg ~ park_extra_magic_morning,
     data = .df,
@@ -145,14 +145,15 @@ fit_ipw <- function(.split, ...) {
 }
 ```
 
-2.  Use {rsample} to bootstrap our causal effect
+2.  우리의 인과 효과를 부트스트래핑하기 위해 `{rsample}`을 사용합니다.
 
 ```{r}
 #| message: false
 #| warning: false
 library(rsample)
+library(tidyverse)
 
-# fit ipw model to bootstrapped samples
+# 부트스트랩 샘플에 대해 ipw 모델을 적합시킵니다
 bootstrapped_seven_dwarfs <- bootstraps(
   seven_dwarfs_9,
   times = 1000,
@@ -165,7 +166,7 @@ ipw_results <- bootstrapped_seven_dwarfs |>
 ipw_results
 ```
 
-Let's look at the results.
+결과를 살펴봅시다.
 
 ```{r}
 ipw_results |>
@@ -173,7 +174,7 @@ ipw_results |>
     estimate = map_dbl(
       boot_fits,
       \(.fit) .fit |>
-        filter(term == "park_extra_magic_morning") |>
+        filter(term == "park_extra_magic_morning엑스트라 매직 아워") |>
         pull(estimate)
     )
   ) |>
@@ -182,22 +183,22 @@ ipw_results |>
   theme_minimal()
 ```
 
-3.  Pull out the causal effect
+3.  인과 효과를 추출합니다.
 
 ```{r}
-# get t-based CIs
+# t-기반 신뢰 구간 가져오기
 boot_estimate <- int_t(ipw_results, boot_fits) |>
-  filter(term == "park_extra_magic_morning")
+  filter(term == "park_extra_magic_morning엑스트라 매직 아워")
 boot_estimate
 ```
 
-We estimate that among days that have extra magic hours, the expected impact of having extra magic hours on the average posted wait time between 9 and 10am is `r round(boot_estimate$.estimate, 1)` minutes, 95% CI (`r round(boot_estimate$.lower, 1)`, `r round(boot_estimate$.upper, 1)`).
+우리는 엑스트라 매직 아워가 있는 날들 중에서, 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 기대 영향이 `r round(boot_estimate$.estimate, 1)`분(95% CI: `r round(boot_estimate$.lower, 1)`, `r round(boot_estimate$.upper, 1)`)인 것으로 추정합니다.
 
-### The outcome model sandwich
+### 결과 모델 샌드위치 추정량 (The outcome model sandwich)
 
-There are two ways to get the sandwich estimator.
-The first is to use the same weighted outcome model as above along with the `{sandwich}` package.
-Using the `sandwich` function, we can get the robust estimate for the variance for the parameter of interest, as shown below.
+샌드위치 추정량을 구하는 데는 두 가지 방법이 있습니다.
+첫 번째는 위의 가중 결과 모델과 함께 `{sandwich}` 패키지를 사용하는 것입니다.
+아래에 나타난 것처럼, `sandwich` 함수를 사용하여 관심 있는 파라미터에 대한 로버스트(robust) 분산 추정치를 얻을 수 있습니다.
 
 ```{r}
 #| message: false
@@ -212,8 +213,8 @@ weighted_mod <- lm(
 sandwich(weighted_mod)
 ```
 
-Here, our robust variance estimate is `r round(sandwich(weighted_mod)[2,2], 3)`.
-We can then use this to construct a robust confidence interval.
+여기서 로버스트 분산 추정치는 `r round(sandwich(weighted_mod)[2,2], 3)`입니다.
+우리는 이를 사용하여 로버스트 신뢰 구간을 구축할 수 있습니다.
 
 ```{r}
 robust_var <- sandwich(weighted_mod)[2, 2]
@@ -224,10 +225,10 @@ lb
 ub
 ```
 
-We estimate that among days that have extra magic hours, the expected impact of having extra magic hours on the average posted wait time between 9 and 10am is `r round(point_est, 1)` minutes, 95% CI (`r round(lb, 1)`, `r round(ub, 1)`).
+우리는 엑스트라 매직 아워가 있는 날들 중에서, 엑스트라 매직 아워가 오전 9시에서 10시 사이의 평균 게시 대기 시간에 미치는 기대 영향이 `r round(point_est, 1)`분(95% CI: `r round(lb, 1)`, `r round(ub, 1)`)인 것으로 추정합니다.
 
-Alternatively, we could fit the model using the `{survey}` package.
-To do this, we need to create a design object, like we did when fitting weighted tables.
+대안적으로, 우리는 `{survey}` 패키지를 사용하여 모델을 적합시킬 수도 있습니다.
+이를 위해, 가중 표를 적합시킬 때 했던 것처럼 설계 객체(design object)를 생성해야 합니다.
 
 ```{r}
 #| message: false
@@ -241,140 +242,140 @@ des <- svydesign(
 )
 ```
 
-Then we can use `svyglm` to fit the outcome model.
+그런 다음 `svyglm`을 사용하여 결과 모델을 적합시킬 수 있습니다.
 
 ```{r}
 svyglm(wait_minutes_posted_avg ~ park_extra_magic_morning, des) |>
   tidy(conf.int = TRUE)
 ```
 
-### Sandwich estimator that takes into account the propensity score model
+### 성향 점수 모델까지 고려하는 샌드위치 추정량
 
-The correct sandwich estimator will also take into account the uncertainty in estimating the propensity score model.
-`ipw()` will allow us to do this.
-To do so, we need to provide both the propensity score model and the outcome model.
+가장 정확한 샌드위치 추정량은 성향 점수 모델을 추정할 때의 불확실성까지 고려하는 것입니다.
+`ipw()` 함수를 통해 이를 수행할 수 있습니다.
+이를 위해 성향 점수 모델과 결과 모델을 모두 제공해야 합니다.
 
 ```{r}
 results <- ipw(propensity_model, weighted_mod)
 results
 ```
 
-We can also collect the results in a data frame.
+결과를 데이터 프레임으로 수집할 수도 있습니다.
 
 ```{r}
 results |> 
   as.data.frame()
 ```
 
-## Binary outcomes: Risk ratio, risk difference, and odds ratio {#sec-binary}
+## 이진 결과: 위험비, 위험 차이, 그리고 오즈비 {#sec-binary}
 
-In the example we've taken up, the outcome, posted wait times, is continuous.
-Using weighted linear regression, the ATE and friends are calculated as a difference in means.
-A difference in means is a valuable effect to estimate, but it's not the only one.
-Let's say we use ATT weights and weight an outcome regression to calculate the relative change in posted wait time.
-The relative change is still a treatment effect among the treated, but it's on a relative scale.
-The important part is that the weights allow us to average over the covariates of the treated for whichever specific estimand we're trying to estimate.
-Sometimes, when people say something like "the average treatment effect," they are talking about a difference in mean outcomes among the whole sample, so it's good to be specific.
+우리가 다룬 예시에서 결과 변수인 게시 대기 시간은 연속형입니다.
+가중 선형 회귀를 사용하면, ATE와 그 일족들은 평균의 차이로 계산됩니다.
+평균 차이는 추정하기에 가치 있는 효과이지만, 유일한 방법은 아닙니다.
+예를 들어 ATT 가중치를 사용하고 결과 회귀에 가중치를 부여하여 게시 대기 시간의 상대적 변화를 계산한다고 합시다.
+상대적 변화는 여전히 처치받은 집단에서의 처치 효과이지만, 상대적 척도 위에 있습니다.
+중요한 점은 가중치를 통해 우리가 추정하고자 하는 특정 추정 대상에 맞춰 처치받은 집단의 공변량들에 대해 평균을 낼 수 있다는 것입니다.
+때때로 사람들이 "평균 처치 효과"라고 말할 때 전체 샘플에서의 평균 결과 차이를 의미하기도 하므로, 구체적으로 명시하는 것이 좋습니다.
 
-<!-- TODO: add example where we discretize outcome and show in code what to do -->
+<!-- TODO: 결과 변수를 이산화하고 코드에서 무엇을 해야 할지 보여주는 예시 추가 -->
 
-For binary outcomes, we have three standard options: the risk ratio, risk difference, and odds ratio.
-In the case of a binary outcome, we calculate average probabilities for each treatment group.
-Let's call these `p_untreated` and `p_treated`.
-When we're working with these probabilities, calculating the risk difference and risk ratio is simple:
+이진 결과의 경우, 우리는 세 가지 표준 옵션을 가집니다: 위험비(risk ratio), 위험 차이(risk difference), 그리고 오즈비(odds ratio).
+이진 결과의 경우, 우리는 각 처치 그룹에 대한 평균 확률을 계산합니다.
+이를 `p_untreated`와 `p_treated`라고 부릅시다.
+이러한 확률들을 다룰 때, 위험 차이와 위험비를 계산하는 것은 간단합니다:
 
--   **Risk difference**: `p_treated - p_untreated`
--   **Risk ratio**: `p_treated / p_untreated`
-
-::: callout-note
-By "risk", we mean the risk of an outcome.
-That assumes the outcome is negative, like developing a disease.
-Sometimes, you'll hear these described as the "response ratio" or "response difference".
-A more general way to think about these is as the difference in or ratio of the probabilities of the outcome.
-:::
-
-The odds for a probability is calculated as `p / (1 - p)`, so the odds ratio is:
-
--   **Odds ratio**: `(p_treated / (1 - p_treated)) /  (p_untreated / (1 - p_untreated))`
-
-When outcomes are rare, `(1 - p)` approaches 1, and odds ratios approximate risk ratios.
-The rarer the outcome, the closer the approximation.
-
-One feature of the logistic regression model is that the coefficients are log-odds ratios, so exponentiating them produces odds ratios.
-However, when using logistic regression, you can also work with predicted probabilities to calculate risk differences and ratios, as we'll see in [Chapter -@sec-g-comp].
-
-Just like with continuous outcomes, we can target each of these estimands for a different subset of the population, e.g., the risk ratio among the untreated, the odds ratio among the evenly matchable, and so on.
-
-These options also extend to categorical outcomes.
-There are different ways of organizing them depending on the nature of the categorical variables.
-An effect that's commonly estimated for non-ordinal categorical variables is a series of odds ratios with one level of the outcome serving as the reference level (e.g., an OR for 1 vs. 2 and 1 vs. 3 and so on).
-Multinomial regression models, such as `nnet::multinom()`, can produce these log-odds ratios as coefficients, an extension of logistic regression.
-For ordinal outcomes, ordinal logistic regression like `MASS::polr()` calculates a series of log-odds ratios that compare each previous value of the outcome.
-Like logistic regression, you are not limited to odds ratios with these extensions, as you can work with the predicted probabilities of each category to calculate the effect you're interested in.
+-   **위험 차이 (Risk difference)**: `p_treated - p_untreated`
+-   **위험비 (Risk ratio)**: `p_treated / p_untreated`
 
 ::: callout-note
-Case-control studies are a typical design in epidemiology where participants are sampled by outcome status [@schlesselman1982case].
-Cases with the outcome are recruited, and controls are sampled from the population from which the cases come.
-These types of studies are used when outcomes are rare.
-They can also be faster and cheaper than studies that follow people from the time of exposure.
-
-Because of how sampling happens in case-control studies, you don't have baseline risk because you don't have all the individuals who did not have the outcome.
-Interestingly, you can still recover the odds ratio.
-When outcomes are rare, odds ratios approximate risk ratios.
-You cannot, however, calculate the risk difference.
+여기서 "위험(risk)"은 결과의 발생 위험을 의미합니다.
+이는 질병 발생과 같이 결과가 부정적인 상황을 가정한 용어입니다.
+때때로 이를 "반응비(response ratio)" 또는 "반응 차이(response difference)"라고 부르기도 합니다.
+더 일반적인 방식은 이를 결과 확률의 차이 또는 비율로 생각하는 것입니다.
 :::
 
-### Absolute and relative measures
+확률에 대한 오즈(odds)는 `p / (1 - p)`로 계산되므로, 오즈비는 다음과 같습니다:
 
-Absolute measures, such as risk differences, and relative measures, such as the risk and odds ratios, offer different perspectives on the treatment effect.
-Depending on the baseline probability of the outcome, absolute and relative measures might lead you to different conclusions.
+-   **오즈비 (Odds ratio)**: `(p_treated / (1 - p_treated)) /  (p_untreated / (1 - p_untrtated))`
 
-Consider a rare outcome with a baseline probability of 0.0001, a rate of 1 event per 10,000 observations.
-That's the probability for the unexposed.
-Let's say the exposed have a probability of the outcome of 0.0008.
-That's 8 times greater than the unexposed, a substantial relative effect.
-But it's only 0.0007 on the absolute scale.
+결과가 희귀할 때 `(1 - p)`는 1에 가까워지며, 오즈비는 위험비에 근사합니다.
+결과가 희귀할수록 이 근사는 더 정확해집니다.
 
-Now, consider a more common outcome with a baseline probability of 0.20.
-The exposed group has a probability of the outcome of 0.40.
-Now, the relative risk is 2, while the risk difference is 0.20.
-Although the relative effect is much smaller, it creates more outcome events because the outcome is more prevalent.
+로지스틱 회귀 모델의 한 가지 특징은 계수가 로그 오즈비(log-odds ratios)라는 점입니다. 따라서 이를 지수화(exponentiating)하면 오즈비가 생성됩니다.
+그러나 로지스틱 회귀를 사용할 때, @sec-g-comp 장에서 보겠지만 예측 확률(predicted probabilities)을 사용하여 위험 차이와 위험비를 계산할 수도 있습니다.
 
-The effect of smoking on health is an excellent example of this.
-As we know, smoking drastically increases the relative risk of lung cancer.
-But lung cancer is a pretty rare disease.
-Smoking also increases the risk of heart disease, although the relative effect is not nearly as high as lung cancer.
-However, heart disease is much more prevalent.
-More people die of smoking-related heart disease than they do of lung cancer because of the absolute change in risk.
-Both the absolute and relative perspectives are valid.
+연속형 결과와 마찬가지로, 이러한 각 추정 대상을 모집단의 다른 하위 집합에 대해 목표로 삼을 수 있습니다. 예를 들어 비노출군에서의 위험비, 균등하게 매칭 가능한 사람들 사이에서의 오즈비 등이 있습니다.
+
+이러한 옵션들은 범주형 결과(categorical outcomes)로도 확장됩니다.
+범주형 변수의 성격에 따라 이를 구성하는 방법은 다양합니다.
+서열이 없는(non-ordinal) 범주형 변수에 대해 흔히 추정되는 효과는 결과의 한 수준을 기준 수준(reference level)으로 삼는 일련의 오즈비들입니다(예: 1 대 2의 OR, 1 대 3의 OR 등).
+다항 로지스틱 회귀 모델(Multinomial regression models), 예를 들어 `nnet::multinom()`은 이러한 로그 오즈비들을 계수로 생성할 수 있으며, 이는 로지스틱 회귀의 확장입니다.
+서열 결과(ordinal outcomes)의 경우, `MASS::polr()`와 같은 서열 로지스틱 회귀는 결과의 각 이전 값과 비교하는 일련의 로그 오즈비들을 계산합니다.
+로지스틱 회귀와 마찬가지로, 이러한 확장 모델에서도 오즈비에만 국한되지 않으며, 각 범주의 예측 확률을 사용하여 관심 있는 효과를 계산할 수 있습니다.
 
 ::: callout-note
-## The number needed to treat
+환자-대조군 연구(Case-control studies)는 역학에서 전형적인 설계 방식으로, 참가자들을 결과 상태(outcome status)에 따라 샘플링합니다 [@schlesselman1982case].
+결과가 발생한 '사례(cases)'를 모집하고, 그 사례들이 나온 인구 집단으로부터 '대조군(controls)'을 샘플링합니다.
+이러한 유형의 연구는 결과가 희귀할 때 사용됩니다.
+또한 노출 시점부터 사람들을 추적하는 연구보다 더 빠르고 저렴할 수 있습니다.
 
-Another perspective on the difference in probabilities is the number needed to treat (NNT) measure.
-It's simply the inverse of the risk difference, and it represents the number of exposed individuals needed to prevent or create one outcome.
-
-Consider a product for sale with a baseline purchase probability of 5%, which means that 5 in 100 people will buy this product.
-A marketing team creates an ad, and those who see the ad have a probability of 7% to buy the product.
-The absolute difference in probabilities of buying the product is 0.02, and so `1 / 0.02 = 50` people need to see the ad to increase the number of purchases by one.
-
-The NNT is an imperfect measure because of its simplicity, but it offers another perspective on what the treatment effect actually means in practice.
+환자-대조군 연구에서의 샘플링 방식 때문에, 결과가 발생하지 않은 모든 개인을 파악할 수 없으므로 기준 위험(baseline risk)을 알 수 없습니다.
+흥미롭게도, 여전히 오즈비는 복구할 수 있습니다.
+결과가 희귀할 때 오즈비는 위험비에 근사합니다.
+그러나 위험 차이는 계산할 수 없습니다.
 :::
 
-### Non-collapsibility {#sec-non-collapse}
+### 절대적 및 상대적 척도
 
-Odds ratios are convenient because of their connection to logistic regression.
-They also have a peculiar quality: they are *non-collapsible*.
-Non-collapsibility means that, when you compare odds ratios in the whole sample (marginal) versus among subgroups (conditional), the marginal odds ratio is not a weighted average of the conditional odds ratio [@Didelez2022; @Greenland2021; @Greenland2021a].
-This is not a property that, for instance, the risk ratio has.
-Let's look at an example.
+위험 차이와 같은 절대적 척도(absolute measures)와 위험비 및 오즈비와 같은 상대적 척도(relative measures)는 처치 효과에 대해 서로 다른 관점을 제공합니다.
+결과의 기준 확률(baseline probability)에 따라, 절대적 척도와 상대적 척도는 서로 다른 결론으로 이끌 수 있습니다.
 
-Say we have an `outcome`, an `exposure`, and a `covariate`.
-`exposure` causes `outcome`, as does `covariate`[^10-estimands-3].
-But `covariate` does not cause `exposure`; it's *not* a confounder.
-In other words, the effect estimate of `exposure` on `outcome` should be the same whether or not we account for `covariate`.
+기준 확률이 0.0001인 희귀한 결과(10,000개 관측치 당 1건 발생)를 생각해 봅시다.
+이것이 비노출군의 확률입니다.
+노출군의 결과 확률이 0.0008이라고 가정해 봅시다.
+이는 비노출군보다 8배 높은 것으로, 상당한 상대적 효과입니다.
+하지만 절대적 척도로 보면 0.0007에 불과합니다.
 
-[^10-estimands-3]: If there were no relationship between `exposure` and `outcome`, the relationship between the two would be null, and the odds ratio would be collapsible regardless of the presence or absence of `covariate`.
+이제 기준 확률이 0.20인 더 흔한 결과를 생각해 봅시다.
+노출군의 결과 확률은 0.40입니다.
+이제 상대 위험도는 2인 반면, 위험 차이는 0.20입니다.
+상대적 효과는 훨씬 작지만, 결과가 더 널리 퍼져 있기 때문에 더 많은 결과 사건을 만들어냅니다.
+
+흡연이 건강에 미치는 영향이 이에 대한 훌륭한 예시입니다.
+우리가 알다시피, 흡연은 폐암의 상대 위험도를 급격히 높입니다.
+하지만 폐암은 꽤 희귀한 질병입니다.
+흡연은 또한 심장병의 위험도 높이는데, 비록 상대적 효과는 폐암만큼 높지 않습니다.
+하지만 심장병은 훨씬 더 흔합니다.
+위험의 절대적 변화 때문에, 폐암으로 사망하는 사람보다 흡연 관련 심장병으로 사망하는 사람이 더 많습니다.
+절대적 관점과 상대적 관점 모두 타당합니다.
+
+::: callout-note
+## 처치 필요 환자 수 (The number needed to treat)
+
+확률 차이에 대한 또 다른 관점은 처치 필요 환자 수(number needed to treat, NNT) 지표입니다.
+이는 단순히 위험 차이의 역수이며, 하나의 결과를 방지하거나 만들어내기 위해 필요한 노출된 개인의 수를 나타냅니다.
+
+기준 구매 확률이 5%인 제품을 생각해 봅시다. 이는 100명 중 5명이 이 제품을 구매한다는 뜻입니다.
+마케팅 팀이 광고를 만들었고, 광고를 본 사람들이 제품을 구매할 확률이 7%가 되었습니다.
+제품 구매 확률의 절대적 차이는 0.02이며, 따라서 구매 횟수를 한 번 늘리기 위해 광고를 봐야 할 사람은 `1 / 0.02 = 50`명입니다.
+
+NNT는 단순함 때문에 완벽한 척도는 아니지만, 처치 효과가 실제로 무엇을 의미하는지에 대해 또 다른 관점을 제공합니다.
+:::
+
+### 비가산성 (Non-collapsibility) {#sec-non-collapse}
+
+오즈비는 로지스틱 회귀와의 연관성 때문에 편리합니다.
+또한 독특한 성질을 가지고 있는데, 바로 **비가산성(non-collapsible)**입니다.
+비가산성은 전체 표본에서의 오즈비(한계 오즈비)와 하위 그룹에서의 오즈비(조건부 오즈비)를 비교할 때, 한계 오즈비가 조건부 오즈비의 가중 평균이 아니라는 것을 의미합니다 [@Didelez2022; @Greenland2021; @Greenland2021a].
+이는 예를 들어 위험비가 가지고 있는 성질이 아닙니다.
+예시를 살펴봅시다.
+
+`outcome`, `exposure`, 그리고 `covariate`가 있다고 합시다.
+`exposure`가 `outcome`을 유발하고, `covariate` 또한 그렇습니다 [^10-estimands-3].
+하지만 `covariate`는 `exposure`를 유발하지 않습니다; 즉, 교란 요인이 *아닙니다*.
+다시 말해, `outcome`에 대한 `exposure`의 효과 추정치는 `covariate`를 고려하든 안 하든 동일해야 합니다.
+
+[^10-estimands-3]: 만약 `exposure`와 `outcome` 사이에 관계가 없다면, 둘 사이의 관계는 무효(null)가 될 것이고, `covariate`의 유무와 상관없이 오즈비는 가산적일 것입니다.
 
 ```{r}
 #| label: fig-dag-nc
@@ -383,7 +384,7 @@ In other words, the effect estimate of `exposure` on `outcome` should be the sam
 #| fig-width: 4
 #| fig-height: 4
 #| fig-align: "center"
-#| fig-cap: "A DAG showing the causal relationship between `outcome`, `exposure`, and `covariate`. `exposure` and `covariate` both cause `outcome`, but there is no relationship between `exposure` and `covariate`. In a logistic regression, the odds ratio for exposure will be non-collapsible over strata of covariate."
+#| fig-cap: "`outcome`, `exposure`, `covariate` 사이의 인과 관계를 보여주는 DAG. `exposure`와 `covariate` 모두 `outcome`을 유발하지만, `exposure`와 `covariate` 사이에는 아무런 관계가 없습니다. 로지스틱 회귀에서 노출에 대한 오즈비는 공변량의 층 전반에 걸쳐 비가산적일 것입니다."
 library(ggdag)
 dagify(
   outcome ~ exposure + covariate,
@@ -394,7 +395,7 @@ dagify(
   theme_dag()
 ```
 
-Let's simulate this.
+이를 시뮬레이션해 봅시다.
 
 ```{r}
 set.seed(123)
@@ -428,78 +429,60 @@ conditional_rr_0 <- risk_ratio(conditional_tables[, , 1])
 conditional_rr_1 <- risk_ratio(conditional_tables[, , 2])
 ```
 
-First, let's look at the relationship between `exposure` and `outcome` among everyone.
+먼저, 모든 사람에 대해 `exposure`와 `outcome` 사이의 관계를 살펴봅시다.
 
 ```{r}
 table(exposure, outcome)
 ```
 
-We can calculate the odds ratio using this frequency table: ((`r marginal_table[2, 2]` \* `r marginal_table[1, 1]`) / (`r marginal_table[1, 2]` \* `r marginal_table[2, 1]`)) = `r marginal_or`.
+이 빈도표를 사용하여 오즈비를 계산할 수 있습니다: ((`r marginal_table[2, 2]` \* `r marginal_table[1, 1]`) / (`r marginal_table[1, 2]` \* `r marginal_table[2, 1]`)) = `r marginal_or`.
 
-This odds ratio is the same result we get with logistic regression when we exponentiate the results.
+이 오즈비는 로지스틱 회귀를 사용하고 결과를 지수화했을 때 얻는 결과와 같습니다.
 
 ```{r}
 glm(outcome ~ exposure, family = binomial()) |>
   broom::tidy(exponentiate = TRUE)
 ```
 
-This is a little off from the simulation model coefficient of `exp(1)`.
-We get closer when we add in `covariate`.
+이는 시뮬레이션 모델 계수인 `exp(1)`에서 약간 벗어나 있습니다.
+우리가 `covariate`를 추가하면 더 가까워집니다.
 
 ```{r}
 glm(outcome ~ exposure + covariate, family = binomial()) |>
   broom::tidy(exponentiate = TRUE)
 ```
 
-`covariate` is not a confounder, so by rights, it shouldn't impact the effect estimate for `exposure`.
-Let's look at the conditional odds ratios by `covariate`.
+`covariate`는 교란 요인이 아니므로, 원칙적으로 `exposure`에 대한 효과 추정치에 영향을 주어서는 안 됩니다. `covariate`에 따른 조건부 오즈비(conditional odds ratios)를 살펴봅시다.
 
 ```{r}
 table(exposure, outcome, covariate)
 ```
 
-The odds ratio for those with `covariate = 0` is `r conditional_or_0`.
-For those with `covariate = 1`, it's `r conditional_or_1`.
-The marginal odds ratio, `r marginal_or`, is smaller than both of these!
+`covariate = 0`인 사람들에 대한 오즈비는 `r conditional_or_0`입니다.
+`covariate = 1`인 사람들에 대한 오즈비는 `r conditional_or_1`입니다.
+한계 오즈비인 `r marginal_or`는 이 두 값 모두보다 작습니다!
 
-The marginal risk ratio is `r marginal_rr`.
-The risk ratio for those with `covariate = 0` is `r conditional_rr_0`.
-For those with `covariate = 1`, it's `r conditional_rr_1`.
-In this case, the marginal risk ratio is a weighted average collapsible over the strata of `covariate` [@Huitfeldt2019].
+한계 위험비(marginal risk ratio)는 `r marginal_rr`입니다.
+`covariate = 0`인 사람들의 위험비는 `r conditional_rr_0`입니다.
+`covariate = 1`인 사람들의 위험비는 `r conditional_rr_1`입니다.
+이 경우, 한계 위험비는 `covariate`의 층(strata) 전반에 걸쳐 가산적(collapsible)인 가중 평균입니다 [@Huitfeldt2019].
 
-It's tempting to think you need to include `covariate` since the odds ratio changes when you add it in, and it's closer to the model coefficient from the simulation.
-An important detail here is that non-collapsibility is *not* bias.
-Some authors describe it as omitted variable bias, but the marginal and conditional odds ratios are both correct because `covariate` is not a confounder.
-They are simply different estimands.
-The conditional odds ratio is the OR conditional on `covariate`.
-To meaningfully compare it to other odds ratios, those also need to condition on `covariate`.
-Non-collapsibility is a numerical property of odds; rather than creating bias, it creates a slightly more nuanced interpretation.
-The exact way non-collapsibility behaves also depends on whether the data-generating mechanism occurs on the additive or multiplicative scale; on the multiplicative scale (as in our simulation), removing a variable strongly related to the outcome changes the effect estimate, while on the additive scale, adding a variable strongly related to the outcome changes the effect, albeit on a smaller scale [@Whitcomb2021].
-Instead of worrying about which version of the odds ratio is right, we recommend focusing on confounders, which are necessary for unbiased estimates, and predictors of the outcome, which are helpful for variance reduction.
+`covariate`를 추가했을 때 오즈비가 변하고 시뮬레이션의 모델 계수에 더 가까워지기 때문에 이를 반드시 포함해야 한다고 생각하기 쉽습니다. 여기서 중요한 세부 사항은 비가산성(non-collapsibility)이 *편향*이 아니라는 점입니다. 일부 저자들은 이를 누락 변수 편향(omitted variable bias)으로 설명하기도 하지만, `covariate`가 교란 요인이 아니기 때문에 한계 오즈비와 조건부 오즈비는 둘 다 옳습니다. 그들은 단순히 서로 다른 추정 대상일 뿐입니다. 조건부 오즈비는 `covariate`에 조건부화된 오즈비입니다. 이를 다른 오즈비와 유의미하게 비교하려면, 그 오즈비들도 `covariate`에 조건부화되어야 합니다. 비가산성은 오즈(odds)의 수치적 속성입니다; 그것은 편향을 만들기보다는 조금 더 미묘한 해석을 필요로 하게 만듭니다. 비가산성이 정확히 어떻게 작동하는지는 데이터 생성 메커니즘이 가산적(additive) 척도에서 일어나는지 아니면 승법적(multiplicative) 척도에서 일어나는지에 따라서도 달라집니다; 승법적 척도에서는(우리의 시뮬레이션처럼) 결과와 강하게 관련된 변수를 제거하면 효과 추정치가 변하는 반면, 가산적 척도에서는 결과와 강하게 관련된 변수를 추가하면 비록 그 정도는 작지만 효과가 변합니다 [@Whitcomb2021]. 어떤 버전의 오즈비가 맞는지 걱정하기보다는, 편향되지 않은 추정치를 위해 필수적인 교란 요인들과 분산 감소에 도움이 되는 결과의 예측 요인들에 집중할 것을 권장합니다.
 
-Much ink has been spilled about the odds ratio versus the risk ratio and the relative versus absolute scale.
-We suggest that, for binary outcomes, you present all three measures (the odds ratio, the risk ratio, and the risk difference) together with the baseline probability of the outcome.
-Each offers a different perspective on the causal effect.
-Be careful to interpret them with regard to the treatment group that you've included in your estimate.
-For example, the average risk difference calculated with ATT weights is the average risk difference among the treated.
+오즈비 대 위험비, 그리고 상대적 척도 대 절대적 척도에 대해 많은 논의가 있어 왔습니다. 우리는 이진 결과에 대해 오즈비, 위험비, 그리고 위험 차이의 세 가지 측정치를 결과의 기준 확률과 함께 모두 제시할 것을 제안합니다. 각각은 인과 효과에 대해 서로 다른 관점을 제공합니다. 여러분이 추정치에 포함한 처치 그룹과 관련하여 이들을 해석하도록 주의하십시오. 예를 들어, ATT 가중치로 계산된 평균 위험 차이는 처치군에서의 평균 위험 차이입니다.
 
 ::: callout-note
-## The linear probability model
+## 선형 확률 모델 (The linear probability model)
 
-The linear probability model is another common way to estimate treatment effects for binary outcomes.
-The linear probability model is standard in econometrics and other fields.
-It's just OLS, although researchers often use a robust standard error because of heterogeneity in the variance of the residuals.
-The result is the risk difference, a collapsible measure.
+선형 확률 모델(linear probability model)은 이진 결과에 대한 처치 효과를 추정하는 또 다른 흔한 방법입니다. 선형 확률 모델은 계량경제학 및 다른 분야에서 표준적으로 사용됩니다. 그것은 단지 OLS일 뿐이지만, 잔차의 분산에 이질성(heterogeneity)이 있기 때문에 연구자들은 종종 로버스트 표준 오차를 사용합니다. 결과는 가산적 측정치인 위험 차이입니다.
 
 ```{r}
 lm(outcome ~ exposure)
 ```
 
-<!-- TODO: add where to get robust variance (estimatr, marginaleffects) -->
+<!-- TODO: 로버스트 분산을 얻을 수 있는 곳(estimatr, marginaleffects) 추가 -->
 
-The linear probability model is a handy way to model the relationship on the additive scale.
-However, it comes with a significant hiccup: logistic regression is bounded by 0 and 1, while OLS is not.
-That means that individual predictions may be less than 0 or more than 1, impossible values for probabilities.
+선형 확률 모델은 가산적 척도에서 관계를 모델링하는 편리한 방법입니다. 하지만 중대한 문제점이 하나 있습니다: 로지스틱 회귀는 0과 1 사이로 제한되지만, OLS는 그렇지 않다는 점입니다. 즉, 개별 예측값이 0보다 작거나 1보다 클 수 있는데, 이는 확률로서는 불가능한 값입니다.
 
-We'll see an alternative method for calculating risk differences with logistic regression in [Chapter -@sec-g-comp].
+우리는 [Chapter -@sec-g-comp] 에서 로지스틱 회귀를 사용하여 위험 차이를 계산하는 대안적인 방법을 살펴볼 것입니다.
 :::

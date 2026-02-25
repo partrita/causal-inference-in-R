@@ -8,14 +8,14 @@
 status("unstarted")
 ```
 
-> "Circumstantial evidence is a very tricky thing. It may seem to point very straight to one thing, but if you shift your own point of view a little, you may find it pointing in an equally uncompromising manner to something entirely different” --- Sherlock Holmes
+> "정황 증거는 매우 까다로운 것입니다. 그것은 한 가지를 매우 분명하게 가리키는 것처럼 보일 수 있지만, 관점을 조금만 바꾸면 전혀 다른 것을 가리키고 있음을 발견하게 될 수도 있습니다." --- 셜록 홈즈 (Sherlock Holmes)
 
-## Triangulation
+## 삼각 측량 (Triangulation)
 
 ```{r}
 rnorm(5)
 ```
 
-## Generalization and transportability
+## 일반화 가능성과 운송 가능성 (Generalization and transportability)
 
-## Ragged evidence
+## 불완전한 근거 (Ragged evidence)

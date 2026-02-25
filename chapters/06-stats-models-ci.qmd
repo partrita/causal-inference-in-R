@@ -8,29 +8,29 @@
 status("complete")
 ```
 
-Let's finally turn our attention to methods for answering causal questions, the subject of most of the rest of the book.
-Potential outcomes, counterfactuals, and DAGs allow us to establish the conditions under which we can estimate causal effects.
-Now, we need tools to estimate them.
-This chapter is a transition point as we explore models to make causal inference more feasible.
+마지막으로, 이 책의 나머지 부분 대부분의 주제인 인과적 질문에 답하는 방법으로 관심을 돌려보겠습니다.
+잠재적 결과, 반사실, 그리고 DAG를 통해 우리는 인과 효과를 추정할 수 있는 조건을 설정할 수 있었습니다.
+이제 이를 추정하기 위한 도구가 필요합니다.
+이 장은 인과 추론을 더 실행 가능하게 만드는 모델들을 탐구하는 전환점입니다.
 
-But let's begin with no model at all.
+하지만 모델을 전혀 사용하지 않는 것부터 시작해 봅시다.
 
-## Causal inference with `group_by()` and `summarize()` {#sec-group-sum}
+## `group_by()`와 `summarize()`를 이용한 인과 추론 {#sec-group-sum}
 
-Let's suppose we are analyzing data from a company that creates software.
-We are trying to estimate the causal effect of software update frequency on customer satisfaction (measured as a standardized score with a population mean of 0 and standard deviation of 1).
-The customers are organizations that have individual users, and the organization as a whole receives either weekly or daily updates.
-Update frequency is not randomized, and, as shown in @fig-satisfaction-dag1, the exposure and outcome have a mutual cause---a confounder---customer type.
-Free customers are more likely to receive weekly updates, while premium customers are more likely to receive daily updates.
-Premium customers are more likely to have higher satisfaction.
-Even though there is no relationship between the exposure and outcome, we expect confounding from the open backdoor path between `updates` and `satisfaction` via `customer_type`.
-We have confounding by a **single binary confounder**.
+우리가 소프트웨어를 만드는 회사의 데이터를 분석하고 있다고 가정해 봅시다.
+우리는 소프트웨어 업데이트 빈도가 고객 만족도(모집단 평균 0, 표준 편차 1인 표준화된 점수로 측정됨)에 미치는 인과 효과를 추정하려고 합니다.
+고객은 개별 사용자를 보유한 조직이며, 조직 전체가 주간 또는 일간 업데이트를 받습니다.
+업데이트 빈도는 무작위로 배정되지 않았으며, @fig-satisfaction-dag1 에 나타난 것처럼 노출과 결과는 공동의 원인인 교란 요인 — 고객 유형 — 을 가지고 있습니다.
+무료 고객은 주간 업데이트를 받을 가능성이 더 높고, 프리미엄 고객은 일간 업데이트를 받을 가능성이 더 높습니다.
+프리미엄 고객은 만족도가 더 높을 가능성이 큽니다.
+노출과 결과 사이에 직접적인 관계가 없더라도, `customer_type`을 통한 `updates`와 `satisfaction` 사이의 열린 백도어 경로(backdoor path)로 인해 교란이 예상됩니다.
+우리는 **단일 이진 교란 요인(single binary confounder)**에 의한 교란 상황에 놓여 있습니다.
 
 ```{r}
 #| label: fig-satisfaction-dag1
 #| code-fold: true
 #| warning: false
-#| fig-cap: "A causal diagram of the relationship between frequency of software updates and customer satisfaction. Frequency of updates does not cause customer satisfaction, and the relationship is confounded by their mutual cause, customer type."
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 사이의 관계를 나타낸 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 그 관계는 그들의 공동 원인인 고객 유형에 의해 교란됩니다."
 
 library(ggdag)
 
@@ -44,9 +44,9 @@ dag1 <- dagify(
   updates ~ customer_type,
   coords = coords1,
   labels = c(
-    customer_type = "customer type",
-    updates = "frequency\nof updates",
-    satisfaction = "customer\nsatisfaction"
+    customer_type = "고객 유형",
+    updates = "업데이트\n빈도",
+    satisfaction = "고객\n만족도"
   )
 )
 
@@ -57,37 +57,35 @@ ggdag(dag1, use_text = FALSE, use_edges = FALSE) +
   ylim(c(.2, -.2))
 ```
 
-Let's simulate some data that matches this data-generating process.
-In this simulation, we generate the potential outcomes for `satisfaction(weekly)` and `satisfaction(daily)`.
-Many of the simulations in this book skip this step and simulate the observed outcomes directly; however, as we transition into answering causal questions, it's helpful to remember what assumptions we need to meet in order to make inferences.
+이 데이터 생성 프로세스와 일치하는 몇 가지 데이터를 시뮬레이션해 봅시다.
+이 시뮬레이션에서는 `satisfaction(weekly)`와 `satisfaction(daily)`에 대한 잠재적 결과를 생성합니다.
+이 책의 많은 시뮬레이션은 이 단계를 건너뛰고 관찰된 결과를 직접 시뮬레이션하지만, 인과적 질문에 답하는 단계로 넘어가면서 추론을 하기 위해 어떤 가정을 충족해야 하는지 기억하는 것이 도움이 됩니다.
 
 ```{r}
+library(tidyverse)
 set.seed(1)
 n <- 10000
 satisfaction1 <- tibble(
-  # Free (0) or Premium (1)
+  # 무료 (0) 또는 프리미엄 (1)
   customer_type = rbinom(n, 1, 0.5),
   p_exposure = case_when(
-    # Premium customers are more likely to receive daily updates
+    # 프리미엄 고객은 일간 업데이트를 받을 가능성이 더 높음
     customer_type == 1 ~ 0.75,
-    # Free customers are more likely to receive weekly updates
+    # 무료 고객은 주간 업데이트를 받을 가능성이 더 높음
     customer_type == 0 ~ 0.25
   ),
-  # Weekly (0) vs Daily (1)
+  # 주간 (0) vs 일간 (1)
   update_frequency = rbinom(n, 1, p_exposure),
-  # generate the "true" average treatment effect of 0
-  # to do this, we are going to generate the
-  # potential outcomes, first if exposure = 0
+  # 0인 진정한 평균 처치 효과 생성
+  # 이를 위해 잠재적 결과 생성, 먼저 노출 = 0인 경우
   # `y0` = `satisfaction(weekly)`
-  # notice `update_frequency` is not in the equation below
-  # we use rnorm(n) to add the random error term that is normally
-  # distributed with a mean of 0 and a standard deviation of 1
+  # 아래 방정식에 `update_frequency`가 포함되지 않았음에 주목하십시오
+  # 평균 0, 표준 편차 1인 정규 분포를 따르는 무작위 오차항을
+  # 추가하기 위해 rnorm(n)을 사용합니다
   y0 = customer_type + rnorm(n),
-  # because the true effect is 0, the potential outcome
-  # if exposure = 1 is identical
+  # 진정한 효과가 0이므로, 노출 = 1인 경우의 잠재적 결과도 동일함
   y1 = y0,
-  # in practice, we will only see one of these
-  # observed
+  # 실무에서는 이들 중 하나만 관찰함
   satisfaction = (1 - update_frequency) * y0 +
     update_frequency * y1,
   observed_potential_outcome = case_when(
@@ -113,7 +111,7 @@ satisfaction1 |>
   select(update_frequency, customer_type, satisfaction)
 ```
 
-Now, let's try to estimate the effect of the `update_frequency` on the `satisfaction`, assuming the two exposed groups are exchangeable.
+이제 두 노출 그룹이 교환 가능하다고 가정하고, `update_frequency`가 `satisfaction`에 미치는 효과를 추정해 봅시다.
 
 ```{r}
 #| message: false
@@ -123,11 +121,11 @@ satisfaction1 |>
   summarise(avg_satisfaction = mean(satisfaction))
 ```
 
-Of course, from the DAG and how we simulated the potential outcomes, we know that the two groups are not exchangeable.
-The true difference between the update frequency groups is 0, but there is a difference in average satisfaction between them.
-As discussed in @sec-counterfactuals, though, we still have another option: exchangability within the levels of the confounders.
-Put another way, we need exchangeability within levels of a valid adjustment set.
-In this case, there is only one such set: `customer_type`.
+물론 DAG와 잠재적 결과를 시뮬레이션한 방식을 통해, 우리는 두 그룹이 교환 가능하지 않다는 것을 알고 있습니다.
+업데이트 빈도 그룹 간의 실제 차이는 0이지만, 평균 만족도에는 차이가 나타납니다.
+하지만 @sec-counterfactuals 에서 논의했듯이, 우리에게는 여전히 다른 선택지가 있습니다: 교란 요인의 수준 내에서의 교환 가능성입니다.
+다시 말해, 유효한 조정 집합의 수준 내에서 교환 가능성이 필요합니다.
+이 경우 그러한 집합은 오직 하나, `customer_type`뿐입니다.
 
 ```{r}
 #| message: false
@@ -142,8 +140,8 @@ satisfaction_strat <- satisfaction1 |>
 satisfaction_strat
 ```
 
-Let's do a little wrangling to estimate the effect of update frequency on satisfaction within customer type levels.
-Now, we're much closer to the right answer: within levels of customer type, there is no difference in satisfaction by update frequency.
+고객 유형 수준 내에서 업데이트 빈도가 만족도에 미치는 효과를 추정하기 위해 데이터를 약간 가공해 봅시다.
+이제 정답에 훨씬 더 가까워졌습니다: 고객 유형 수준 내에서는 업데이트 빈도에 따른 만족도 차이가 없습니다.
 
 ```{r}
 #| message: false
@@ -159,36 +157,54 @@ satisfaction_strat_est <- satisfaction_strat |>
 satisfaction_strat_est
 ```
 
-We can now take the overall average, giving us an effect close to 0.
+우리는 각 고객 유형에 대해 정답(0)에 매우 가까운 두 가지 추정치를 얻었습니다.
+그렇다면 전체 모집단에 대한 단일 추정치를 얻으려면 어떻게 해야 할까요?
+각 층(stratum)의 추정치를 전체 모집단에서 각 고객 유형이 차지하는 비중에 따라 가중 평균을 내면 됩니다.
+무료 고객은 `r scales::percent(mean(satisfaction1$customer_type == "free"))`이고 프리미엄 고객은 `r scales::percent(mean(satisfaction1$customer_type == "premium"))`이므로 다음과 같이 계산합니다:
 
 ```{r}
 satisfaction_strat_est |>
-  # note: we would need to weight this if the confounder
-  # groups were not equally sized
+  summarise(
+    ate =
+      estimate[1] * mean(satisfaction1$customer_type == "free") +
+        estimate[2] * mean(satisfaction1$customer_type == "premium")
+  )
+```
+
+우리는 방금 전체 모집단에 대한 편향되지 않은 추정치를 계산했습니다.
+우리가 한 일은 각 층(무료 및 프리미엄 고객) 내에서 효과를 추정한 다음, 이를 전체 모집단 분포에 맞게 다시 합친 것입니다.
+이것이 바로 이 책의 나머지 부분에서 논의할 기술들의 핵심 원리입니다.
+
+이제 전체 평균을 낼 수 있으며, 0에 가까운 효과를 얻게 됩니다.
+
+```{r}
+satisfaction_strat_est |>
+  # 참고: 교란 요인 그룹들의 크기가 동일하지 않다면
+  # 여기에 가중치를 부여해야 합니다
   summarise(estimate = mean(estimate))
 ```
 
-Now, let's consider this approach with **two binary confounders**.
-Let's assume that there was a second confounder: whether or not it was business hours.
-Weekly updates have a higher chance of occurring within business hours, while daily updates have a higher chance of occurring after business hours.
-Some customers overlap well with the company's business hours, while some don't; those who don't have lower satisfaction due to the unavailability of customer service during their work hours.
+이제 이 접근 방식을 **두 개의 이진 교란 요인**이 있는 경우로 생각해 봅시다.
+두 번째 교란 요인이 있다고 가정해 봅시다: 업무 시간(business hours) 여부입니다.
+주간 업데이트는 업무 시간 내에 발생할 확률이 더 높고, 일간 업데이트는 업무 시간 이후에 발생할 확률이 더 높습니다.
+어떤 고객들은 회사의 업무 시간과 잘 겹치지만 어떤 고객들은 그렇지 않습니다; 겹치지 않는 고객들은 자신의 근무 시간 동안 고객 서비스(customer service)를 이용할 수 없기 때문에 만족도가 더 낮습니다.
 
 ```{r}
 #| label: fig-satisfaction-dag2
 #| code-fold: true
 #| warning: false
-#| fig-cap: "A causal diagram of the relationship between frequency of software updates and customer satisfaction. The frequency of updates does not cause customer satisfaction, and the relationship is confounded by their mutual causes, customer type, and business hours. The effect of business hours on customer satisfaction is entirely mediated by availability of customer service."
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 사이의 관계를 나타낸 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 그 관계는 공동 원인인 고객 유형과 업무 시간에 의해 교란됩니다. 업무 시간이 고객 만족도에 미치는 효과는 전적으로 고객 서비스 이용 가능성에 의해 매개됩니다."
 dag2 <- dagify(
   satisfaction ~ customer_service + customer_type,
   customer_service ~ business_hours,
   updates ~ customer_type + business_hours,
   coords = time_ordered_coords(),
   labels = c(
-    customer_type = "customer\ntype",
-    business_hours = "business\nhours",
-    updates = "frequency\nof updates",
-    customer_service = "customer\nservice",
-    satisfaction = "customer\nsatisfaction"
+    customer_type = "고객\n유형",
+    business_hours = "업무\n시간",
+    updates = "업데이트\n빈도",
+    customer_service = "고객\n서비스",
+    satisfaction = "고객\n만족도"
   )
 )
 
@@ -201,13 +217,13 @@ ggdag(dag2, use_text = FALSE) +
   theme_dag()
 ```
 
-Let's simulate this data:
+이 데이터를 시뮬레이션해 봅시다:
 
 ```{r}
 satisfaction2 <- tibble(
-  # Free (0) or Premium (1)
+  # 무료(0) 또는 프리미엄(1)
   customer_type = rbinom(n, 1, 0.5),
-  # Business hours (Yes: 1, No: 0)
+  # 업무 시간 (예: 1, 아니오: 0)
   business_hours = rbinom(n, 1, 0.5),
   p_exposure = case_when(
     customer_type == 1 & business_hours == 1 ~ 0.75,
@@ -215,9 +231,9 @@ satisfaction2 <- tibble(
     customer_type == 1 & business_hours == 0 ~ 0.2,
     customer_type == 0 & business_hours == 0 ~ 0.1
   ),
-  # Weekly (0) vs Daily (1)
+  # 주간(0) 대 일간(1)
   update_frequency = rbinom(n, 1, p_exposure),
-  # More likely during business hours
+  # 업무 시간 동안 이용 가능성이 더 높음
   customer_service_prob = business_hours * 0.9 +
     (1 - business_hours) * 0.2,
   customer_service = rbinom(n, 1, prob = customer_service_prob),
@@ -245,11 +261,11 @@ satisfaction2 <- tibble(
   )
 ```
 
-We now need exchangeability within levels two confounders.
-In this case, we have two minimal adjustment sets: `customer_type + business_hours` and `customer_type + customer_service`.
-Let's look at each.
+이제 우리는 두 개의 교란 요인 수준 내에서 교환 가능성이 필요합니다.
+이 경우, 우리는 두 개의 최소 조정 집합을 갖습니다: `customer_type + business_hours`와 `customer_type + customer_service`입니다.
+각각을 살펴보겠습니다.
 
-Within combinations of `customer_type` and `business_hours`, the update frequency groups are very close.
+`customer_type`과 `business_hours`의 조합 내에서, 업데이트 빈도 그룹들은 매우 유사합니다.
 
 ```{r}
 #| message: false
@@ -265,7 +281,7 @@ satisfaction2_strat |>
   select(avg_satisfaction, everything())
 ```
 
-With a little more wrangling than before, we can calculate the overall estimate.
+이전보다 약간 더 많은 데이터 조작을 거쳐, 전체 추정치를 계산할 수 있습니다.
 
 ```{r}
 satisfaction2_strat |>
@@ -276,8 +292,8 @@ satisfaction2_strat |>
   summarise(estimate = mean(daily - weekly))
 ```
 
-We can also achieve conditional exchangeability within levels of `customer_type` and `customer_service`.
-The answers are slightly different because of chance differences between the variables we've chosen to account for, but we get close to null for both approaches.
+우리는 또한 `customer_type`과 `customer_service` 수준 내에서도 조건부 교환 가능성을 달성할 수 있습니다.
+우리가 고려하기로 선택한 변수들 사이의 우연한 차이 때문에 결과는 약간 다르지만, 두 접근 방식 모두 거의 무효(null)에 가까운 값을 얻습니다.
 
 ```{r}
 #| message: false
@@ -295,16 +311,16 @@ satisfaction2 |>
   summarise(estimate = mean(daily - weekly))
 ```
 
-As long as we have enough data, this approach extends nicely with many confounders, including categorical confounders.
-What about a **continuous confounder**?
+데이터가 충분하다면, 이 접근 방식은 범주형 교란 요인을 포함하여 많은 교란 요인이 있는 경우로 잘 확장됩니다.
+그렇다면 **연속형 교란 요인**은 어떨까요?
 
-Instead of the binary confounders, let's say we have one continuous confounder: the number of users within the organization, as in @fig-satisfaction-dag3.
+이진 교란 요인 대신, @fig-satisfaction-dag3 와 같이 조직 내 사용자 수라는 하나의 연속형 교란 요인이 있다고 가정해 봅시다.
 
 ```{r}
 #| label: fig-satisfaction-dag3
 #| code-fold: true
 #| warning: false
-#| fig-cap: "A causal diagram of the relationship between frequency of software updates and customer satisfaction. Frequency of updates does not cause customer satisfaction, and the relationship is confounded by their mutual cause, number of users per customer."
+#| fig-cap: "소프트웨어 업데이트 빈도와 고객 만족도 사이의 관계를 나타낸 인과 다이어그램. 업데이트 빈도는 고객 만족도를 유발하지 않으며, 그 관계는 공동 원인인 고객당 사용자 수에 의해 교란됩니다."
 
 coords3 <- list(
   x = c(num_users = 1, updates = 2, satisfaction = 3),
@@ -316,9 +332,9 @@ dag3 <- dagify(
   updates ~ num_users,
   coords = coords3,
   labels = c(
-    num_users = "number of\nusers",
-    updates = "frequency\nof updates",
-    satisfaction = "customer\nsatisfaction"
+    num_users = "사용자 수",
+    updates = "업데이트\n빈도",
+    satisfaction = "고객\n만족도"
   )
 )
 
@@ -329,15 +345,15 @@ ggdag(dag3, use_text = FALSE, use_edges = FALSE) +
   ylim(c(.2, -.2))
 ```
 
-Organizations with more users get more updates and have slightly lower satisfaction scores.
+사용자가 많은 조직은 업데이트를 더 많이 받고 만족도 점수는 약간 낮습니다.
 
 ```{r}
 satisfaction3 <- tibble(
-  # Number of users
+  # 사용자 수
   num_users = runif(n, min = 1, max = 500),
-  # Larger customers more likely to have daily updates
+  # 큰 고객일수록 일간 업데이트를 받을 확률이 높음
   update_frequency = rbinom(n, 1, plogis(num_users / 100)),
-  # with more users come less satisfaction
+  # 사용자가 많을수록 만족도는 낮아짐
   satisfaction = 70 + -0.2 * num_users + rnorm(n)
 ) |>
   mutate(
@@ -349,7 +365,7 @@ satisfaction3 <- tibble(
   )
 ```
 
-If we still want to use `group_by` and `summarize()`, we could bin the continuous confounder, for example, using its quintiles, and estimate the causal effect within each bin:
+여전히 `group_by()`와 `summarize()`를 사용하고 싶다면, 연속형 교란 요인을 구간(bin)으로 나눌 수 있습니다. 예를 들어 5분위수(quintiles)를 사용하여 각 구간 내에서 인과 효과를 추정하는 것입니다:
 
 ```{r}
 #| message: false
@@ -365,8 +381,8 @@ satisfaction3_strat <- satisfaction3 |>
 satisfaction3_strat
 ```
 
-We get around the correct answer within binned levels of users.
-Let's get the overall mean:
+나누어진 사용자 수준 내에서 정답에 근접한 값을 얻습니다.
+전체 평균을 구해 봅시다:
 
 ```{r}
 #| message: false
@@ -380,13 +396,13 @@ satisfaction3_strat |>
   summarise(estimate = mean(daily - weekly))
 ```
 
-As opposed to binary and categorical confounders, grouping by bins for continuous confounders does not completely account for the variable; the coarser the bins, the more residual confounding there will be, and the finer the bins, the closer we'll get to the continuous version (but the fewer values we'll have per bin, see @tip-bins).
+이진 또는 범주형 교란 요인과 달리, 연속형 교란 요인을 구간으로 나누어 그룹화하는 것은 해당 변수를 완전히 통제하지 못합니다. 구간이 거칠수록 잔차 교란(residual confounding)이 더 많이 남게 되며, 구간이 세밀할수록 연속형 버전에 더 가까워집니다(하지만 구간당 값의 수는 적어집니다. @tip-bins 를 참조하십시오).
 
 ::: {#tip-bins .callout-tip}
 
-## What would happen if we change the number of bins?
+## 구간(bins)의 수를 바꾸면 어떤 일이 일어날까요?
 
-Let's see what happens if we increase the number of bins. In the figure below, we've changed the number of bins from 5 in the example in the text to range from 3 to 20. Notice as we increase the number of bins the bias decreases. 
+구간의 수를 늘리면 어떻게 되는지 살펴봅시다. 아래 그림에서 우리는 구간의 수를 텍스트 예시의 5개에서 3개에서 20개 사이로 변경해 보았습니다. 구간의 수가 늘어날수록 편향이 감소하는 것을 확인할 수 있습니다. 
 
 ```{r}
 #| code-fold: true
@@ -417,7 +433,7 @@ map(3:20, update_bins) |>
   labs(y = "Bias", x = "Number of bins")
 ```
 
-For example, looking at the output below we see that the estimate is much closer to the truth (0) when we have 20 bins compared to 5. 
+예를 들어, 아래의 출력을 보면 구간이 5개일 때보다 20개일 때 추정치가 실제값(0)에 훨씬 더 가깝다는 것을 알 수 있습니다.
 
 ```{r}
 satisfaction3 |>
@@ -435,7 +451,7 @@ satisfaction3 |>
   summarise(estimate = mean(daily - weekly))
 ```
 
-As with many good things, however, there is a limit to the utility of increasing the number of bins. For example, let's see what happens if we try to have 30 bins. 
+하지만 모든 좋은 일에는 한계가 있듯이, 구간의 수를 늘리는 데에도 한계가 있습니다. 예를 들어 구간을 30개로 늘리면 어떤 일이 일어나는지 봅시다.
 
 ```{r}
 satisfaction3 |>
@@ -453,28 +469,26 @@ satisfaction3 |>
   summarise(estimate = mean(daily - weekly))
 ```
 
-The estimate is `NA` because some of our bins didn't have anyone in one of the exposure groups, making their difference inestimable. Now, this analysis violates our *positivity* assumption. This is a stochastic violation; it has to do with our sample size, `r scales::comma(n)`, and the number of bins, 30. By chance, we ended up with at least one of the 30 bins without anyone in one of the exposure groups, making our causal effect inestimable. This non-parametric method, while flexible, has limitations due to the sample size. Parametric models are useful because they allow us to extrapolate under certain assumptions, which makes them more efficient (assuming our assumptions are true, let's learn more in @sec-parametric). 
+추정치가 `NA`인 이유는 일부 구간에서 노출 그룹 중 하나에 속한 사람이 아무도 없어서 그 차이를 추정할 수 없기 때문입니다. 이제 이 분석은 우리의 **긍정성(positivity)** 가정을 위배합니다. 이는 확률적(stochastic) 위배입니다; 이는 우리의 표본 크기 `r scales::comma(n)` 및 구간의 수 30개와 관련이 있습니다. 우연히 30개 구간 중 적어도 하나에서 노출 그룹 중 하나에 아무도 속하지 않게 되었고, 이로 인해 인과 효과를 추정할 수 없게 된 것입니다. 이 비모수적 방법은 유연하지만 표본 크기에 따른 한계가 있습니다. 모수적 모델(parametric models)은 특정 가정 하에 외삽(extrapolate)을 가능하게 해주므로 더 효율적이라는 장점이 있습니다(우리의 가정이 옳다는 전제 하에 말이죠. @sec-parametric 에서 더 자세히 배워봅시다). 
 
 
 :::
 
-The approach we've been using with `group_by()` and `summarize()` is often called **stratification**.
-You can also think of it as a type of non-parametric approach.
-We aren't using any parameterization from a statistical model to restrict the form of the variables the way we might with, say, a linear regression.
-(This is only partially true for continuous confounders because it's not practical to stratify by all values of the continuous variable).
+`group_by()`와 `summarize()`를 사용하여 수행해 온 이 접근 방식은 흔히 **층화(stratification)**라고 불립니다.
+여러분은 이를 일종의 비모수적 접근 방식으로 생각할 수도 있습니다.
+우리는 선형 회귀와 같이 변수의 형태를 제한하기 위해 통계 모델의 어떠한 매개변수화(parameterization)도 사용하지 않기 때문입니다.
+(이것은 연속형 교란 요인에 대해서는 부분적으로만 사실입니다. 연속형 변수의 모든 값에 대해 층화하는 것은 실질적으로 불가능하기 때문입니다).
 
+층화는 간단한 문제나 데이터가 아주 많을 때 모델 오명시(model misspecification) 문제를 피할 수 있기 때문에 강력한 도구가 될 수 있습니다.
+그러나 교란 요인이 많아지면(특히 연속형 변수일 때), 우리는 금세 '차원의 저주(curse of dimensionality)'에 직면하게 되며, 교란 요인 수준의 조합별로 관측치가 너무 적어 실질적으로 사용하기 불가능해집니다.
 
+## 모수적 결과 모델 (Parametric outcome models) {#sec-parametric}
 
-Stratification can be powerful for simple problems or when you have lots of data because you can sometimes avoid model misspecification problems.
-However, with many confounders (especially continuous ones), we quickly encounter the curse of dimensionality, making it impractical because we have too few observations by combinations of confounder levels.
-
-## Parametric outcome models {#sec-parametric}
-
-You can think of stratification as calculating conditional means.
-A more general extension of conditional means is multivariable linear regression.
-When we fit `lm()` with the variables in the form `outcome ~ exposure + confounder1 + confounder2 + ...`, we are fitting what we call an **outcome model**, so called because we fit the exposure and confounders with the outcome as the dependent variable.
-This is also sometimes called **direct adjustment** or **regression adjustment** because we adjust for the confounders directly in the regression model.
-Let's use `lm()` to calculate the effect in our example with two binary confounders:
+층화를 조건부 평균(conditional means)을 계산하는 것으로 생각할 수 있습니다.
+조건부 평균의 더 일반적인 확장은 다변량 선형 회귀입니다.
+우리가 `outcome ~ exposure + confounder1 + confounder2 + ...` 형태의 변수들로 `lm()`을 적합시킬 때, 우리는 이를 **결과 모델(outcome model)**이라고 부릅니다. 노출과 교란 요인들을 포함하여 결과를 종속 변수로 하여 모델을 적합시키기 때문입니다.
+이는 또한 회귀 모델에서 교란 요인들을 직접 조정하기 때문에 **직접 조정(direct adjustment)** 또는 **회귀 조정(regression adjustment)**이라고 불리기도 합니다.
+두 개의 이진 교란 요인이 있는 예시에서 `lm()`을 사용하여 효과를 계산해 봅시다:
 
 ```{r}
 library(broom)
@@ -487,7 +501,7 @@ lm(
   select(estimate, starts_with("conf"))
 ```
 
-It also works well for continuous confounders, as we no longer need to bin it to get the correct answer:
+연속형 교란 요인에 대해서도 잘 작동하며, 더 이상 정답을 얻기 위해 이를 구간으로 나눌 필요가 없습니다:
 
 ```{r}
 lm(
@@ -499,27 +513,27 @@ lm(
   select(estimate, starts_with("conf"))
 ```
 
-This generalization doesn't come for free, though: we've now introduced a parametric statistical model to make estimates across the sparse regions of our data.
-The estimate we get for `satisfaction ~ update_frequency + num_users` gives us exactly the right answer because the statistical model underlying `lm()` perfectly matches our simulation.
-For example, the relationship between `satisfaction` and `num_users` is linear, so when we fit this model, we don't suffer from the problem of dimensionality (although linear regression has its own limits in terms of the number of rows and columns).
-In other words, we're now dependent on the correct **functional form**, the mathematical representation of the relationship between variables in a model (See @tip-functional-form for more details).
-We need the correct functional form for both the exposure and the confounders.
-Modeling this well requires an understanding of the nature of the relationship between these variables and the outcome.
+하지만 이러한 일반화가 공짜로 얻어지는 것은 아닙니다: 우리는 이제 데이터가 희박한 영역 전반에 걸쳐 추정을 하기 위해 모수적 통계 모델을 도입했습니다.
+`satisfaction ~ update_frequency + num_users` 모델에서 얻은 추정치가 정확히 정답인 이유는 `lm()`의 기저에 깔린 통계 모델이 우리의 시뮬레이션과 완벽하게 일치하기 때문입니다.
+예를 들어, `satisfaction`과 `num_users` 사이의 관계가 선형이므로, 이 모델을 적합시킬 때 우리는 차원의 문제로 고통받지 않습니다(비록 선형 회귀 또한 행과 열의 수에 따른 자체적인 한계가 있긴 하지만요).
+즉, 우리는 이제 모델에 있는 변수들 사이의 관계에 대한 수학적 표현인 올바른 **함수 형태(functional form)**에 의존하게 된 것입니다 (@tip-functional-form 에서 더 자세한 내용을 확인하십시오).
+우리는 노출과 교란 요인 모두에 대해 올바른 함수 형태가 필요합니다.
+이를 잘 모델링하려면 이러한 변수들과 결과 사이의 관계의 성격에 대한 이해가 필요합니다.
 
 ::: {#tip-functional-form .callout-warning}
 
-## Functional form in parametric models
+## 모수적 모델에서의 함수 형태
 
-In the text we simulated the relationship between the outcome and the confounders to be linear, that is, it exactly met the assumptions underlying `lm()`, so we got the right answer when we fit our parameteric model. What would happen if our simulation did not match the assumptions underlying `lm()`? Let's take a look.
+본문에서는 결과와 교란 요인 사이의 관계를 선형으로 시뮬레이션했습니다. 즉, `lm()`의 기저 가정을 정확히 충족했기 때문에 모수적 모델을 적합시켰을 때 정답을 얻을 수 있었습니다. 만약 우리의 시뮬레이션이 `lm()`의 기저 가정과 일치하지 않는다면 어떤 일이 일어날까요? 한번 살펴봅시다.
 
 ```{r}
 set.seed(11)
 satisfaction4 <- tibble(
-  # Number of users
+  # 사용자 수
   num_users = runif(n, 1, 500),
-  # Larger customers more likely to have daily updates
+  # 큰 고객일수록 일간 업데이트를 받을 확률이 높음
   update_frequency = rbinom(n, 1, plogis(num_users / 100)),
-  # non-linear relationship between satisfaction and number of users
+  # 만족도와 사용자 수 사이의 비선형 관계
   satisfaction = 70 - 0.001 * (num_users-300)^2 - 0.001 * (num_users - 300)^3
 ) |>
   mutate(
@@ -533,7 +547,7 @@ ggplot(satisfaction4, aes(x = num_users, y = satisfaction)) +
   geom_line()
 ```
 
-In the figure above we see that now there is a non-linear relationship between our confounder, number of users, and our outcome, satisfaction. Let's see what happens if we fit an (incorrect) parameteric model to these data.
+위 그림에서 우리는 이제 교란 요인인 사용자 수와 결과인 만족도 사이에 비선형 관계가 있음을 알 수 있습니다. 이 데이터에 대해 (잘못된) 모수적 모델을 적합시키면 어떤 일이 일어나는지 봅시다.
 
 ```{r}
 lm(
@@ -546,7 +560,7 @@ lm(
 ```
 
 
-Our estimates are far from the truth (which should be zero); the truth is not even contained in the confidence interval. What went wrong? Our parametric model assumed that the functional form of the relationship between the number of users and satisfaction was linear, but we generated it non-linearly. There is a solution that still allows for the use of a parametric model; if we knew the true functional form, we could use that. Let's see how that looks.
+우리의 추정치는 참값(0이어야 함)에서 멀리 떨어져 있습니다; 참값이 신뢰 구간에 포함되어 있지도 않습니다. 무엇이 잘못되었을까요? 우리의 모수적 모델은 사용자 수와 만족도 사이의 관계의 함수 형태가 선형이라고 가정했지만, 우리는 이를 비선형으로 생성했기 때문입니다. 여전히 모수적 모델을 사용할 수 있게 해주는 해결책이 있습니다; 우리가 만약 실제 함수 형태를 알고 있다면, 그것을 사용할 수 있습니다. 어떻게 하는지 살펴봅시다.
 
 ```{r}
 lm(
@@ -558,7 +572,7 @@ lm(
   select(estimate, starts_with("conf"))
 ```
 
-Beautiful! Now, this model was fit *exactly* as the data were generated, and again, we ended up with the exact right answer. In the real world, we often do not know the data-generating mechanism, but we can still fit flexible parametric models. A great way to do this is through natural cubic splines.
+아름답군요! 이제 이 모델은 데이터가 생성된 방식과 *정확히* 일치하게 적합되었고, 다시 한번 정확한 정답을 얻었습니다. 현실 세계에서는 데이터 생성 메커니즘을 알 수 없는 경우가 많지만, 여전히 유연한 모수적 모델을 적합시킬 수 있습니다. 이를 위한 좋은 방법 중 하나는 자연 큐빅 스플라인(natural cubic splines)을 사용하는 것입니다.
 
 ```{r}
 lm(
@@ -569,7 +583,7 @@ lm(
   filter(term == "update_frequencydaily") |>
   select(estimate, starts_with("conf"))
 ```
-We can also use our original non-parametric method; if we stratify this into 20 bins, we also get a less biased estimate (i.e., it is very close to the true value, 0).
+우리의 원래 비모수적 방법도 사용할 수 있습니다. 이를 20개의 구간으로 층화하면 역시 편향이 적은 추정치(즉, 진정한 값인 0에 매우 가까운 값)를 얻을 수 있습니다.
 
 ```{r}
 satisfaction4_strat <- satisfaction4 |>
@@ -592,118 +606,116 @@ satisfaction4_strat |>
 
 :::
 
-We'll also later explore ways to use data-adaptive methods like machine learning to reduce this assumption (@sec-causal-ml).
+나중에 우리는 이 가정을 줄이기 위해 머신러닝과 같은 데이터 적응형 방법(data-adaptive methods)을 사용하는 방법도 탐구할 것입니다 (@sec-causal-ml).
 
-<!-- TODO: link appendix on model checks here -->
+결과 회귀(Outcome regression)는 우리가 모델에 사용하는 추정량(estimator)의 가정을 충족할 때 매우 잘 작동할 수 있습니다.
+예를 들어, 결과와 회귀 변수 사이의 관계를 이해하고 모델의 가정, 특히 선형성을 믿는다면 OLS는 매우 유익할 수 있습니다.
+통계적으로 매우 효율적입니다(즉, 표준 오차가 작습니다).
+또한 부트스트랩(@sec-appendix-bootstrap) 없이도 명목상으로 정확한 신뢰 구간을 얻을 수 있습니다.
+데이터를 분석하는 과학자나 다른 사람들도 대개 선형 회귀에 익숙하므로, 인과 효과를 계산하기 위해 여러분이 한 일을 이해하기가 더 쉽습니다. 사실 결과와 노출 사이에 선형 관계가 있고 @sec-assump 에서 제시한 인과적 가정을 충족한다면, *상관관계가 곧 인과관계*라고 말할 수 있습니다.
 
-Outcome regression can work very well when we meet the assumptions of the estimator we're using for our model.
-OLS, for instance, can be very beneficial if we understand the relationships between the outcome and the variables in the regression, and we believe the assumptions of the model, particularly linearity.
-It's very efficient, statistically (meaning we'll get a small standard error).
-We'll also get nominally correct confidence intervals without needing to bootstrap (@sec-appendix-bootstrap).
-Scientists and other people who analyze data are also usually familiar with linear regression, making it easier for many to understand what you did to calculate the causal effect. In fact, you could say that when there is a linear relationship between the outcome and exposure, and we meet the causal assumptions laid out in @sec-assump, *correlation is causation*.
+그렇다면 왜 인과 효과를 계산할 때 항상 결과 모델을 사용하지 않을까요?
+첫째, (예를 들어 역확률 모델에서처럼) 결과 대신 노출을 모델링하는 데 더 자신이 있을 수 있습니다.
+우리는 @sec-g-comp 와 @sec-dr 에서 이 아이디어를 더 탐구할 것입니다.
+이와 관련하여 이진 결과(binary outcome)가 있을 때, 사건의 수에 따라 하나를 선택하는 것이 합리적일 수 있습니다.
+예를 들어 결과는 희귀하지만 노출은 그렇지 않은 경우, 성향 점수 방법을 사용하는 것이 통계적으로 더 효율적일 수 있습니다.
+둘째, 결과 모델을 사용하여 우리가 목표로 하는 추정치(정밀한 질문에 대한 답)를 얻는 것이 때때로 어려울 수 있습니다. 이에 대해서는 @sec-estimands 에서 더 깊이 살펴볼 것입니다.
 
-So, why don't we always use outcome models to calculate causal effects?
-First, we may be more confident in modeling the exposure instead of the outcome (as in inverse probability models, for instance).
-We'll explore this idea more in @sec-g-comp and @sec-dr.
-Relatedly, when we have a binary outcome, it may make sense to choose one over another based on the number of events.
-For example, using a propensity score method can be more statistically efficient if the outcome is rare but the exposure is not.
-Second, it can sometimes be challenging to get the estimate we are targeting with outcome models---an answer to a precise question---something we will probe more deeply in @sec-estimands.
+이와 관련하여 결과 모델은 우리에게 **조건부 효과(conditional effects)**를 제공합니다.
+즉, 추정된 계수를 설명할 때 우리는 종종 "노출이 한 단위 변화하면 모델의 *다른 모든 변수를 일정하게 유지할 때* 결과가 `계수`만큼 변화한다"와 같이 말합니다. 인과 추론에서 우리는 종종 **한계 효과(marginal effects)**에 관심이 있습니다. 수학적으로 이는 우리가 인과 효과를 추정하고자 하는 특정 모집단의 요인 분포에 대해 관심 효과를 평균화하고 싶다는 것을 의미합니다. 결과가 연속형이고 효과가 선형이며 노출 효과와 모집단에 관한 다른 요인 사이에 상호작용이 없는 경우, 조건부 효과와 한계 효과의 구분은 주로 용어상의 차이일 뿐입니다. 추정치는 동일할 것입니다.
 
-Relatedly, outcome models give us **conditional effects**.
-In other words, when describing the estimated coefficient, we often say something like "a one-unit change in the exposure results in a `coefficient` change in the outcome *holding all other variables in the model constant*". In causal inference, we are often interested in **marginal effects**. Mathematically, this means that we want to average the effect of interest across the distribution of factors in a particular population for which we are trying to estimate a causal effect. In the case where the outcome is continuous, the effect is linear, and there are no interactions between the exposure effect and other factors about the population, the distinction between a conditional and a marginal effect is largely semantic. The estimates will be identical.
+만약 모델에 상호작용이 *있다면*, 즉 노출이 결과에 미치는 영향이 다른 요인에 따라 달라진다면, 더 이상 해석할 수 있는 단일 계수가 존재하지 않게 됩니다.
+우리는 관심 있는 모집단에서 해당 요인의 분포를 고려하여 한계 효과를 추정하고 싶을 수 있습니다.
+왜일까요?
+우리는 궁극적으로 대상 모집단에 노출을 권장해야 할지 여부를 결정하려고 하므로, 평균적으로 그것이 유익할지 알고 싶기 때문입니다.
 
-If there *is* an interaction in the model, that is, if the exposure has a different impact on the outcome depending on some other factor, we no longer have a single coefficient to interpret.
-We may want to estimate a marginal effect, taking into account the distribution of that factor in the population of interest.
-Why?
-We are ultimately trying to determine whether we should suggest exposure to the target population, so we want to know, on average, whether it will be beneficial.
+업데이트 빈도가 인과 효과를 가지지만, 그 효과가 고객 유형에 따라 달라지는 @fig-satisfaction-dag1 의 변형을 고려해 봅시다.
+프리미엄 고객의 경우 일간 업데이트가 만족도를 5점 *증가*시킵니다.
+무료 고객의 경우 일간 업데이트가 만족도를 5점 *감소*시킵니다.
+업데이트 빈도를 변경하는 효과는 고객 유형에 따라 이질적(heterogeneous)입니다.
+모든 사람에게 업데이트 빈도를 일간으로 늘리는 것이 유익한지 여부는 프리미엄 고객 대 무료 고객의 분포에 달려 있습니다.
 
-Consider a variation of @fig-satisfaction-dag1 where update frequency *does* have a causal effect, but that effect varies by customer type.
-For premium customers, daily updates *increase* satisfaction by 5 points.
-For free customers, daily updates *decrease* satisfaction by 5 points.
-The effect of changing the update frequency is heterogeneous, depending on customer type.
-Whether increasing the update frequency to daily for everyone is beneficial depends on the distribution of premium vs. free customers.
-
--   If 50% of the customers are premium and 50% are free, the average effect of switching to daily updates would be:
+-   고객의 50%가 프리미엄이고 50%가 무료라면, 업데이트를 일간으로 전환했을 때의 평균 효과는 다음과 같습니다:
 
     $(0.5 * 5) + (0.5 * -5) = 0$
 
--   If 100% of the customers are premium, the average effect would be:
+-   고객의 100%가 프리미엄이라면 평균 효과는 다음과 같습니다:
 
     $(1 * 5) + (0 * -5) = 5$
 
--   If 100% of the customers are free, the average effect would be:
+-   고객의 100%가 무료라면 평균 효과는 다음과 같습니다:
 
     $(0 * 5) + (1 * -5) = -5$
 
-Marginalization tells us the average effect for the distribution of covariates in the data.
-Of course, we might want to estimate the causal effect *by* customer type; we'll discuss interaction effects in depth in @sec-interaction.
+한계화(Marginalization)는 데이터에 있는 공변량 분포에 대한 평균 효과를 알려줍니다.
+물론 우리는 고객 유형*별로* 인과 효과를 추정하고 싶을 수도 있습니다. 상호작용 효과에 대해서는 @sec-interaction 에서 자세히 다룰 것입니다.
 
 ::: callout-note
-Conditional effects are even more complex with logistic and Cox regression models; as we'll see in @sec-non-collapse, conditional coefficients for models like these estimate answers to entirely different questions depending on the variables in the model.
+조건부 효과는 로지스틱 및 콕스(Cox) 회귀 모델에서 훨씬 더 복잡합니다. @sec-non-collapse 에서 보겠지만, 이러한 모델의 조건부 계수는 모델의 변수에 따라 완전히 다른 질문에 대한 답을 추정하게 됩니다.
 :::
 
-There are also times when we *can't* use an outcome model.
-The first is when we don't think we can meet the assumptions for unconfoundedness methods.
-In that case, we can't use inverse probability weighting and friends, either.
-However, we may be able to use another method, such as instrumental variable analysis, regression discontinuity, or difference-in-differences (@sec-iv-friends and @sec-did; we'll also summarize these methods below).
-The second is when we have time-varying exposures and confounding.
-Linear regression cannot estimate these types of effects without bias, so we'll need methods like inverse probability weighting or g-computation to calculate it correctly.
-Throughout most of the book, we'll analyze simple pre-post data: we have baseline data, an exposure that happens at a single time point, and an outcome that occurs after exposure.
-In @sec-longitudinal and other chapters, we'll cover more complex questions and data.
+결과 모델을 사용할 수 *없는* 경우도 있습니다.
+첫째는 비교란(unconfoundedness) 방법의 가정을 충족할 수 없다고 생각될 때입니다.
+이 경우 역확률 가중치 부여나 유사한 방법들도 사용할 수 없습니다.
+그러나 도구 변수 분석, 회귀 불연속, 또는 이중 차분법과 같은 다른 방법을 사용할 수 있을지도 모릅니다 (@sec-iv-friends 및 @sec-did; 아래에서 이 방법들을 요약하겠습니다).
+둘째는 시간 가변적(time-varying) 노출과 교란이 있는 경우입니다.
+선형 회귀는 편향 없이 이러한 유형의 효과를 추정할 수 없으므로, 이를 올바르게 계산하려면 역확률 가중치 부여나 g-추정(g-computation)과 같은 방법이 필요합니다.
+책의 대부분에서 우리는 간단한 전후 데이터를 분석할 것입니다: 기준점 데이터가 있고, 단일 시점에 노출이 발생하며, 노출 후에 결과가 발생합니다.
+@sec-longitudinal 및 다른 장들에서 우리는 더 복잡한 질문과 데이터를 다룰 것입니다.
 
-## Overview of estimators for causal inference
+## 인과 추론을 위한 추정량 개요
 
-As we've seen, it's possible to do causal inference with simple methods like stratification and multivariable linear regression.
-For the rest of the book, however, we will focus on other causal methods, which allow us more flexibility in answering the questions we want to ask.
-Here's a brief summary of some of the unconfoundedness methods we'll cover and what they do.
+우리가 보았듯이 층화나 다변량 선형 회귀와 같은 간단한 방법으로도 인과 추론을 하는 것이 가능합니다.
+하지만 책의 나머지 부분에서는 우리가 던지고 싶은 질문에 더 유연하게 답할 수 있게 해주는 다른 인과 방법론들에 집중할 것입니다.
+여기서 다룰 비교란 방법론들에 대한 간략한 요약입니다.
 
--   *Unconfoundedness methods*
-    -   **Inverse probability weighting** (propensity score weighting): Using a propensity score (predicted probability of treatment), we reweight units to create a pseudo-population where exchangeability holds. Extends to time-varying treatments.
-    -   **Matching** (propensity score matching and other methods): Find treated and untreated units with similar propensity scores (or other measures of similarity) to match, creating a subpopulation where exchangeability holds.
-    -   **G-computation** (also called standardization or marginal effects): Fit an outcome model but marginalize to get a marginal effect estimate. Extends to time-varying treatments.
-    -   **Doubly robust methods**: Fit models for both the outcome and treatment. Using doubly robust methods, only one of these models needs to be correct for the estimate to be correct. Doubly robust methods also allow us to use machine learning algorithms. We'll discuss **targeted learning (TMLE)** and **augmented propensity scores**.
+-   *비교란 방법론 (Unconfoundedness methods)*
+    -   **역확률 가중치 부여 (Inverse probability weighting)** (성향 점수 가중치 부여): 성향 점수(예측된 처치 확률)를 사용하여 관측치에 다시 가중치를 부여함으로써 교환 가능성이 유지되는 가상 모집단을 만듭니다. 시간 가변적 처치로 확장 가능합니다.
+    -   **매칭 (Matching)** (성향 점수 매칭 및 기타 방법): 매칭을 위해 성향 점수(또는 다른 유사성 척도)가 유사한 노출 및 비노출 단위를 찾아 교환 가능성이 유지되는 하위 모집단을 만듭니다.
+    -   **G-추정 (G-computation)** (표준화 또는 한계 효과라고도 함): 결과 모델을 적합시키지만 한계 효과 추정치를 얻기 위해 한계화합니다. 시간 가변적 처치로 확장 가능합니다.
+    -   **이중 로버스트 방법 (Doubly robust methods)**: 결과와 처치 모두에 대한 모델을 적합시킵니다. 이중 로버스트 방법을 사용하면 두 모델 중 하나만 올바르면 추정치가 정확해집니다. 이중 로버스트 방법은 또한 머신러닝 알고리즘을 사용할 수 있게 해줍니다. 우리는 **대상 학습 (TMLE)**과 **증강된 성향 점수 (augmented propensity scores)**에 대해 논의할 것입니다.
 
-While the book focuses primarily on unconfoundedness methods, we later cover methods that make other assumptions (@sec-iv-friends and @sec-did).
-Here's a brief summary of when we might want to explore these methods instead of trying to achieve exchangeability:
+이 책은 주로 비교란 방법론에 초점을 맞추고 있지만, 나중에 다른 가정을 하는 방법들도 다룹니다 (@sec-iv-friends 및 @sec-did).
+교환 가능성을 달성하려고 시도하는 대신 이러한 방법들을 탐구하고 싶을 때에 대한 간략한 요약입니다:
 
--   **Instrumental variables**: There’s a variable (the instrument) that affects the treatment but does not directly affect the outcome except through the treatment. Because it's effectively random, we can use it to estimate a type of causal effect.
--   **Regression discontinuity**: There’s a cutoff or threshold that determines who gets the treatment, and individuals just above or below the threshold are comparable. Regression discontinuity is closely related to instruments.
--   **Difference-in-differences**: The treated and untreated groups would have followed the same trend over time in the absence of the treatment (they have *parallel trends*). If the two groups would have been identical sans treatment, we can use the untreated as a counterfactual for the treated.
--   **Synthetic controls**: A weighted combination of untreated units can closely approximate the treated unit’s outcome without the treatment. Synthetic controls are closely related to difference-in-differences.
+-   **도구 변수 (Instrumental variables)**: 처치에는 영향을 미치지만 처치를 통하지 않고는 결과에 직접 영향을 미치지 않는 변수(도구)가 있습니다. 그것이 사실상 무작위이기 때문에, 이를 사용하여 일종의 인과 효과를 추정할 수 있습니다.
+-   **회귀 불연속 (Regression discontinuity)**: 누가 처치를 받을지 결정하는 컷오프(cutoff)나 임계값이 있으며, 임계값 바로 위와 아래의 개인들은 비교 가능합니다. 회귀 불연속은 도구 변수와 밀접한 관련이 있습니다.
+-   **이중 차분법 (Difference-in-differences)**: 처치군과 비처치군이 처치가 없었더라면 시간에 따라 동일한 추세를 따랐을 것입니다(*평행 추세* 가정을 가짐). 처치가 없었을 때 두 그룹이 동일했을 것이라면, 비처치군을 처치군에 대한 반사실로 사용할 수 있습니다.
+-   **합성 대조군 (Synthetic controls)**: 비처치 단위들의 가중치 조합이 처치되지 않았을 때의 처치 단위의 결과를 밀접하게 근사할 수 있습니다. 합성 대조군은 이중 차분법과 밀접한 관련이 있습니다.
 
-### Causal methods in randomized trials {#sec-ci-rct}
+### 무작위 시험에서의 인과 방법론 {#sec-ci-rct}
 
-Randomized trials alleviate many of the assumptions we need to make for causal inference.
-When randomization has succeeded, we don't need to control for any confounders because they don't exist.
-However, causal methods can still be useful for randomized exposures.
+무작위 시험은 인과 추론을 위해 우리가 해야 하는 많은 가정들을 완화해 줍니다.
+무작위 배정이 성공했다면 교란 요인이 존재하지 않기 때문에 이를 통제할 필요가 없습니다.
+그러나 무작위 노출에 대해서도 인과 방법론은 여전히 유용할 수 있습니다.
 
-Let's consider a variation of @fig-satisfaction-dag2 in which the frequency of updates is randomized to each customer; customer type and business hours are still causes of customer satisfaction.
-In other words, they cause the outcome but not the exposure.
-We can use an unadjusted regression model or simple differences in means to get a valid effect.
-As we discussed in @sec-dags, however, including causes of the outcome that are not causes of the exposure can improve the statistical precision of an estimate.
-Let's look at three approaches: an unadjusted OLS outcome model, an adjusted OLS outcome model (direct adjustment), and an inverse probability-weighted model.
-In @fig-panel, all three methods give us an unbiased effect.
-The effect of the propensity score is marginal, while the effect of the outcome model is conditional.
-Because of the way we've simulated the data, the two types of effects are identical.
-The unadjusted method, however, has a wider confidence interval and, relatedly, a larger standard error.
-The direct adjustment method and inverse probability weighting have smaller standard errors and, thus, narrower confidence intervals.
-It has been shown mathematically that using propensity scores like this to adjust for baseline factors in a randomized trial will *always* improve precision compared to the unadjusted estimate and is equivalent to the precision gained from directly adjusting [@williamson2014variance].
+업데이트 빈도가 각 고객에게 무작위로 배정되지만, 고객 유형과 업무 시간은 여전히 고객 만족도의 원인인 @fig-satisfaction-dag2 의 변형을 고려해 봅시다.
+다시 말해, 이들은 결과의 원인이지만 노출의 원인은 아닙니다.
+우리는 유효한 효과를 얻기 위해 조정되지 않은 회귀 모델이나 간단한 평균 차이를 사용할 수 있습니다.
+하지만 @sec-dags 에서 논의했듯이, 노출의 원인은 아니지만 결과의 원인인 변수들을 포함하는 것은 추정치의 통계적 정밀도를 향상시킬 수 있습니다.
+세 가지 접근 방식을 살펴봅시다: 조정되지 않은 OLS 결과 모델, 조정된 OLS 결과 모델(직접 조정), 그리고 역확률 가중 모델입니다.
+@fig-panel 에서 세 가지 방법 모두 우리에게 편향되지 않은 효과를 제공합니다.
+성향 점수의 효과는 한계적(marginal)인 반면, 결과 모델의 효과는 조건부(conditional)입니다.
+우리가 데이터를 시뮬레이션한 방식 때문에 두 가지 유형의 효과는 동일합니다.
+그러나 조정되지 않은 방법은 신뢰 구간이 더 넓고, 이와 관련하여 표준 오차도 더 큽니다.
+직접 조정 방법과 역확률 가중치 부여는 표준 오차가 더 작고, 따라서 신뢰 구간이 더 좁습니다.
+무작위 시험에서 기준점 요인들을 조정하기 위해 이와 같이 성향 점수를 사용하는 것이 조정되지 않은 추정치에 비해 정밀도를 *항상* 향상시키며, 직접 조정에서 얻는 정밀도 이득과 동등하다는 것이 수학적으로 증명되었습니다 [@williamson2014variance].
 
 ```{r}
 #| label: fig-panel
 #| code-fold: true
 #| message: false
 #| warning: false
-#| fig-cap: "Three ways to estimate a causal effect in a randomized setting. The first effect is unadjusted. The second is an adjusted linear model (direct adjustment). The third is an inverse-probability weighted linear model. All three models give us an unbiased answer, but the two adjustment approaches give us more precise answers. Their standard errors are smaller, and, thus, their confidence intervals are narrower."
+#| fig-cap: "무작위 설정에서 인과 효과를 추정하는 세 가지 방법. 첫 번째 효과는 조정되지 않았습니다. 두 번째는 조정된 선형 모델(직접 조정)입니다. 세 번째는 역확률 가중 선형 모델입니다. 세 모델 모두 우리에게 편향되지 않은 답을 주지만, 두 가지 조정 접근 방식은 더 정밀한 답을 줍니다. 그들의 표준 오차는 더 작고, 따라서 신뢰 구간은 더 좁습니다."
 
 satisfaction_randomized <- tibble(
-  # Free (0) or Premium (1)
+  # 무료(0) 또는 프리미엄(1)
   customer_type = rbinom(n, 1, 0.5),
-  # Business hours (Yes: 1, No: 0)
+  # 업무 시간 (예: 1, 아니오: 0)
   business_hours = rbinom(n, 1, 0.5),
-  # Weekly (0) vs Daily (1), now random
+  # 주간(0) vs 일간(1), 이제 무작위임
   update_frequency = rbinom(n, 1, 0.5),
-  # More likely during business hours
+  # 업무 시간 동안 이용 가능성이 더 높음
   customer_service_prob = business_hours *
     0.9 + (1 - business_hours) * 0.2,
   customer_service = rbinom(n, 1, prob = customer_service_prob),
@@ -739,7 +751,7 @@ plot_estimates <- function(d) {
       term
     )) |>
     filter(term == "update_frequency") |>
-    mutate(model = "unadjusted")
+    mutate(model = "조정하지 않음")
   
   adj_model <- lm(
     satisfaction ~ update_frequency + business_hours +
@@ -753,7 +765,7 @@ plot_estimates <- function(d) {
       term
     )) |>
     filter(term == "update_frequency") |>
-    mutate(model = "direct\nadjustment")
+    mutate(model = "직접 조정")
   
   df <- d |>
     mutate(across(where(is.factor), as.integer)) |>
@@ -775,16 +787,16 @@ plot_estimates <- function(d) {
     conf.high = x$est.wt + 1.96 * x$std.wt,
     statistic = NA,
     p.value = NA,
-    model = "inverse\nprobability\nweighting"
+    model = "역확률 가중치 부여"
   )
   
   models <- bind_rows(unadj_model, adj_model, psw_model) |>
     mutate(model = factor(
       model,
       levels = c(
-        "unadjusted",
-        "direct\nadjustment",
-        "inverse\nprobability\nweighting"
+        "조정하지 않음",
+        "직접 조정",
+        "역확률 가중치 부여"
       )
     ))
   
@@ -799,8 +811,8 @@ plot_estimates <- function(d) {
       conf.high = if_else(statistic == "std.error", NA, conf.high),
       statistic = case_match(
         statistic,
-        "estimate" ~ "estimate (95% CI)",
-        "std.error" ~ "standard error"
+        "estimate" ~ "추정치 (95% CI)",
+        "std.error" ~ "표준 오차"
       )
     ) |>
     ggplot(aes(value, fct_rev(model))) +
@@ -816,17 +828,17 @@ plot_estimates <- function(d) {
 plot_estimates(satisfaction_randomized)
 ```
 
-The two adjustment approaches, however, are not adjusting for confounders.
-Instead, they control the random variation in the data.
-For direct adjustment, we do this by accounting for variation in the outcome.
-For inverse probability weighting, we account for chance imbalances in the treatment groups across variables related to the outcome.
+그러나 이 두 가지 조정 접근 방식은 교란 요인을 조정하는 것이 아닙니다.
+대신 데이터의 무작위 변동(random variation)을 통제합니다.
+직접 조정의 경우, 우리는 결과의 변동을 고려함으로써 이를 수행합니다.
+역확률 가중치의 경우, 결과와 관련된 변수들 전반에 걸쳐 처치 그룹들 사이의 우연한 불균형을 고려합니다.
 
-Causal methods can also help us address some of the violations of causal assumptions we saw in real-life randomized trials in @sec-designs.
-We'll explore how these methods can help us address non-adherence and loss-to-follow-up, two common sources of bias in randomized trials, in @sec-longitudinal and @sec-iv-friends.
+인과적 방법론들은 또한 @sec-designs 에서 본 실제 무작위 시험에서 나타나는 인과적 가정 위배 사항들을 해결하는 데 도움을 줄 수 있습니다.
+우리는 @sec-longitudinal 및 @sec-iv-friends 에서 무작위 시험의 두 가지 흔한 편향 원인인 비순응(non-adherence)과 추적 관찰 소실(loss-to-follow-up)을 이러한 방법들이 어떻게 해결할 수 있는지 탐구할 것입니다.
 
-## Entering the design phase
+## 설계 단계로 진입하기
 
-Now, let's turn our attention to an example with real data.
-We're going to start with propensity score methods like matching and inverse probability weighting because they have a particular property: they allow us to model the relationship between exposure and confounders without peaking at the relationship between the exposure and outcome.
+이제 실제 데이터를 사용한 예시로 관심을 돌려봅시다.
+우리는 매칭(matching)과 역확률 가중치 부여와 같은 성향 점수 방법부터 시작할 것입니다. 이 방법들은 특별한 속성을 가지고 있기 때문입니다: 노출과 결과 사이의 관계를 미리 훔쳐보지 않고도 노출과 교란 요인 사이의 관계를 모델링할 수 있게 해줍니다.
 
-Let's continue our journey to answering causal questions.
+인과적 질문에 답하기 위한 여정을 계속해 봅시다.

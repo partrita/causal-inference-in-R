@@ -8,12 +8,12 @@
 status("unstarted")
 ```
 
-## Instrumental variable analysis
+## 도구 변수 분석 (Instrumental variable analysis)
 
 ```{r}
 rnorm(5)
 ```
 
-## Regression discontinuity
+## 회귀 불연속 (Regression discontinuity)
 
-## Difference-in-Difference
+## 이중 차분법 (Difference-in-Difference)

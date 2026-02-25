@@ -8,7 +8,7 @@
 status("polishing")
 ```
 
-As presented in @sec-data-causal, the causal question we'd like to answer is: **is there a relationship between whether there were "Extra Magic Hours" in the morning at Magic Kingdom and the average wait time for an attraction called the "Seven Dwarfs Mine Train" the same day between 9 AM and 10 AM in 2018?** Below is a proposed DAG for this question.
+@sec-data-causal 에서 제시했듯이, 우리가 답하고자 하는 인과적 질문은 다음과 같습니다: **2018년 매직 킹덤에서 아침에 "엑스트라 매직 아워"가 있었는지 여부와 같은 날 오전 9시에서 10시 사이의 "세븐 드워프 마인 트레인" 어트랙션 평균 대기 시간 사이에 관계가 있는가?** 아래는 이 질문에 대해 제안된 DAG입니다.
 
 ```{r}
 #| label: fig-dag-magic-hours-wait2
@@ -16,10 +16,8 @@ As presented in @sec-data-causal, the causal question we'd like to answer is: **
 #| message: false
 #| warning: false
 #| fig.cap: >
-#|   Proposed DAG for the relationship between Extra Magic Hours
-#|   in the morning at a particular park and the average wait
-#|   time between 9 AM and 10 AM.
-#|   Here we are saying that we believe 1) Extra Magic Hours impacts average wait time and 2) both Extra Magic Hours and average wait time are determined by the time the park closes, historic high temperatures, and ticket season.
+#|   특정 공원의 아침 엑스트라 매직 아워와 오전 9시에서 10시 사이의 평균 대기 시간 사이의 관계에 대해 제안된 DAG.
+#|   여기서 우리는 1) 엑스트라 매직 아워가 평균 대기 시간에 영향을 미치고, 2) 엑스트라 매직 아워와 평균 대기 시간 모두 공원 폐쇄 시간, 과거 최고 기온, 그리고 티켓 시즌에 의해 결정된다고 믿는다는 것을 말하고 있습니다.
 
 library(tidyverse)
 library(ggdag)
@@ -32,10 +30,10 @@ coord_dag <- list(
 
 labels <- c(
   x = "Extra Magic Morning",
-  y = "Average wait",
-  Season = "Ticket Season",
-  weather = "Historic high temperature",
-  close = "Time park closed"
+  y = "평균 대기 시간",
+  Season = "티켓 시즌",
+  weather = "과거 최고 기온",
+  close = "공원 폐쇄 시간"
 )
 
 dag <- dagify(
@@ -64,18 +62,18 @@ dag_plot +
   geom_dag_label_repel(seed = 1630)
 ```
 
-Now that we've done some exploratory analysis of these data, how should we go about answering this question? We know from @sec-dags that we have three backdoor paths to close. Each path has one variable, resulting in three confounders: the historic high temperature on the day, the time the park closed, and the ticket season: value, regular, or peak. 
+이제 이 데이터에 대한 몇 가지 탐색적 분석을 마쳤으니, 이 질문에 어떻게 답해야 할까요? 우리는 @sec-dags 를 통해 닫아야 할 세 개의 백도어 경로가 있음을 알고 있습니다. 각 경로에는 하나의 변수가 있으며, 결과적으로 세 개의 교란 요인이 존재합니다: 그날의 과거 최고 기온, 공원 폐쇄 시간, 그리고 티켓 시즌(비수기, 평수기, 성수기)입니다.
 
-We also know that we have several ways we can close these paths. Stratification isn't a good solution here because of the curse of dimensionality; we had better use a statistical model. But which relationship should we model? Consider @fig-dag-close-paths-1, @fig-dag-close-paths-2, and @fig-dag-close-paths-3.
+또한 우리는 이 경로들을 닫을 수 있는 여러 가지 방법이 있다는 것도 알고 있습니다. 층화(stratification)는 차원의 저주(curse of dimensionality) 때문에 여기서 좋은 해결책이 아니므로, 통계 모델을 사용하는 것이 좋습니다. 하지만 어떤 관계를 모델링해야 할까요? @fig-dag-close-paths-1 , @fig-dag-close-paths-2 , @fig-dag-close-paths-3 을 고려해 보십시오.
 
 ```{r}
 #| label: fig-dag-close-paths
 #| layout-ncol: 3
 #| code-fold: true
 #| fig-cap:
-#|   - "Shall we close the paths going into the exposure?"
-#|   - "Or the paths going into the outcome?"
-#|   - "Or both?"
+#|   - "노출(exposure)로 들어가는 경로를 닫을까요?"
+#|   - "아니면 결과(outcome)로 들어가는 경로를 닫을까요?"
+#|   - "둘 다 닫을까요?"
 dag_plot +
   geom_dag_edges_arc(curvature = c(rep(0, 5), .3, 0), edge_color = "grey80") +
   geom_dag_edges_arc(
@@ -104,45 +102,32 @@ dag_plot +
   )
 ```
 
-First, we could model the relationship between the confounders and the exposure, as in @fig-dag-close-paths-1. A class of techniques using the **propensity score**, the probability of exposure, let us do this. Second, we could model the relationship between the confounders and the outcome, as in @fig-dag-close-paths-2. A class of techniques using the **outcome model** allows us to do this. We saw an outcome model in @sec-strat-outcome, and we'll see another approach in @sec-g-comp. Both propensity score and outcome model approaches can get us the right answer as long as we've got the right DAG and have modeled the relationships correctly. Alternatively, we could model both sets of relationships as in @fig-dag-close-paths-2. A class of techniques called **doubly robust** estimators allows us to do this, which we'll revisit in @sec-dr and @sec-causal-ml.
+첫째, @fig-dag-close-paths-1 에서처럼 교란 요인들과 노출 사이의 관계를 모델링할 수 있습니다. 노출될 확률인 **성향 점수(propensity score)**를 사용하는 일련의 기술들을 통해 이를 수행할 수 있습니다. 둘째, @fig-dag-close-paths-2 에서처럼 교란 요인들과 결과 사이의 관계를 모델링할 수 있습니다. **결과 모델(outcome model)**을 사용하는 일련의 기술들을 통해 이를 수행할 수 있습니다. 우리는 @sec-strat-outcome 에서 결과 모델을 보았고, @sec-g-comp 에서 또 다른 접근 방식을 보게 될 것입니다. 성향 점수와 결과 모델 접근 방식 모두 올바른 DAG를 가지고 관계를 올바르게 모델링했다면 정답을 얻을 수 있게 해줍니다. 대안적으로, @fig-dag-close-paths-2 에서처럼 두 세트의 관계를 모두 모델링할 수 있습니다. **이중 로버스트(doubly robust)** 추정량이라고 불리는 일련의 기술들을 통해 이를 수행할 수 있으며, 이에 대해서는 @sec-dr 및 @sec-causal-ml 에서 다시 다룰 것입니다.
 
-For the next several chapters, we'll take up the class of techniques we can use to close the paths via @fig-dag-close-paths-1: propensity scores. First, consider what it would look like if Disney randomized the Extra Magic Mornings assignment. Let's say each day has a 0.5 probability of being assigned Extra Magic Mornings, so about half the days had them and half didn't. In this case, the arrows highlighted in @fig-dag-close-paths-1 wouldn't exist, but the arrows highlighted in @fig-dag-close-paths-2 would: we've intervened on the exposure---whether or not a day has Extra Magic Hours---not on the outcome---the posted wait times. The historic high temperature on the day, the time the park closed, and the ticket season still affect the posted wait times, but not Extra Magic Hours. Here, the probability of exposure---the propensity score---is 0.5 for every day. In other words, in an experiment, the propensity score is known. A given day is randomly assigned with `rbinom(1, 1, 0.5)`.
+다음 몇 장에 걸쳐 우리는 @fig-dag-close-paths-1 을 통해 경로를 차단하는 데 사용할 수 있는 기술군인 성향 점수를 다룰 것입니다. 먼저, 디즈니가 엑스트라 매직 아워 배정을 무작위로 했다면 어떤 모습일지 생각해 봅시다. 각 날짜가 엑스트라 매직 아워에 배정될 확률이 0.5라고 가정해 봅시다. 그러면 약 절반의 날짜는 매직 아워가 있고 나머지 절반은 없을 것입니다. 이 경우 @fig-dag-close-paths-1 에 강조된 화살표들은 존재하지 않겠지만, @fig-dag-close-paths-2 에 강조된 화살표들은 존재할 것입니다: 우리는 노출(그날 엑스트라 매직 아워가 있는지 여부)에 개입한 것이지, 결과(게시된 대기 시간)에 개입한 것이 아니기 때문입니다. 그날의 과거 최고 기온, 공원 폐쇄 시간, 티켓 시즌은 여전히 게시된 대기 시간에 영향을 미치지만, 엑스트라 매직 아워에는 영향을 미치지 않습니다. 여기서 노출 확률 — 성향 점수 — 은 매일 0.5입니다. 다시 말해, 실험에서는 성향 점수를 알고 있습니다. 주어진 날짜는 `rbinom(1, 1, 0.5)`를 통해 무작위로 배정됩니다.
 
-Let's say Disney conducted a more complex experiment: they randomized the exposure *within levels of the three variables of the DAG*. For instance, let's say every day was granted a baseline probability of 0.5. In this experiment, historic temperatures >= 80 degrees Fahrenheit reduced the probability of exposure by 0.1, a park closure time of less than 10 PM increased the probability by 0.2, and being in peak ticket season decreased the probability by 0.3. A day with a historic temperature of 86 degrees that closed at 9:00 PM in peak ticket season, the day would be randomly assigned Extra Magic Hours in the morning with a probability of $0.5 - 0.1 + 0.2 - 0.25 = 0.35$, or `rbinom(1, 1, 0.35)`. This design is still a randomized experiment, but it's randomized within levels of the covariates. It gives us conditional exchangeability, much like we have to assume in non-randomized data: days are exchangeable within levels of the covariates.
+디즈니가 더 복잡한 실험을 수행했다고 가정해 봅시다: 그들은 *DAG의 세 가지 변수의 수준 내에서* 노출을 무작위로 배정했습니다. 예를 들어, 모든 날짜에 기본 확률 0.5를 부여했다고 합시다. 이 실험에서 과거 기온이 화씨 80도 이상이면 노출 확률이 0.1 감소하고, 공원 폐쇄 시간이 오후 10시 이전이면 확률이 0.2 증가하며, 성수기 티켓 시즌이면 확률이 0.3 감소합니다. 과거 기온이 86도이고 성수기 티켓 시즌에 오후 9시에 폐장한 날의 경우, 그날 아침에 엑스트라 매직 아워가 무작위로 배정될 확률은 $0.5 - 0.1 + 0.2 - 0.25 = 0.35$, 즉 `rbinom(1, 1, 0.35)`가 됩니다. 이 설계는 여전히 무작위 실험이지만, 공변량의 수준 내에서 무작위화된 것입니다. 이는 무작위 배정되지 않은 데이터에서 우리가 가정해야 하는 것과 매우 유사한 조건부 교환 가능성(conditional exchangeability)을 제공합니다: 날짜들은 공변량의 수준 내에서 교환 가능합니다.
 
-In our case, though, these probabilities are not known. What if we could find the "hidden experiment" in this non-randomized data? Remember, *someone* decided to put Extra Magic Hours on certain days. What was that decision process? If we could use a combination of domain knowledge---to understand what factors went into treatment assignment that also affect the outcome---and statistics---to estimate these conditional probabilities---then perhaps we could use those probabilities to achieve exchangeability and calculate an unbiased causal effect. @rosenbaum1983central showed that conditioning on propensity scores in observational studies can lead to unbiased estimates of the exposure effect as long as the assumptions discussed in @sec-assump hold.
+하지만 우리의 경우, 이러한 확률들을 알 수 없습니다. 만약 이 무작위 배정되지 않은 데이터에서 "숨겨진 실험"을 찾을 수 있다면 어떨까요? 누군가는 특정 날짜에 엑스트라 매직 아워를 넣기로 결정했다는 점을 기억하십시오. 그 의사 결정 과정은 무엇이었을까요? 만약 우리가 도메인 지식(처치 배정에 영향을 미치면서 결과에도 영향을 주는 요인들이 무엇인지 이해하기 위해)과 통계학(이러한 조건부 확률을 추정하기 위해)을 결합하여 사용할 수 있다면, 아마도 그 확률들을 사용하여 교환 가능성을 달성하고 편향되지 않은 인과 효과를 계산할 수 있을 것입니다. @rosenbaum1983central 은 @sec-assump 에서 논의한 가정들이 충족되는 한, 관찰 연구에서 성향 점수에 대해 조건부화하는 것이 노출 효과의 편향되지 않은 추정치로 이어질 수 있음을 보여주었습니다.
 
-## Building propensity score models {#sec-building-models}
+## 성향 점수 모델 구축하기 {#sec-building-models}
 
-There are many ways to estimate the propensity score; for binary exposures, logistic regression is typically used, although other approaches are also used.
-While estimates from logistic regression can be difficult to interpret from a causal perspective (we'll cover this in more detail in @sec-binary), they excel at predicting well-calibrated probabilities. 
-A logistic regression with exposure as the predicted value and the confounders as the covariates is a good place to start with a propensity score.
+성향 점수를 추정하는 방법은 많습니다. 이진 노출의 경우 대개 로지스틱 회귀가 사용되지만, 다른 접근 방식들도 사용됩니다. 로지스틱 회귀로부터 얻은 추정치는 인과적 관점에서 해석하기 어려울 수 있지만(@sec-binary 에서 더 자세히 다룰 것입니다), 잘 보정된 확률을 예측하는 데는 탁월합니다. 노출을 예측값으로 하고 교란 요인들을 공변량으로 하는 로지스틱 회귀는 성향 점수를 시작하기에 좋은 지점입니다.
 
-Below is pseudo-code for using `glm()` to fit a propensity score model using logistic regression.
-The first argument is the model, with the exposure on the left side and the confounders on the right.
-The `data` argument takes the data frame, and the `family = binomial()` argument denotes that the model should be fit using logistic regression (as opposed to a different generalized linear model, although other links are sometimes used in propensity score modeling).
-You've likely fit models like this before, but the key details are that we are predicting the probability of exposure (instead of something around the outcome; we'll get to that!) and that the predictors are the confounders determined from the DAG. 
-As we saw in @sec-ci-rct, if we had any predictors of the outcome that weren't related to the exposure, we'd probably want to include those, too, for precision's sake.
+아래는 로지스틱 회귀를 사용하여 성향 점수 모델을 적합시키기 위해 `glm()`을 사용하는 가상 코드입니다. 첫 번째 인자는 모델로, 왼쪽에는 노출이 있고 오른쪽에는 교란 요인들이 있습니다. `data` 인자는 데이터 프레임을 받고, `family = binomial()` 인자는 모델이 (다른 일반화 선형 모델이 아닌) 로지스틱 회귀를 사용하여 적합되어야 함을 나타냅니다 (성향 점수 모델링에서 다른 연결 함수들이 사용되기도 하지만요). 여러분은 이와 같은 모델을 이전에 적합시켜 본 적이 있을 것이나, 핵심적인 세부 사항은 우리가 (결과와 관련된 무언가가 아닌!) 노출 확률을 예측하고 있다는 점과 예측 변수들이 DAG로부터 결정된 교란 요인들이라는 점입니다. @sec-ci-rct 에서 보았듯이, 만약 노출과는 관련이 없지만 결과의 예측 변수인 요인들이 있다면, 정밀도를 위해 이들도 포함하는 것이 좋습니다.
 
 ```{r}
 #| eval: false
 glm(
-  # predict the probability of treatment
+  # 처치 확률을 예측합니다
   exposure ~ confounder_1 + confounder_2,
   data = df,
-  # using logistic regression
+  # 로지스틱 회귀를 사용합니다
   family = binomial()
 )
 ```
 
-We can extract the propensity scores by pulling out the predictions on the probability scale using `predict()` or `fitted()`. However,
-using the `augment()` function from the [{`broom`}](https://broom.tidymodels.org/) package, we can extract these propensity scores and add them to our original data frame in one step, so we'll use that approach.
-The predictions will be on the *linear logit* scale by default.
-Setting the argument `type.predict` to `"response"` indicates that we want to extract the predicted values on the *probability* scale.
-The `data` argument contains the original data frame; if we leave this blank, we'll only get back a data frame with the variables in the propensity score model. However, we need the outcome, too, so it's handy to use the whole data frame, even though there are no new days in the data set.
-This code will output a new data frame consisting of all components in `df` with six additional columns corresponding to the logistic regression model that was fit.
-The `.fitted` column is the propensity score.
-A convenient detail about broom is that the columns returned from its functions are consistent across models in R, so the code in this chapter will work for many types of broom output.
+우리는 `predict()`나 `fitted()`를 사용하여 확률 척도상의 예측값을 추출함으로써 성향 점수를 얻을 수 있습니다. 하지만 [{`broom`}](https://broom.tidymodels.org/) 패키지의 `augment()` 함수를 사용하면 이러한 성향 점수를 추출하여 원래의 데이터 프레임에 추가하는 과정을 한 번에 수행할 수 있으므로, 이 접근 방식을 사용할 것입니다. 예측값은 기본적으로 *선형 로짓(linear logit)* 척도로 제공됩니다. `type.predict` 인자를 `"response"`로 설정하면 예측값을 *확률* 척도로 추출하겠다는 의미입니다. `data` 인자는 원래의 데이터 프레임을 포함합니다. 이를 비워두면 성향 점수 모델에 포함된 변수들만 있는 데이터 프레임이 반환됩니다. 하지만 우리에게는 결과 변수도 필요하므로, 데이터셋에 새로운 날짜가 추가되는 것은 아니더라도 전체 데이터 프레임을 사용하는 것이 편리합니다. 이 코드는 적합된 로지스틱 회귀 모델에 해당하는 6개의 추가 열과 `df`의 모든 구성 요소로 이루어진 새로운 데이터 프레임을 출력할 것입니다. `.fitted` 열이 바로 성향 점수입니다. broom의 편리한 세부 사항은 함수에서 반환되는 열들이 R의 여러 모델에 걸쳐 일관되게 유지된다는 점이며, 따라서 이 장의 코드는 많은 유형의 broom 출력물에 대해 작동할 것입니다.
 
 ```{r}
 #| eval: false
@@ -151,17 +136,16 @@ glm(
   data = df,
   family = binomial()
 ) |>
-  # get back the original data frame with the predicted probabilities
-  # in the `.fitted` column
+  # .fitted 열에 예측된 확률이 포함된 원래의 데이터 프레임을 가져옵니다
   augment(type.predict = "response", data = df)
 ```
 
-Let's apply this recipe to our example.
+이 방법을 우리 예시에 적용해 봅시다.
 
-We can build a propensity score model using the `seven_dwarfs_train_2018` data set from the `{touringplans}` package.
-First, we need to subset the data to only include average wait times between 9 and 10 AM.
-Then, we will use the `glm()` function to fit the propensity score model, predicting `park_extra_magic_morning` using the three confounders specified above.
-We'll add the propensity scores to the data frame via `augment()`.
+우리는 `{touringplans}` 패키지의 `seven_dwarfs_train_2018` 데이터셋을 사용하여 성향 점수 모델을 구축할 수 있습니다.
+먼저, 오전 9시에서 10시 사이의 평균 대기 시간만 포함하도록 데이터를 부분 집합화해야 합니다.
+그런 다음 `glm()` 함수를 사용하여 위에서 명시한 세 가지 교란 요인으로 `park_extra_magic_morning`을 예측하는 성향 점수 모델을 적합시킵니다.
+`augment()`를 통해 성향 점수를 데이터 프레임에 추가할 것입니다.
 
 ```{r}
 library(broom)
@@ -181,17 +165,17 @@ seven_dwarfs_9_with_ps <- ps_mod |>
   augment(type.predict = "response", data = seven_dwarfs_9)
 ```
 
-Let's take a look at these propensity scores.
-@tbl-df-ps shows the propensity scores (in the `.fitted` column) for the first six days in the dataset and the values of each day's exposure, outcome, and confounders.
-The propensity score here is the probability that a given date will have Extra Magic Hours in the morning, given the observed confounders, in this case, the historical high temperatures on a given date, the time the park closed, and the ticket season.
-For example, on January 1, there was a 30.2% chance that there would be Extra Magic Hours at the Magic Kingdom given the ticket season (peak, in this case), time of park closure (11 PM), and the historic high temperature on this date (58.6 degrees Fahrenheit).
-On this particular day, there were *not* Extra Magic Hours in the morning (as indicated by the 0 in the first row of the `park_extra_magic_morning` column).
-There was likewise a low probability (18.4%) on January 5, but this day *did* have Extra Magic Hours in the morning.
+이 성향 점수들을 살펴보겠습니다.
+@tbl-df-ps 는 데이터셋의 처음 6일에 대한 성향 점수(`.fitted` 열)와 각 날짜의 노출, 결과, 교란 요인 값을 보여줍니다.
+여기서 성향 점수는 관찰된 교란 요인들(이 경우 특정 날짜의 과거 최고 기온, 공원 폐쇄 시간, 티켓 시즌)이 주어졌을 때 해당 날짜에 아침 엑스트라 매직 아워가 있을 확률입니다.
+예를 들어, 1월 1일은 티켓 시즌(이 경우 성수기), 공원 폐쇄 시간(오후 11시), 그리고 해당 날짜의 과거 최고 기온(화씨 58.6도)을 고려할 때 매직 킹덤에 엑스트라 매직 아워가 있을 확률이 30.2%였습니다.
+이 특정 날짜에는 아침에 엑스트라 매직 아워가 *없었습니다* (`park_extra_magic_morning` 열의 첫 번째 행에 0으로 표시됨).
+마찬가지로 1월 5일에도 낮은 확률(18.4%)이 나타났지만, 이 날은 아침에 엑스트라 매직 아워가 *있었습니다*.
 
 ```{r}
 #| label: tbl-df-ps
 #| tbl-cap: >
-#|   The first six observations in the `seven_dwarfs_9_with_ps` dataset, including their propensity scores in the `.fitted` column.
+#|   `.fitted` 열에 성향 점수가 포함된 `seven_dwarfs_9_with_ps` 데이터셋의 처음 6개 관측치.
 #| code-fold: true
 library(gt)
 seven_dwarfs_9_with_ps |>
@@ -209,28 +193,27 @@ seven_dwarfs_9_with_ps |>
   fmt_integer(park_extra_magic_morning) |>
   cols_label(
     .fitted = "P(EMM)",
-    park_date = "Date",
-    park_extra_magic_morning = "Extra Magic Mornings",
-    park_ticket_season = "Ticket Season",
-    park_close = "Close time",
-    park_temperature_high = "Historic Temp."
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 아워",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐쇄 시간",
+    park_temperature_high = "과거 기온"
   )
 ```
 
-### Causal assumptions, revisited
+### 인과적 가정, 다시 보기
 
-It's helpful to visualize the distribution of propensity scores by exposure group.
-A nice way to visualize this is via mirrored histograms.
-To create one, we'll use the `{halfmoon}` package's `geom_mirror_histogram()`.
-The code below creates two histograms of the propensity scores, one on the "top" for the exposed group (the dates with Extra Magic Hours in the morning) and one on the "bottom" for the unexposed group.
-We'll also tweak the y-axis labels to use absolute values (rather than negative values for the bottom histogram) via `scale_y_continuous(labels = abs)`.
+노출 그룹별 성향 점수의 분포를 시각화하는 것이 도움이 됩니다.
+이를 시각화하는 좋은 방법은 대칭 히스토그램(mirrored histograms)입니다.
+이를 만들기 위해 `{halfmoon}` 패키지의 `geom_mirror_histogram()`을 사용할 것입니다.
+아래 코드는 두 개의 성향 점수 히스토그램을 생성합니다. 하나는 노출군(아침 엑스트라 매직 아워가 있는 날짜)을 위해 "위"에, 다른 하나는 비노출군을 위해 "아래"에 배치합니다.
+또한 `scale_y_continuous(labels = abs)`를 통해 y축 레이블이 (아래쪽 히스토그램의 경우 음수 값이 아닌) 절대값을 사용하도록 조정할 것입니다.
 
 ```{r}
 #| label: fig-mirrored-ps
 #| fig.cap: >
-#|   Mirrored histograms of estimated propensity scores for
-#|   Extra Magic Hour days (exposed group, top) and days without
-#|   Extra Magic hours (unexposed group, bottom)
+#|   엑스트라 매직 아워가 있는 날(노출군, 위)과 없는 날(비노출군, 아래)에 대한
+#|   추정된 성향 점수의 대칭 히스토그램.
 library(halfmoon)
 ggplot(
   seven_dwarfs_9_with_ps,
@@ -238,18 +221,18 @@ ggplot(
 ) +
   geom_mirror_histogram(bins = 50) +
   scale_y_continuous(labels = abs) +
-  labs(x = "propensity score", fill = "extra magic morning")
+  labs(x = "성향 점수", fill = "엑스트라 매직 아워")
 ```
 
-We'll explore how to assess a propensity score model after applying a method (like weighting or matching) in more detail in @sec-eval-ps-model; however, let's think about what we're seeing from the perspective of the causal assumptions we need to make for valid inferences. In @sec-explore-assump, we saw that we might have issues with both exchangeability and positivity. We were pretty confident that causal consistency wasn't an issue for this question, but looking at the raw propensity scores (before we apply weighting or matching) can give us some insight into the other two assumptions. While data will never be able to prove our assumptions are right or wrong, it does give us some evidence. 
+가중치 부여나 매칭과 같은 방법을 적용한 후 성향 점수 모델을 평가하는 방법은 @sec-eval-ps-model 에서 더 자세히 살펴보겠습니다. 하지만 여기서는 유효한 추론을 위해 필요한 인과적 가정의 관점에서 우리가 보고 있는 것을 생각해 봅시다. @sec-explore-assump 에서 우리는 교환 가능성과 긍정성 모두에 문제가 있을 수 있음을 보았습니다. 이 질문에 대해 인과적 일관성은 문제가 되지 않는다고 확신했지만, (가중치나 매칭을 적용하기 전의) 가공되지 않은 성향 점수를 살펴보는 것은 나머지 두 가정에 대한 통찰을 줄 수 있습니다. 데이터가 우리의 가정이 옳고 그름을 결코 증명할 수는 없지만, 몇 가지 증거를 제공하기는 합니다.
 
-For positivity and exchangeability, we're looking for two things: **overlap** and **balance**. Overlap refers to overlapping ranges of the propensity scores by exposure group, sometimes called **common support**. Overlap is related to positivity: if there are regions of the propensity score where only one exposure group has observations, we might have a positivity violation. The other thing to look for is balance in the populations. In a randomized setting, we expect the distributions between the two groups to be approximately the same because their likelihood of exposure is unrelated to the baseline covariates. This balance is another perspective on the choice of the word "exchangeable": we should be able to reassign the two groups to the other exposure and still get the right answer. 
+긍정성과 교환 가능성을 위해 우리는 두 가지를 찾습니다: **중첩(overlap)**과 **균형(balance)**입니다. 중첩은 노출 그룹별 성향 점수의 범위가 겹치는 것을 의미하며, 때로는 **공통 지지 영역(common support)**이라고도 불립니다. 중첩은 긍정성과 관련이 있습니다: 성향 점수의 특정 영역에 하나의 노출 그룹만 관측치를 가지고 있다면, 긍정성 위배가 있을 수 있습니다. 다른 하나는 인구 집단 간의 균형입니다. 무작위 설정에서는 노출 가능성이 기준점 공변량들과 무관하기 때문에 두 그룹 간의 분포가 대략적으로 같을 것으로 기대합니다. 이 균형은 "교환 가능하다(exchangeable)"는 단어 선택에 대한 또 다른 관점입니다: 우리는 두 그룹의 노출을 서로 바꾸어 배정하더라도 여전히 올바른 답을 얻으낼 수 있어야 합니다.
 
-@fig-sim-ps shows simulated scenarios of the kinds of distributions we will tend to see with good, moderate, and poor overlap and balance. Poor balance and overlap can worsen bias and variance and make us less confident in the causal assumptions we need to make.
+@fig-sim-ps 는 좋음, 보통, 그리고 나쁨 수준의 중첩과 균형 상태에서 흔히 보게 되는 분포의 종류들을 시뮬레이션한 시나리오를 보여줍니다. 좋지 않은 균형과 중첩은 편향과 분산을 악화시키고 우리가 내려야 하는 인과적 가정에 대한 확신을 떨어뜨릴 수 있습니다.
 
 ```{r}
 #| label: fig-sim-ps
-#| fig-cap: "Simulated distributions of propensity scores. We look for two qualities in mirrored histograms: overlap and balance, related to positivity and exchangeability, respectively."
+#| fig-cap: "성향 점수의 시뮬레이션된 분포. 우리는 대칭 히스토그램에서 두 가지 속성을 찾습니다: 중첩과 균형이며, 이는 각각 긍정성 및 교환 가능성과 관련이 있습니다."
 #| code-fold: true
 library(patchwork)
 
@@ -269,15 +252,15 @@ models_overlap <- list(
   poor = make_model(intercept = 0, slope = 3.0)
 )
 
-plot_ps <- function(.x, .y, title = "Overlap") {
+plot_ps <- function(.x, .y, title = "중첩 (Overlap)") {
   .x |>
     augment(type.predict = "response") |>
     ggplot(aes(.fitted, fill = factor(exposure))) +
     geom_mirror_histogram(bins = 50) +
     scale_y_continuous(labels = abs) +
     labs(
-      x = "propensity score",
-      fill = "exposure",
+      x = "성향 점수",
+      fill = "노출",
       title = paste(str_to_title(.y), title)
     ) +
     theme(legend.position = "none")
@@ -297,7 +280,7 @@ models_balance <- list(
 plots_balance <- imap(
   models_balance,
   plot_ps,
-  title = "Balance"
+  title = "균형 (Balance)"
 )
 
 plots_balance$moderate <- plots_balance$moderate +
@@ -307,7 +290,7 @@ plots_balance$moderate <- plots_balance$moderate +
   (plots_balance$good + plots_balance$moderate + plots_balance$poor)
 ```
 
-@fig-mirrored-ps gives us a perspective on these assumptions reduced to a single dimension (the propensity score). We definitely see both overlap and balance problems. Clearly, the distribution is different between the groups in terms of shape and number of days. Let's also look at the range of the propensity score by group. 
+@fig-mirrored-ps 는 이러한 가정들을 단일 차원(성향 점수)으로 축소하여 보여줍니다. 우리는 확실히 중첩과 균형 문제를 볼 수 있습니다. 분명히 그룹 간의 분포는 모양과 일수 측면에서 다릅니다. 그룹별 성향 점수의 범위도 살펴봅시다.
 
 ```{r}
 seven_dwarfs_9_with_ps |>
@@ -315,36 +298,36 @@ seven_dwarfs_9_with_ps |>
   reframe(range = range(.fitted))
 ```
 
-The range between groups seems pretty close. One helpful way to look at the tails is to check the number of *unexposed* observations below the lowest probability for the *exposed* group and the number of *exposed* observations above the highest probability for the *unexposed* group. 
+그룹 간의 범위가 꽤 가까워 보입니다. 꼬리 부분을 살펴보는 유용한 방법 중 하나는 *노출군*의 최저 확률보다 더 낮은 확률을 가진 *비노출군* 관측치 수와, *비노출군*의 최고 확률보다 더 높은 확률을 가진 *노출군* 관측치 수를 확인하는 것입니다.
 
 ```{r}
 seven_dwarfs_9_with_ps |>
   mutate(
     support = case_when(
       park_extra_magic_morning == 0 &
-        .fitted < min(.fitted[park_extra_magic_morning == 1]) ~ "unexp_below",
+        .fitted < min(.fitted[park_extra_magic_morning == 1]) ~ "비노출군_범위미만",
       park_extra_magic_morning == 1 & 
-        .fitted > max(.fitted[park_extra_magic_morning == 0]) ~ "exp_above",
-      .default = "inside_support",
-      .ptype = factor(levels = c("unexp_below", "inside_support", "exp_above"))
+        .fitted > max(.fitted[park_extra_magic_morning == 0]) ~ "노출군_범위초과",
+      .default = "공통_지지_영역내",
+      .ptype = factor(levels = c("비노출군_범위미만", "공통_지지_영역내", "노출군_범위초과"))
     )
   ) |>
   count(support, .drop = FALSE)
 ```
 
-However, looking at @fig-mirrored-ps, we see some areas of sparsity, implying some combinations have positivity violations. For instance, many more days are without Extra Magic Mornings with a probability below 10%.
+하지만 @fig-mirrored-ps 를 보면, 일부 데이터가 희소한(sparse) 영역이 보이는데, 이는 일부 조합에서 긍정성 위배가 있을 수 있음을 암시합니다. 예를 들어, 확률이 10% 미만인 날들 중에는 아침 엑스트라 매직 아워가 없는 날이 훨씬 더 많습니다.
 
 ```{r}
 seven_dwarfs_9_with_ps |>
   count(park_extra_magic_morning, low_prob = .fitted <= .1)
 ```
 
-We're likely seeing a combination of structural positivity (some days will never or always get Extra Magic Hours per Disney's decision-making process) and stochastic violations. Since we have a limited number of days in the year and only about 17% of days get Extra Magic Hours in the morning, we expect some sparsity. For instance, @fig-random-days-ps is what the graph would look like if Extra Magic Mornings were randomized with the same proportions of exposed and unexposed days. (If you try this out with different seeds, you'll see that these data are prone to such random violations.) Propensity score methods are more susceptible to issues with positivity violations than outcome model-based methods and some doubly robust methods; we'll have to keep an eye on this.
+우리는 아마도 구조적 긍정성(디즈니의 의사 결정 과정에 따라 어떤 날들은 결코 매직 아워를 갖지 않거나 항상 갖게 됨)과 확률적 위배가 복합적으로 나타나는 것을 보고 있는 것 같습니다. 연간 일수가 제한되어 있고 약 17%의 날들만 아침 엑스트라 매직 아워가 있기 때문에, 어느 정도의 희소성은 예상되는 결과입니다. 예를 들어, @fig-random-days-ps 는 아침 엑스트라 매직 아워가 동일한 노출 비율로 무작위 배정되었을 때 그래프가 어떤 모습일지 보여줍니다. (서로 다른 시드로 시도해 보면, 이 데이터가 그러한 무작위 위배에 취약하다는 것을 알게 될 것입니다.) 성향 점수 방법은 결과 모델 기반 방법이나 일부 이중 로버스트 방법보다 긍정성 위배 문제에 더 민감합니다; 우리는 이 점을 계속 주시해야 할 것입니다.
 
 ```{r}
 #| label: fig-random-days-ps
 #| code-fold: true
-#| fig-cap: "A simulation of randomizing Extra Magic Mornings. There is no relationship between the covariates and the exposure except chance. Because of the small sample size and lower proportion of exposed days, we need to be cautious about interpreting the results of these distributions."
+#| fig-cap: "엑스트라 매직 아워 무작위 배정 시뮬레이션. 우연을 제외하고는 공변량과 노출 사이에 아무런 관계가 없습니다. 작은 표본 크기와 낮은 노출 비중 때문에, 이러한 분포의 결과를 해석할 때 주의가 필요합니다."
 set.seed(2025)
 seven_dwarfs_9 |>
   mutate(randomized_emm = rbinom(n(), 1, .17)) |>
@@ -359,35 +342,35 @@ seven_dwarfs_9 |>
   ) +
   geom_mirror_histogram(bins = 50) +
   scale_y_continuous(labels = abs) +
-  labs(x = "propensity score", fill = "extra magic morning")
+  labs(x = "성향 점수", fill = "엑스트라 매직 아워")
 ```
 
-What can we do about these problems? Although we need good domain knowledge to base our assumptions on (and perhaps better exclusion criteria for days that are structurally unable to receive Extra Magic Hours), using the information in the propensity score can help with both exchangeability and, with some methods, positivity.
+이러한 문제들에 대해 무엇을 할 수 있을까요? 우리의 가정을 뒷받침할 훌륭한 도메인 지식이 필요하지만(또한 구조적으로 엑스트라 매직 아워를 받을 수 없는 날들에 대해 더 나은 제외 기준이 필요할 수도 있습니다), 성향 점수에 담긴 정보를 사용하는 것은 교환 가능성과 (일부 방법의 경우) 긍정성 모두에 도움이 될 수 있습니다.
 
-## Using the propensity scores {#sec-using-ps}
+## 성향 점수 사용하기 {#sec-using-ps}
 
-The propensity score is a *balancing* tool at its heart. 
-We use it to help us make our exposure groups exchangeable (and, as we'll see in @sec-estimands, we can also sometimes use it to improve positivity).
-There are many ways to incorporate the propensity score into an analysis.
-Commonly used techniques include stratification (estimating the causal effect within propensity score strata), matching, weighting, and direct covariate adjustment (including the propensity score as a covariate in the outcome model).
-This section will focus on **matching** and **weighting**.
+성향 점수는 그 핵심에 있어 **균형(balancing)**을 위한 도구입니다.
+우리는 이를 사용하여 노출 그룹들을 교환 가능하게 만들려고 노력합니다 (그리고 @sec-estimands 에서 보겠지만, 때때로 긍정성을 개선하는 데 사용할 수도 있습니다).
+분석에 성향 점수를 통합하는 방법은 많습니다.
+흔히 사용되는 기술로는 층화(stratification, 성향 점수 층 내에서 인과 효과 추정), 매칭(matching), 가중치 부여(weighting), 그리고 직접 공변량 조정(direct covariate adjustment, 결과 모델에 성향 점수를 공변량으로 포함) 등이 있습니다.
+이 섹션에서는 **매칭**과 **가중치 부여**에 집중할 것입니다.
 
-Matching and weighting are two different ways of creating populations with better confounder balance. In matching, we create a *sub*-population by selecting a subgroup of observations where we hope exchangeability holds. In weighting, we re-weight the observations to create a *pseudo*-population where we hope exchangeability holds.
+매칭과 가중치 부여는 공변량 균형이 더 잘 잡힌 인구 집단을 만드는 두 가지 다른 방법입니다. 매칭에서는 교환 가능성이 유지되기를 기대하며 관측치의 하위 그룹을 선택하여 *하위 인구(sub-population)*를 만듭니다. 가중치 부여에서는 교환 가능성이 유지되기를 기대하며 관측치에 다시 가중치를 부여하여 *가상 인구(pseudo-population)*를 만듭니다.
 
-## Matching {#sec-matching}
+## 매칭 (Matching) {#sec-matching}
 
-Matching is an intuitive way to create a population where we can make apples-to-apples comparisons. 
-Imagine that we start with an exposed observation. In an infinite population, we could handpick an unexposed observation, the only difference being the exposure status. 
-In other words, we match two observations that have identical confounder values but opposite exposure values. 
-This is called **exact matching**. Exact matching works well for very large data or very limited numbers (and values) of confounders, but it becomes increasingly complex to find such a match when the number and continuity of confounders increase.
-This is where the propensity score, a summary measure of all of the confounders, comes into play.
+매칭은 "사과 대 사과" 비교를 할 수 있는 인구 집단을 만드는 직관적인 방법입니다.
+노출된 관측치 하나에서 시작한다고 상상해 봅시다. 무한한 인구 집단에서라면, 노출 상태를 제외하고는 모든 것이 동일한 노출되지 않은 관측치 하나를 직접 선택할 수 있을 것입니다.
+다시 말해, 공변량 값은 동일하지만 노출 값은 반대인 두 관측치를 매칭하는 것입니다.
+이를 **정확 매칭(exact matching)**이라고 합니다. 정확 매칭은 매우 큰 데이터나 공변량의 수(및 값)가 매우 제한적일 때 잘 작동하지만, 공변량의 수와 연속성이 증가함에 따라 그러한 짝을 찾는 것이 점점 더 복잡해집니다.
+여기서 모든 공변량의 요약 측정치인 성향 점수가 등장합니다.
 
-The `{MatchIt}` package is one of the most flexible tools for matching in R.
-Let's match similar days with `matchit()`.
-(If we didn't include the pre-computed propensity score in the `distance` argument, `matchit()` would have refit the logistic regression for us.)
-There were 60 days in 2018 when the Magic Kingdom had Extra Magic Morning hours.
-For each of these 60 exposed days, `matchit()` found a comparable unexposed day, by implementing a nearest-neighbor match using the constructed propensity score.
-Examining the output, we also see that the default target estimand is an "ATT," the average treatment effect among the treated. We will discuss this and several other estimands in @sec-estimands, but the important thing to know for know is that `matchit()` is going to keep all the days with Extra Magic Morning and may discard some days that were unexposed. 
+`{MatchIt}` 패키지는 R에서 매칭을 위한 가장 유연한 도구 중 하나입니다.
+`matchit()`을 사용하여 유사한 날짜들을 매칭해 봅시다.
+(만약 `distance` 인자에 미리 계산된 성향 점수를 포함하지 않았다면, `matchit()`이 우리를 위해 로지스틱 회귀를 다시 적합시켰을 것입니다.)
+2018년에 매직 킹덤에 아침 엑스트라 매직 아워가 있었던 날은 60일이었습니다.
+이 60일의 노출된 각 날짜에 대해, `matchit()`은 구성된 성향 점수를 사용한 최근접 이웃(nearest-neighbor) 매칭을 구현하여 비교 가능한 노출되지 않은 날짜를 찾았습니다.
+출력 결과를 살펴보면, 기본 대상 추정 대상(target estimand)이 "ATT", 즉 처치받은 집단에서의 평균 처치 효과임을 알 수 있습니다. 우리는 @sec-estimands 에서 이에 대해 더 자세히 논의할 것이지만, 현재로서는 `matchit()`이 아침 엑스트라 매직 아워가 있었던 모든 날짜를 유지하고 노출되지 않았던 날짜 중 일부를 버릴 것임을 아는 것이 중요합니다.
 
 ```{r}
 library(MatchIt)
@@ -395,15 +378,15 @@ ps_logit_scale <- predict(ps_mod)
 matchit_obj <- matchit(
   park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
   data = seven_dwarfs_9_with_ps,
-  # match on the propensity score we fit on the logit scale
-  # TODO: @Lucy, should we supply this on the logit scale or probability scale?
+  # 로짓 척도로 적합시킨 성향 점수로 매칭합니다
   distance = ps_logit_scale
 )
 
 matchit_obj
 ```
-We can use the `get_matches()` function to create a data frame with the original variables that consists only of those who were matched.
-Notice that our sample size has been reduced from 354 days to 120.
+
+`get_matches()` 함수를 사용하여 매칭된 사람들로만 구성된 원래 변수들이 포함된 데이터 프레임을 만들 수 있습니다.
+표본 크기가 354일에서 120일로 줄어든 점에 주목하십시오.
 
 ```{r}
 matched_data <- get_matches(matchit_obj) |>
@@ -412,7 +395,7 @@ matched_data <- get_matches(matchit_obj) |>
 matched_data
 ```
 
-The `subclass` column tells us which days are matched. For instance, for `subclass == 1`, we have a pair of days, one with and one without Extra Magic Mornings. Their propensity scores are the same.
+`subclass` 열은 어떤 날짜들이 서로 매칭되었는지 알려줍니다. 예를 들어 `subclass == 1`의 경우, 아침 엑스트라 매직 아워가 있었던 날과 없었던 날의 한 쌍이 있습니다. 그들의 성향 점수는 동일합니다.
 
 ```{r}
 matched_data |>
@@ -420,7 +403,7 @@ matched_data |>
   select(park_date, park_extra_magic_morning, .fitted)
 ```
 
-If we look closer at their covariates, we can see why. These are not exact matches---the temperature and park close variables are slightly different---but we can see these are both regular ticket season days with cooler historic temperatures and later close times. Do they seem like good counterfactuals for one another?
+그들의 공변량들을 자세히 살펴보면 이유를 알 수 있습니다. 이들은 정확히 일치하지는 않지만 --- 기온과 공원 폐쇄 변수가 약간 다릅니다 --- 둘 다 과거 기온이 낮고 폐쇄 시간이 늦은 평수기 티켓 시즌 날짜들임을 볼 수 있습니다. 이들이 서로에게 좋은 반사실이 될 수 있을까요?
 
 ```{r}
 matched_data |>
@@ -428,7 +411,7 @@ matched_data |>
   select(park_date, park_temperature_high, park_ticket_season, park_close)
 ```
 
-Pair 45 also have similar propensity scores, although it is not as close as pair 1.
+쌍 45번도 비슷한 성향 점수를 가지고 있지만, 쌍 1번만큼 가깝지는 않습니다.
 
 ```{r}
 matched_data |>
@@ -436,7 +419,7 @@ matched_data |>
   select(park_date, park_extra_magic_morning, .fitted)
 ```
 
-Their actual variables, however, are not as close. There is about a 20 degree difference in the historical temperature, and the park close time, while earlier for both, is a little further apart than pair 1.
+하지만 그들의 실제 변수들은 그렇게 가깝지 않습니다. 과거 기온에 약 20도 정도 차이가 나고, 공원 폐쇄 시간은 둘 다 이른 편이지만 쌍 1번보다는 조금 더 떨어져 있습니다.
 
 ```{r}
 matched_data |>
@@ -444,7 +427,7 @@ matched_data |>
   select(park_date, park_temperature_high, park_ticket_season, park_close)
 ```
 
-We might also want to know which days *weren't* matched. Since we kept all the days with Extra Magic Hours, we know all of the days that were dropped did not have them. We can check which days aren't in the matched data with an anti-join.
+우리는 또한 어떤 날짜들이 매칭되지 *않았는지* 알고 싶을 수 있습니다. 엑스트라 매직 아워가 있었던 모든 날짜를 유지했으므로, 제외된 모든 날짜들은 엑스트라 매직 아워가 없었던 날들임을 알 수 있습니다. 안티 조인(anti-join)을 사용하여 매칭된 데이터에 없는 날짜들을 확인할 수 있습니다.
 
 ```{r}
 seven_dwarfs_9_with_ps |>
@@ -452,9 +435,9 @@ seven_dwarfs_9_with_ps |>
   select(park_date, park_extra_magic_morning, .fitted)
 ```
 
-We may feel that there is still a lot of valuable statistical information in these dropped data. We could gain extra statistical precision by using more than one match for each day with Extra Magic Hours. Previously, we used $1:1$ matching, but `matchit()` also supports $1:k$ matching with the `ratio` argument. For instance, for `ratio = 2`, we would get two matches for every day with Extra Magic Mornings, resulting in a sample size of 180.
+우리는 이렇게 제외된 데이터에도 여전히 가치 있는 통계적 정보가 많이 있다고 느낄 수 있습니다. 엑스트라 매직 아워가 있었던 각 날짜에 대해 하나 이상의 매칭 대상을 사용함으로써 추가적인 통계적 정밀도를 얻을 수 있습니다. 이전에는 $1:1$ 매칭을 사용했지만, `matchit()`은 `ratio` 인자를 통해 $1:k$ 매칭도 지원합니다. 예를 들어 `ratio = 2`로 설정하면 엑스트라 매직 아워가 있었던 매일 매일애 대해 두 개의 매칭 대상을 얻게 되어 표본 크기가 180이 됩니다.
 
-However, we need to be cautious about adding extra matches when data are limited. The more days we try to match, the worse the match will get. For instance, when we try to find four matches for each day with Extra Magic Mornings, the day the propensity scores for `subclass == 1` start to get pretty different for the later matches. This is a bias-variance trade-off: for more matches, we get better precision, but we make it harder to find good matches, which may increase bias.
+하지만 데이터가 제한적일 때는 매칭 대상을 늘리는 것에 주의해야 합니다. 더 많은 날짜를 매칭하려고 할수록 매칭의 품질은 떨어질 것입니다. 예를 들어, 엑스트라 매직 아워가 있었던 각 날짜에 대해 4개의 매칭 대상을 찾으려고 하면, `subclass == 1`에 대해 나중에 매칭된 대상들의 성향 점수가 꽤 달라지기 시작합니다. 이것이 편향-분산 트레이드오프(bias-variance trade-off)입니다: 더 많은 매칭 대상을 사용하면 정밀도는 좋아지지만, 좋은 짝을 찾기 어려워져 편향이 증가할 수 있습니다.
 
 ```{r}
 matchit(
@@ -469,7 +452,7 @@ matchit(
   select(park_date, park_extra_magic_morning, .fitted)
 ```
 
-We can control the quality of the match by asking `matchit()` to only match observations within a certain distance away. In other words, we can ask not to match observations with propensity scores farther apart than we'd like. We control this by setting a **caliper**. The caliper is a dynamic distance, on the logit scale, that we accept as the maximum difference between two observations that can be matched. It is dynamic in that sense that whatever value we give to the `caliper` argument is multiplied by the standard deviation of the propensity score. However, let's try 1:2 matching with a caliper of 0.2. Matching with a caliper gives us 178 days, two days fewer than $60 + 60*2$. Two of the days with Extra Magic Mornings only received one matched control instead of two. 
+우리는 `matchit()`에게 일정 거리 이내의 관측치들만 매칭하도록 요청함으로써 매칭의 품질을 제어할 수 있습니다. 다시 말해, 성향 점수가 우리가 원하는 것보다 멀리 떨어진 관측치들은 매칭하지 않도록 요청할 수 있습니다. 우리는 이를 **캘리퍼(caliper)** 설정을 통해 제어합니다. 캘리퍼는 로짓 척도에서 매칭 가능한 두 관측치 사이의 최대 허용 거리입니다. 이는 동적인 값으로, `caliper` 인자에 제공하는 값에 성향 점수의 표준 편차를 곱하여 계산됩니다. 하지만 캘리퍼를 0.2로 설정하여 1:2 매칭을 시도해 봅시다. 캘리퍼를 사용한 매칭 결과 178일이 얻어졌는데, 이는 $60 + 60*2$보다 2일 적은 수치입니다. 엑스트라 매직 아워가 있었던 날들 중 두 날은 매칭 대상을 2개가 아닌 1개만 찾았기 때문입니다.
 
 ```{r}
 mtchs <- matchit(
@@ -487,25 +470,25 @@ mtchs |>
   filter(n < 3)
 ```
 
-One important point is that by setting a caliper, we may be changing the population about whom we are making inferences depending on which and how many observations are dropped. We'll revisit this in @sec-estimands.
+중요한 점은 캘리퍼를 설정함으로써, 어떤 관측치들이 얼마나 제외되느냐에 따라 우리가 추론을 이끌어내는 인구 집단이 달라질 수 있다는 점입니다. 우리는 @sec-estimands 에서 이를 다시 살펴볼 것입니다.
 
-## Weighting {#sec-weighting}
+## 가중치 부여 (Weighting) {#sec-weighting}
 
-One way to think about matching is as a crude weight: In the final sample, everyone who was matched gets a weight of 1, and everyone who was not matched gets a weight of 0.
-Another approach is to allow this weight to be smooth, applying a weight to allow, on average, the covariates of interest to be balanced in a weighted pseudo-population.
-We already have a handy summary of the covariates we need to balance on: the propensity score.
-Rather than matching on the propensity score, we'll use it as the basis for these weights.
-We can calculate many different weights depending on the target estimand of interest (see @sec-estimands for details).
-In this section, we will focus on the Average Treatment Effect (ATE) weights, commonly referred to as inverse probability weights.
-The weight is constructed as follows: each observation is weighted by the *inverse* of the probability of receiving the exposure it actually received.
+매칭을 생각하는 한 가지 방법은 거친 가중치(crude weight)로 보는 것입니다: 최종 표본에서 매칭된 모든 사람은 1의 가중치를 받고, 매칭되지 않은 모든 사람은 0의 가중치를 받습니다.
+또 다른 접근 방식은 이 가중치를 매끄럽게 허용하여, 가중치가 부여된 가상 인구에서 관심 있는 공변량들이 평균적으로 균형을 이루도록 가중치를 적용하는 것입니다.
+우리는 이미 균형을 맞춰야 할 공변량들의 유용한 요약치를 가지고 있습니다: 바로 성향 점수입니다.
+성향 점수로 매칭을 하는 대신, 이를 가중치의 기초로 사용할 것입니다.
+우리는 관심 있는 대상 추정 대상에 따라 다양한 가중치를 계산할 수 있습니다 (자세한 내용은 @sec-estimands 참조).
+이 섹션에서는 일반적으로 역확률 가중치(inverse probability weights)라고 불리는 평균 처치 효과(ATE) 가중치에 집중할 것입니다.
+가중치는 다음과 같이 구성됩니다: 각 관측치는 자신이 실제로 받은 노출을 받을 확률의 *역수*로 가중치가 부여됩니다.
 
 $$w_{ATE} = \frac{X}{p} + \frac{(1 - X)}{1 - p}$$
 
-For example, if observation 1 had a very high likelihood of being exposed given their pre-exposure covariates ($p = 0.9$), but they in fact were *not* exposed, their weight would be 10 ($w_1 = 1 / (1 - 0.9)$).
-Likewise, if observation 2 had a very high likelihood of being exposed given their pre-exposure covariates ($p = 0.9$), and they *were* exposed, their weight would be 1.1 ($w_2 = 1 / 0.9$).
-Intuitively, we give more weight to observations that, based on their measured confounders, appear to have helpful information for constructing a counterfactual---we would have predicted that they were exposed, but by chance, they were not, or vice versa. 
+예를 들어, 관측치 1이 노출 전 공변량들이 주어졌을 때 노출될 확률이 매우 높았지만($p = 0.9$), 실제로는 노출되지 *않았다면*, 그 가중치는 10이 됩니다($w_1 = 1 / (1 - 0.9)$).
+마찬가지로, 관측치 2가 노출될 확률이 매우 높았고($p = 0.9$), 실제로 노출*되었다면*, 그 가중치는 1.1이 됩니다($w_2 = 1 / 0.9$).
+직관적으로, 우리는 측정된 교란 요인들을 바탕으로 반사실을 구성하는 데 도움이 되는 정보를 가진 관측치에 더 많은 가중치를 부여하는 것입니다 --- 노출될 것으로 예측되었지만 우연히 노출되지 않았거나, 그 반대의 경우들입니다.
 
-The `{propensity}` package calculates a variety of propensity score weights with functions named to follow the pattern `wt_estimand()`. To calculate the ATE, we use `wt_ate()`, which we provide the fitted propensity score and the observed exposure values. 
+`{propensity}` 패키지는 `wt_estimand()` 패턴을 따르는 이름의 함수들로 다양한 성향 점수 가중치를 계산합니다. ATE를 계산하기 위해 `wt_ate()`를 사용하며, 여기에 적합된 성향 점수와 관찰된 노출 값을 제공합니다.
 
 ```{r}
 library(propensity)
@@ -514,12 +497,12 @@ seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
   mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
 ```
 
-@tbl-df-wt shows the weights in the first six rows. For instance, January 1 did not have Extra Magic Hours, and it only had a probability of $1 - 0.3 = 0.7$ of *not* having them. Therefore, this isn't a particularly surprising day. It gets a weight of 1.4. January 5, however, is more surprising: it has a probability of receiving Extra Magic Hours of 0.18, but it did, in fact, have them. That makes it a good counterfactual for these other days that didn't, so it gets a weight of 5.4.
+@tbl-df-wt 는 처음 6개 행의 가중치를 보여줍니다. 예를 들어, 1월 1일은 엑스트라 매직 아워가 없었으며, 이를 갖지 *않을* 확률은 $1 - 0.3 = 0.7$이었습니다. 따라서 이 날은 특별히 놀라운 날이 아닙니다. 가중치는 1.4를 받습니다. 반면 1월 5일은 더 놀라운 날입니다: 엑스트라 매직 아워를 가질 확률이 0.18이었지만 실제로 이를 가졌기 때문입니다. 이 날은 이를 갖지 않은 다른 날들에 대해 좋은 반사실이 될 수 있으므로 5.4의 가중치를 받습니다.
 
 ```{r}
 #| label: tbl-df-wt
 #| tbl-cap: >
-#|   The first six observations in the `seven_dwarfs_9_with_wt` dataset, including their propensity scores in the `.fitted` column and weight in the `w_ate` column.
+#|   `.fitted` 열에 성향 점수가, `w_ate` 열에 가중치가 포함된 `seven_dwarfs_9_with_wt` 데이터셋의 처음 6개 관측치.
 #| code-fold: true
 seven_dwarfs_9_with_wt |>
   select(
@@ -535,19 +518,19 @@ seven_dwarfs_9_with_wt |>
   gt() |>
   cols_label(
     .fitted = "P(EMM)",
-    park_date = "Date",
-    park_extra_magic_morning = "Extra Magic Mornings",
-    park_ticket_season = "Ticket Season",
-    park_close = "Close time",
-    park_temperature_high = "Historic Temp.",
-    w_ate = "ATE Weights"
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 아워",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐쇄 시간",
+    park_temperature_high = "과거 기온",
+    w_ate = "ATE 가중치"
   )
 ```
 
 ::: {.callout-note}
 ## WeightIt
 
-If you like the feel of MatchIt, it has a cousin package called `{WeightIt}` with the same design principles and many useful features. We'll focus on propensity, but WeightIt is easy to use if you are familiar with MatchIt.
+만약 MatchIt의 방식이 마음에 든다면, 동일한 설계 원칙과 많은 유용한 기능을 가진 형제 패키지인 `{WeightIt}`이 있습니다. 우리는 `propensity`에 집중하겠지만, MatchIt에 익숙하다면 WeightIt도 사용하기 쉽습니다.
 
 ```{r}
 wt_it <- WeightIt::weightit(
@@ -563,24 +546,24 @@ head(wt_it$weights)
 
 :::
 
-A day that had a very low predicted probability of Extra Magic Hours in the morning will receive a high weight if it did, in fact, have them. The minimum of ATE weights is 1, but the maximum is unbounded. The closer the probability of receiving the observed exposure is to 0, the higher the weight will be. That means we need to be cautious about **extreme weights**. Extreme weights are weights that add undue information to the resulting outcome model. Extreme weights tend to *destabilize* our estimate, resulting in worse precision and potentially worse bias. @fig-wts-distr shows the distribution of the ATE weights.
+아침에 엑스트라 매직 아워를 가질 예측 확률이 매우 낮았던 날이 실제로 이를 가졌다면 높은 가중치를 받게 됩니다. ATE 가중치의 최솟값은 1이지만 최댓값은 제한이 없습니다. 관찰된 노출을 받을 확률이 0에 가까울수록 가중치는 더 높아집니다. 이는 우리가 **극단적인 가중치(extreme weights)**에 주의해야 함을 의미합니다. 극단적인 가중치는 결과로 나타나는 결과 모델에 과도한 정보를 추가하는 가중치입니다. 극단적인 가중치는 우리의 추정치를 *불안정하게(destabilize)* 만들어, 정밀도를 떨어뜨리고 잠재적으로 편향을 악화시키는 경향이 있습니다. @fig-wts-distr 은 ATE 가중치의 분포를 보여줍니다.
 
 ```{r}
 #| label: fig-wts-distr
-#| fig-cap: "The distribution of Average Treatment Effect weights. ATE weights have a lower bound of 1 and no upper bound. Here, we see a spike near one but many weights much higher in the right tail."
+#| fig-cap: "평균 처치 효과(ATE) 가중치의 분포. ATE 가중치는 하한이 1이며 상한은 없습니다. 여기서는 1 근처에 많은 값이 몰려 있지만 오른쪽 꼬리 부분에 훨씬 높은 가중치들이 많이 보입니다."
 #| message: false
 seven_dwarfs_9_with_wt |>
   ggplot(aes(w_ate)) +
   geom_histogram() +
   scale_x_log10() +
-  xlab("ATE Weights")
+  xlab("ATE 가중치")
 ```
 
-Indeed, we have several days with weights over 10 (@tbl-extreme-wts). April 27, for instance, is being treated like almost twenty days! It might be a good counterfactual for days without Extra Magic Hours, but a weight that high will add more variance than it will reduce bias.
+실제로 가중치가 10을 넘는 날들이 여러 개 있습니다 (@tbl-extreme-wts). 예를 들어 4월 27일은 거의 20일치에 해당하는 가중치를 받고 있습니다! 이 날이 엑스트라 매직 아워가 없었던 날들에 대해 좋은 반사실이 될 수는 있겠지만, 가중치가 이렇게 높으면 편향을 줄이는 것보다 분산을 더 많이 키우게 될 것입니다.
 
 ```{r}
 #| label: tbl-extreme-wts
-#| tbl-cap: "Days with ATE weights over 10. These days are upweighted in our population because of their low probability of occurring, but the higher weights get, the more instability we introduce."
+#| tbl-cap: "ATE 가중치가 10을 넘는 날들. 이 날들은 발생 확률이 낮기 때문에 우리 인구 집단에서 상향 가중되었지만, 가중치가 높아질수록 더 많은 불안정성을 도입하게 됩니다."
 #| code-fold: true
 seven_dwarfs_9_with_wt |>
   filter(w_ate > 10) |>
@@ -596,20 +579,20 @@ seven_dwarfs_9_with_wt |>
   gt() |>
   cols_label(
     .fitted = "P(EMM)",
-    park_date = "Date",
-    park_extra_magic_morning = "Extra Magic Mornings",
-    park_ticket_season = "Ticket Season",
-    park_close = "Close time",
-    park_temperature_high = "Historic Temp.",
-    w_ate = "ATE Weights"
+    park_date = "날짜",
+    park_extra_magic_morning = "엑스트라 매직 아워",
+    park_ticket_season = "티켓 시즌",
+    park_close = "폐쇄 시간",
+    park_temperature_high = "과거 기온",
+    w_ate = "ATE 가중치"
   )
 ```
 
-We can mitigate some of the instability of extreme weights by using a stabilization factor: the proportions of the exposed and unexposed. Instead of inverting the probability of the received exposure, we use the proportion in the numerator. Stabilization has an interesting effect on the weights. First, it improves the variance by making the spread of the weights smaller. Second, it creates weights that have a mean of 1. In other words, the pseudo-population is approximately the same size as the original population.
+우리는 안정화 계수(stabilization factor)인 노출군과 비노출군의 비율을 사용하여 극단적인 가중치의 불안정성을 일부 완화할 수 있습니다. 받은 노출의 확률을 역전시키는 대신, 분자에 해당 비율을 사용합니다. 안정화는 가중치에 흥미로운 효과를 줍니다. 첫째, 가중치의 퍼짐 정도를 작게 만들어 분산을 개선합니다. 둘째, 평균이 1인 가중치를 생성합니다. 다시 말해, 가상 인구의 크기가 원래 인구와 거의 같아집니다.
 
 ```{r}
 #| label: fig-stbl-wts
-#| fig-cap: "The distribution of stabilized ATE weights. Their distribution is much more restricted than the unstabilized weights, and they average to a weight of 1."
+#| fig-cap: "안정화된 ATE 가중치의 분포. 그 분포가 안정화되지 않은 가중치보다 훨씬 더 제한적이며, 평균 가중치는 1입니다."
 #| message: false
 seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
   mutate(stbl_wts = wt_ate(.fitted, park_extra_magic_morning, stabilize = TRUE))
@@ -627,12 +610,12 @@ seven_dwarfs_9_with_wt |>
   ggplot(aes(stbl_wts)) +
   geom_histogram() +
   scale_x_log10() +
-  xlab("Stabilized ATE Weights")
+  xlab("안정화된 ATE 가중치")
 ```
 
-Another set of techniques that are used to address extreme weights (and poor overlap) are **trimming** and **truncation**. Trimming is when we set an acceptable range of the propensity score and drop the observations that fall outside of that range from the analysis. When trimming, you should refit the propensity score model to improve the fit and calibration. Truncation is when, instead of dropping observations, we *truncate* any value outside of the acceptable range to the minimum or maximum of the range. Truncating is also sometimes called **Winsorizing**. Note that sometimes, authors use "trim" and "truncate" interchangeably or even with the opposite meanings, so be clear about what you mean and make sure you understand what other analysts mean, too.
+극단적인 가중치(및 부족한 중첩)를 해결하기 위해 사용되는 또 다른 기술 세트는 **트리밍(trimming)**과 **절단(truncation)**입니다. 트리밍은 성향 점수의 허용 범위를 설정하고 그 범위를 벗어나는 관측치들을 분석에서 제외하는 것입니다. 트리밍을 할 때는 적합도와 캘리브레이션을 개선하기 위해 성향 점수 모델을 다시 적합시켜야 합니다. 절단은 관측치를 제외하는 대신, 허용 범위를 벗어나는 모든 값을 해당 범위의 최솟값 또는 최댓값으로 *절단*하는 것입니다. 절단은 때때로 **윈저화(Winsorizing)**라고도 불립니다. 저자들에 따라 "트리밍"과 "절단"을 혼용하거나 심지어 반대 의미로 사용하기도 하므로, 자신이 의미하는 바를 명확히 하고 다른 분석가들이 의미하는 바도 잘 이해해야 합니다.
 
-propensity provides helper functions for managing these processes. `ps_trim()` will trim the observations, and `ps_trunc()` will truncate them. `ps_refit()` will refit the propensity score on only the non-trimmed observations. There are a few things to note here. First, we're using an adaptive method to decide the best range to trim the scores at; this approach optimizes the variance of the resulting observations. Second, we're using `ps_refit()` on the trimmed propensity scores to recalculate the propensity score without the trimmed observations. Third, in `ps_trunc()`, we're truncating propensity scores to *under* the 1st percentile *to* the 1st percentile. Researchers will commonly truncate to the 1st and 99th percentiles, but since our highest propensity score is about 0.50, these won't produce extreme weights, so we leave them alone.
+`propensity` 패키지는 이러한 과정들을 관리하기 위한 헬퍼 함수들을 제공합니다. `ps_trim()`은 관측치들을 트리밍하고, `ps_trunc()`는 이들을 절단합니다. `ps_refit()`은 트리밍되지 않은 관측치들로만 성향 점수 모델을 다시 적합시킵니다. 여기서 몇 가지 주의할 점이 있습니다. 첫째, 우리는 점수를 트리밍할 최적의 범위를 결정하기 위해 적응형(adaptive) 방법을 사용하고 있습니다; 이 접근 방식은 결과 관측치들의 분산을 최적화합니다. 둘째, 트리밍된 성향 점수에 대해 `ps_refit()`을 사용하여 트리밍된 관측치 없이 성향 점수를 다시 계산합니다. 셋째, `ps_trunc()`에서 우리는 성향 점수를 하위 1% 미만인 경우 1% 값으로 절단하고 있습니다. 연구자들은 흔히 1%와 99% 백분위수에서 절단하지만, 우리의 가장 높은 성향 점수는 약 0.50이므로 극단적인 가중치를 생성하지 않을 것이기 때문에 상한선은 그대로 둡니다.
 
 ```{r}
 seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_wt |>
@@ -643,7 +626,7 @@ seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_wt |>
   )
 ```
 
-Trimming and truncating affect our sample differently. In trimming, we have fewer observations afterward. We can see which observations were trimmed with `is_unit_trimmed()`. Only observations in the lower range of the original propensity score were trimmed. Their values for `trimmed_ps` are `NA` because they were not included in the model when we used `ps_refit()`.
+트리밍과 절단은 우리 표본에 서로 다른 방식으로 영향을 미칩니다. 트리밍을 하면 나중에 관측치 수가 줄어듭니다. 어떤 관측치가 트리밍되었는지는 `is_unit_trimmed()`로 확인할 수 있습니다. 원래 성향 점수의 낮은 범위에 있는 관측치들만 트리밍되었습니다. `ps_refit()`을 사용할 때 모델에 포함되지 않았기 때문에 이들의 `trimmed_ps` 값은 `NA`입니다.
 
 ```{r}
 seven_dwarfs_9_with_wt |>
@@ -651,11 +634,11 @@ seven_dwarfs_9_with_wt |>
   select(park_date, park_extra_magic_morning, .fitted, trimmed_ps)
 ```
 
-You can see the overlap in this subset is slightly improved (@fig-dist-ps-trimmed).
+이 하위 집합에서 중첩이 약간 개선된 것을 볼 수 있습니다 (@fig-dist-ps-trimmed).
 
 ```{r}
 #| label: fig-dist-ps-trimmed
-#| fig-cap: "The distribution of propensity scores by exposure group after trimming. Trimming improved the overlap."
+#| fig-cap: "트리밍 후 노출 그룹별 성향 점수 분포. 트리밍이 중첩을 개선했습니다."
 #| message: false
 #| warning: false
 ggplot(
@@ -664,10 +647,10 @@ ggplot(
 ) +
   geom_mirror_histogram(bins = 50) +
   scale_y_continuous(labels = abs) +
-  labs(x = "propensity score", fill = "extra magic morning")
+  labs(x = "성향 점수", fill = "엑스트라 매직 아워")
 ```
 
-In truncation, we are not removing observations but forcing some observations to be within the acceptable range. All the truncated observations (which we found with `is_unit_truncated()`) now have the same value in `trunc_ps`, equal to the 1st percentile of `.fitted`.
+절단의 경우, 관측치를 제거하지 않고 일부 관측치들이 허용 범위 내에 있도록 강제합니다. 절단된 모든 관측치들(`is_unit_truncated()`로 찾음)은 이제 `trunc_ps`에서 `.fitted`의 1% 백분위수와 동일한 값을 갖게 됩니다.
 
 ```{r}
 seven_dwarfs_9_with_wt |>
@@ -675,11 +658,11 @@ seven_dwarfs_9_with_wt |>
   select(park_date, park_extra_magic_morning, .fitted, trunc_ps)
 ```
 
-You can see how the truncation on the left side of the plot forces overlap (@fig-dist-ps-trunc). Truncation doesn't discard units (improving the sample size over trimming), but this forced change of propensity scores can be unintuitive.
+그래프의 왼쪽에서 절단이 어떻게 중첩을 강제하는지 볼 수 있습니다 (@fig-dist-ps-trunc). 절단은 단위를 버리지 않기 때문에 트리밍보다 표본 크기를 개선하지만, 이렇게 성향 점수를 강제로 변경하는 것은 직관적이지 않을 수 있습니다.
 
 ```{r}
 #| label: fig-dist-ps-trunc
-#| fig-cap: "The distribution of propensity scores by exposure group after truncating. Truncation improved the overlap, as well."
+#| fig-cap: "절단 후 노출 그룹별 성향 점수 분포. 절단 또한 중첩을 개선했습니다."
 #| message: false
 #| warning: false
 ggplot(
@@ -688,14 +671,14 @@ ggplot(
 ) +
   geom_mirror_histogram(bins = 50) +
   scale_y_continuous(labels = abs) +
-  labs(x = "propensity score", fill = "extra magic morning")
+  labs(x = "성향 점수", fill = "엑스트라 매직 아워")
 ```
 
-We can then use trimmed or truncated weights to calculate weights. In fact, we can combine these approaches with stabilized weights. Let's calculate stabilized weights on the truncated propensity scores. (We can also use truncated or trimmed weights with matching and a caliper, but we won't show that here.) @fig-sbl-trunc-wts shows the distribution of weights after truncating and stabilizing.
+그런 다음 트리밍되거나 절단된 점수를 사용하여 가중치를 계산할 수 있습니다. 사실, 이러한 접근 방식들을 안정화된 가중치와 결합할 수 있습니다. 절단된 성향 점수에 대해 안정화된 가중치를 계산해 봅시다. (우리는 또한 매칭 및 캘리퍼(caliper)와 함께 절단되거나 트리밍된 가중치를 사용할 수 있지만, 여기서는 보여주지 않겠습니다.) @fig-sbl-trunc-wts 는 절단 및 안정화 후의 가중치 분포를 보여줍니다.
 
 ```{r}
 #| label: fig-sbl-trunc-wts
-#| fig-cap: "The distribution of stabilized weights where the propensity score was truncated to the 1st percentile. The extreme weights we saw before are slightly improved."
+#| fig-cap: "성향 점수가 1% 백분위수에서 절단된 상황에서의 안정화된 가중치 분포. 이전에 보았던 극단적인 가중치들이 약간 개선되었습니다."
 #| message: false
 #| warning: false
 seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_wt |>
@@ -709,12 +692,12 @@ seven_dwarfs_9_with_wt |>
   ggplot(aes(trunc_stbl_wt)) +
   geom_histogram() +
   scale_x_log10() +
-  xlab("Truncated and Stabilized ATE Weights")
+  xlab("절단 및 안정화된 ATE 가중치")
 ```
 
-Truncation and trimming, like using a caliper, may change the population we are making inferences about. We'll investigate this further in @sec-estimands.
+절단과 트리밍은 캘리퍼 사용과 마찬가지로 우리가 추론을 이끌어내는 인구 집단을 변화시킬 수 있습니다. 우리는 @sec-estimands 에서 이를 더 조사할 것입니다.
 
-You may have noticed that extreme weights are often a positivity problem. The days that were trimmed, for instance, mainly were days without Extra Magic Hours that had a low predicted probability of receiving them. Once we've fit the propensity score, we can probe the trimmed or truncated results to better understand why we need to modify them in the first place. Here, it seems the trimmed observations were all warm days in the value ticket season with later closing hours. Perhaps these days are structurally unable to receive Extra Magic Hours per Disney's requirements. We'd want to determine if that was the case, as we may wish to modify our exclusion criteria rather than dynamically removing observations based on their propensity score. 
+극단적인 가중치가 종종 긍정성의 문제라는 점을 눈치채셨을 것입니다. 예를 들어 트리밍된 관측치들은 주로 엑스트라 매직 아워가 없었던 날들 중 이를 가질 예측 확률이 낮았던 날들이었습니다. 일단 성향 점수를 적합시켰다면, 트리밍되거나 절단된 결과들을 조사하여 왜 처음에 이를 수정해야 했는지 더 잘 이해할 수 있습니다. 여기서는 트리밍된 관측치들이 모두 티켓 시즌이 비수기이면서 폐쇄 시간이 늦고 따뜻했던 날들인 것으로 보입니다. 아마도 이러한 날들은 디즈니의 요구 사항에 따라 구조적으로 아침 엑스트라 매직 아워를 가질 수 없는 날들일 수 있습니다. 성향 점수에 따라 관측치를 동적으로 제거하기보다는 제외 기준을 수정하는 것이 좋을 수 있으므로, 그것이 사실인지 확인하고 싶을 것입니다.
 
 ```{r}
 seven_dwarfs_9_with_wt |>
@@ -727,11 +710,11 @@ seven_dwarfs_9_with_wt |>
 ```
 
 ::: {.callout-note}
-## When should I use matching vs weighting?
+## 매칭과 가중치 부여 중 언제 무엇을 사용해야 할까요?
 
-Weighting is statistically more efficient than matching, and we recommend using it over matching when possible. However, matching has a distinct advantage: it's easy to understand. Someone with a statistical background might be comfortable interpreting results from a weighted analysis, but a stakeholder with a different background may not understand the pseudo-population or why its sample size can be a non-integer value. So, if you have a lot of data and think it will help improve the interpretation of the analysis, matching can be a good option.
+가중치 부여가 매칭보다 통계적으로 더 효율적이므로, 가능하면 매칭보다는 가중치 부여를 사용할 것을 권장합니다. 하지만 매칭에는 뚜렷한 장점이 있습니다: 바로 이해하기 쉽다는 것입니다. 통계적 배경 지식이 있는 사람은 가중치 분석 결과를 해석하는 데 익숙할 수 있지만, 그렇지 않은 이해관계자는 가상 인구나 왜 표본 크기가 정수가 아닌 값이 될 수 있는지 이해하지 못할 수 있습니다. 따라서 데이터가 많고 분석 결과의 해석을 돕는다고 판단된다면 매칭이 좋은 옵션이 될 수 있습니다.
 
-We'll also present some ways to present weighted populations in @sec-estimands that may help stakeholders understand the analysis better, getting the best of both worlds. 
+우리는 또한 @sec-estimands 에서 가중치 부여된 인구 집단을 제시하는 몇 가지 방법들을 소개할 것이며, 이는 이해관계자들이 분석을 더 잘 이해하도록 도와 두 마리 토끼를 모두 잡을 수 있게 해줄 것입니다.
 :::
 
-Now that we've applied the propensity score via weighting and matching, it's time to ask: do these approaches improve the balance we saw in @fig-mirrored-ps? Let's turn to techniques for probing the results of propensity score techniques.
+이제 매칭과 가중치 부여를 통해 성향 점수를 적용했으니, 이러한 접근 방식들이 @fig-mirrored-ps 에서 보았던 균형을 개선했는지 물을 때입니다. 성향 점수 기술의 결과를 조사하기 위한 기법들로 넘어가 봅시다.

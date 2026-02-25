@@ -8,12 +8,12 @@
 status("unstarted")
 ```
 
-## Prediction and causal inference, again
+## 예측과 인과 추론, 다시 보기 (Prediction and causal inference, again)
 
-## Augmented propensity scores
+## 증강된 성향 점수 (Augmented propensity scores)
 
 ```{r}
 rnorm(5)
 ```
 
-## Targeted Learning
+## 대상 학습 (Targeted Learning)

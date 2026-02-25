@@ -34,10 +34,10 @@ status("complete")
 ```{mermaid}
 %%| echo: false
 flowchart LR
-A{Ice-T} --> |observed| B(Abandons criminal life)
-A -.-> |missing counterfactual| C(Does one more heist)
-C -.-> D[35 years in prison]
-B --> E[Fame & Fortune]
+A{Ice-T} --> |관찰됨| B(범죄의 삶을 버림)
+A -.-> |누락된 반사실| C(한 번 더 강도질을 함)
+C -.-> D[35년의 징역형]
+B --> E[명성과 부]
 
 classDef grey fill:#ddd
 class D,C grey
@@ -46,111 +46,105 @@ class D,C grey
 ```{mermaid}
 %%| echo: false
 flowchart LR
-A{Spike} -.-> |missing counterfactual| B(Abandons criminal life)
-A --> |observed| C(Does one more heist)
-C --> D[35 years in prison]
-B -.-> E[Fame & Fortune]
+A{Spike} -.-> |누락된 반사실| B(범죄의 삶을 버림)
+A --> |관찰됨| C(한 번 더 강도질을 함)
+C --> D[35년의 징역형]
+B -.-> E[명성과 부]
 classDef grey fill:#ddd
 class E,B grey
 ```
 
-Ice-T and Spike Causal Map.
-For the two men, we have only one observed outcome.
-Their memoir implies that each is a good counterfactual for the other.
-Had Ice-T continued with heists, would he have ended up in jail?
-If Spike had quit heists, would he have had fame and fortune?
+아이스티와 스파이크의 인과 관계 지도.
+두 사람에 대해, 우리에게는 오직 하나의 관찰된 결과만이 있습니다.
+그들의 회고록은 각자가 서로에게 좋은 반사실이 될 수 있음을 암시합니다.
+만약 아이스티가 강도질을 계속했다면, 그도 감옥에 가게 되었을까요?
+만약 스파이크가 강도질을 그만두었다면, 그도 명성과 부를 얻었을까요?
 :::
 
-We don't know what would have happened to Ice-T had he continued partnering with Spike on heists.
-We also don't know what would have happened to Spike if he had avoided crime like Ice-T.
-We live in a single factual world where Ice-T left crime, and Spike didn't.
-Yet, we can see how the two men can be each other's proxies for those counterfactual outcomes.
-In causal inference techniques, we attempt to use observed data to simulate counterfactuals in much the same way.
-Even randomized trials are limited to a single factual world, so we compare the average effects of similar groups with different exposures.
+우리는 아이스티가 스파이크와 함께 강도질을 계속했다면 어떤 일이 일어났을지 알지 못합니다.
+우리는 또한 스파이크가 아이스티처럼 범죄를 피했다면 어떤 일이 일어났을지 알지 못합니다.
+우리는 아이스티는 범죄를 떠나고 스파이크는 그렇지 않은, 단 하나의 실제 세계에 살고 있습니다.
+하지만 우리는 어떻게 두 사람이 서로의 반사실적 결과에 대한 대리인(proxy)이 될 수 있는지 알 수 있습니다.
+인과 추론 기술에서, 우리는 이와 매우 유사한 방식으로 관찰된 데이터를 사용하여 반사실을 시뮬레이션하려고 시도합니다.
+무작위 시험조차도 단 하나의 실제 세계로 제한되어 있으므로, 우리는 서로 다른 노출을 가진 유사한 그룹들의 평균 효과를 비교합니다.
 
-Nevertheless, there are several issues that we can immediately see, highlighting the difficulty in drawing such inferences.
-First, while the book implies that the two individuals were similar before the decisions that diverged their fates, we can guess how they might have differed.
-Would one more heist have led Ice-T to prison?
-It's easier to see Spike as a good counterfactual here.
-What about the other way around: if Spike had quit crime, would he have become a famous musician and actor?
-Ice-T decided to leave his life of crime, but that wasn't the only factor in his success: he had enough musical talent to make a career of it.
-Did Spike have Ice-T's musical talent?
-Can we conclude that his life would have turned out exactly like Ice-T's if he had made the same choices?
-If we want to truly estimate the causal effect of Ice-T's decision to leave criminal life on his future outcomes, we would need to observe his ultimate course both before and after making the decision.
-Similarly, Spike might be different from Ice-T in hard-to-measure ways, which makes him a poorer proxy for Ice-T's counterfactuals than he first seems.
-Instead of relying on a single individual, we often rely on many.
-We could conduct an experiment in which we randomize many individuals to leave criminal life (or not) and see how this impacts their outcomes on average (of course, this randomized trial presents some ethical issues, which is why observational data like Ice-T and Spike's are interesting).
-In any case, we must rely on statistical techniques to help construct these unobservable counterfactuals from observed data.
+그럼에도 불구하고, 우리가 즉시 알 수 있는 몇 가지 문제들이 있으며, 이는 그러한 추론을 이끌어내는 것의 어려움을 강조합니다.
+첫째, 이 책은 두 개인이 운명이 갈라지기 전까지는 비슷했음을 암시하지만, 우리는 그들이 어떻게 달랐을지 추측해 볼 수 있습니다.
+한 번의 강도질이 더 있었다면 아이스티는 정말 감옥에 갔을까요?
+여기서는 스파이크를 좋은 반사실로 보는 것이 더 쉽습니다.
+그 반대의 경우는 어떨까요: 만약 스파이크가 범죄를 그만두었다면, 그도 유명한 음악가나 배우가 되었을까요?
+아이스티는 범죄의 삶을 떠나기로 결정했지만, 그것이 그의 성공의 유일한 요인은 아니었습니다: 그는 이를 직업으로 삼을 만큼 충분한 음악적 재능을 가지고 있었습니다.
+스파이크도 아이스티와 같은 음악적 재능을 가지고 있었을까요?
+만약 그가 같은 선택을 했다면 그의 삶도 아이스티와 똑같이 풀렸을 것이라고 결론지을 수 있을까요?
+만약 우리가 범죄의 삶을 떠나기로 한 아이스티의 결정이 그의 미래 결과에 미치는 인과 효과를 진정으로 추정하고 싶다면, 우리는 결정을 내리기 전과 후의 그의 궁극적인 궤적을 모두 관찰해야 할 것입니다.
+마찬가지로, 스파이크는 측정하기 어려운 면에서 아이스티와 다를 수 있으며, 이는 그를 아이스티의 반사실에 대해 처음에 보였던 것보다 더 좋지 않은 대리인으로 만듭니다.
+단일 개인에 의존하는 대신, 우리는 종종 많은 사람들에게 의존합니다.
+우리는 많은 개인을 무작위로 배정하여 범죄의 삶을 떠나게 하거나(또는 그렇지 않게 하거나) 그들의 결과에 평균적으로 어떤 영향을 미치는지 살펴보는 실험을 수행할 수 있습니다(물론 이 무작위 시험은 윤리적 문제를 야기하며, 이것이 아이스티와 스파이크의 사례와 같은 관찰 데이터가 흥미로운 이유입니다).
+어떤 경우든, 우리는 관찰된 데이터로부터 이러한 관찰 불가능한 반사실을 구축하는 것을 돕기 위해 통계적 기술에 의존해야 합니다.
 
-## Potential outcomes
+## 잠재적 결과 (Potential outcomes)
 
-Factual outcomes and counterfactual outcomes are two realizations of **potential outcomes**.
-Before some cause occurs, the potential outcomes are all the things that could happen depending on what you are exposed to.
-Let's say that the cause we are interested in is a particular moment in the 1980s when one decides to either quit doing jewel heists or continue.
-The outcome we're interested in is whether or not the individual goes to jail.
+실제 결과(factual outcomes)와 반사실적 결과(counterfactual outcomes)는 **잠재적 결과**의 두 가지 실현입니다.
+어떤 원인이 발생하기 전에, 잠재적 결과는 여러분이 어떤 노출을 받느냐에 따라 일어날 수 있는 모든 일들입니다.
+우리가 관심을 갖는 원인이 1980년대의 특정 시점에 보석 강도질을 그만둘지 아니면 계속할지 결정하는 것이라고 해봅시다.
+우리가 관심을 갖는 결과는 개인이 감옥에 가는지 여부입니다.
 
-Let's assume an exposure has two levels:
+노출에 두 가지 수준이 있다고 가정해 봅시다:
 
--   $X=continue$ if you continue doing jewel heists
+-   $X=continue$: 보석 강도질을 계속하는 경우
 
--   $X=quit$ if you quit doing jewel heists
+-   $X=quit$: 보석 강도질을 그만두는 경우
 
-Under this scenario, there are two potential outcomes:
+이 시나리오 하에서, 두 가지 잠재적 결과가 있습니다:
 
--   $Y(continue)$, the potential outcome if $X=continue$
+-   $Y(continue)$: 만약 $X=continue$ 일 때의 잠재적 결과
+-   $Y(quit)$: 만약 $X=quit$ 일 때의 잠재적 결과
 
--   $Y(quit)$, the potential outcome if $X=quit$
-
-Only *one* of these potential outcomes will be realized, the factual one corresponding to the exposure that actually occurred.
-Therefore, only one potential outcome is observable for each individual.
-These exposures are defined at a particular time (in this case, a specific moment in the 1980s, right around the time Ice-T was discovered), so only one can happen to any individual.
-In the case of a binary exposure, this leaves one potential outcome as *observable* and one *missing.* In fact, early causal inference methods were often framed as missing data problems; we need to make certain assumptions about the missing counterfactuals, the value of the potential outcome corresponding to the exposure(s) that did not occur.
-
-Our causal effect of interest is often some difference in potential outcomes, such as $Y(continue) - Y(quit)$ (say, the difference in the probabilities of going to jail the following year if you continue heists vs. quitting heists).
-In the case of Ice-T and Spike, we're interested in their individual causal effects:
+이러한 잠재적 결과들 중 단 *하나*만이 실현될 것인데, 이는 실제로 발생한 노출에 해당하는 실제적 결과입니다.
+따라서 각 개인에 대해 오직 하나의 잠재적 결과만이 관찰 가능합니다.
+이러한 노출들은 특정 시점(이 사례에서는 아이스티가 발굴되던 1980년대의 특정 순간)에 정의되므로, 어느 개인에게든 오직 하나만 일어날 수 있습니다.
+이진 노출의 경우, 이는 하나의 잠재적 결과는 *관찰 가능*하게 하고 다른 하나는 *누락*되게 만듭니다. 사실, 초기 인과 추론 방법들은 종종 결측 데이터 문제(missing data problems)로 프레임워크가 짜여졌습니다; 우리는 발생하지 않은 노출(들)에 해당하는 잠재적 결과 값인 누락된 반사실들에 대해 특정한 가정을 해야 합니다.
+우리가 관심을 갖는 인과 효과는 종종 $Y(continue) - Y(quit)$ 와 같은 잠재적 결과들의 차이입니다(예를 들어, 강도질을 계속할 때와 그만둘 때 내년에 감옥에 갈 확률의 차이).
+아이스티와 스파이크의 사례에서, 우리는 그들의 개별 인과 효과에 관심이 있습니다:
 
 -   $Y_{Ice-T}(continue) - Y_{Ice-T}(quit)$
 -   $Y_{Spike}(continue) - Y_{Spike}(quit)$
 
-Here, we're missing $Y_{Ice-T}(continue)$ and $Y_{Spike}(quit)$, so we can't calculate these values.
-In practice, we need to use observed data as proxies for the missing potential outcomes, and we usually average them over a particular population.
-To do this, though, we can't just throw some statistics at a pile of observed data; we need to meet certain **causal assumptions** that allow us to imbue observed data with the meaning of potential outcomes and their analysis with causal effects.
+여기서 우리는 $Y_{Ice-T}(continue)$ 와 $Y_{Spike}(quit)$ 를 모르기 때문에, 이 값들을 계산할 수 없습니다.
+실무에서 우리는 관찰된 데이터를 누락된 잠재적 결과에 대한 대리인으로 사용해야 하며, 대개 특정 인구 집단에 대해 이들을 평균화합니다.
+하지만 이를 위해 단순히 관찰된 데이터 더미에 통계학을 적용할 수는 없습니다; 우리는 관찰된 데이터에 잠재적 결과의 의미를 부여하고 그 분석에 인과 효과의 의미를 부여할 수 있게 해주는 특정한 **인과적 가정**들을 충족해야 합니다.
 
-::: callout-note
-## Counterfactuals as potential outcomes
+## 잠재적 결과로서의 반사실 (Counterfactuals as potential outcomes)
 
-In this book, we use the terms potential outcomes and counterfactuals more or less interchangeably, but they are not technically identical in their meaning.
-A counterfactual is a type of potential outcome, referring to a potential outcome that was not realized and is thus unobservable.
-The definition of a counterfactual depends on the exposure that actually happened.
-Potential outcomes, though, are agnostic to the observed exposure and are often well-defined before it even happens.
-Nevertheless, we usually work with data after an exposure happens, so we have one realized potential outcome and at least one potential outcome that is counter to the fact.
-Some die-hards insist on one term or the other, but we find both useful.
-:::
+이 책에서 우리는 잠재적 결과(potential outcomes)와 반사실(counterfactuals)이라는 용어를 거의 상호 교환적으로 사용하지만, 그 의미가 기술적으로 동일한 것은 아닙니다.
+반사실은 잠재적 결과의 한 유형으로, 실현되지 않아 관찰 불가능한 잠재적 결과를 의미합니다.
+반사실의 정의는 실제로 발생한 노출에 따라 달라집니다.
+반면 잠재적 결과는 관찰된 노출과는 무관하며, 노출이 일어나기 전에도 잘 정의되는 경우가 많습니다.
+그럼에도 불구하고 우리는 대개 노출이 발생한 후의 데이터로 작업하므로, 하나의 실현된 잠재적 결과와 적어도 하나의 사실과 반대되는(counter to the fact) 잠재적 결과를 갖게 됩니다.
+일부 완고한 이들은 한 용어만을 고집하기도 하지만, 우리는 두 용어 모두 유용하다고 생각합니다.
 
-Let's consider a different example: the effect of ice cream on happiness.
+다른 예시를 고려해 봅시다: 아이스크림이 행복도에 미치는 효과입니다.
 
-### Does chocolate ice cream make you happier than vanilla? {#sec-po-sim}
+### 초콜릿 아이스크림이 바닐라보다 여러분을 더 행복하게 만들까요? {#sec-po-sim}
 
-Let's suppose some happiness index exists that ranges from 1-10.
-We want to assess whether eating chocolate ice cream versus vanilla will increase happiness.
-We have 10 individuals with two potential outcomes for each.
-One is their happiness if they ate chocolate ice cream (defined as `y_chocolate` in the code below), and one is their happiness if they ate vanilla ice cream (`y_vanilla`).
-We can define the true individual causal effect of eating chocolate ice cream (versus vanilla) on happiness for each individual as the difference between the two (@tbl-po).
+1에서 10까지의 범위를 갖는 어떤 행복 지수가 존재한다고 가정해 봅시다.
+우리는 초콜릿 아이스크림을 먹는 것이 바닐라를 먹는 것에 비해 행복도를 높이는지 평가하고 싶습니다.
+우리에게는 각 개인에 대해 두 가지 잠재적 결과가 있는 10명의 개인이 있습니다.
+하나는 초콜릿 아이스크림을 먹었을 때의 행복도(아래 코드에서 `y_chocolate`으로 정의됨)이고, 다른 하나는 바닐라 아이스크림을 먹었을 때의 행복도(`y_vanilla`)입니다.
+우리는 각 개인에 대해 초콜릿 아이스크림을 먹는 것(바닐라와 비교하여)의 진정한 개별 인과 효과를 두 값의 차이로 정의할 수 있습니다 (@tbl-po).
 
 ```{r}
+library(tidyverse)
 data <- tibble(
   id = 1:10,
   y_chocolate = c(4, 4, 6, 5, 6, 5, 6, 7, 5, 6),
   y_vanilla = c(1, 3, 4, 5, 5, 6, 8, 6, 3, 5)
-)
-
-data <- data |>
+) |>
   mutate(causal_effect = y_chocolate - y_vanilla)
 ```
 
-```{r}
 #| label: tbl-po
-#| tbl-cap: "Potential Outcomes Simulation: The causal effect of eating chocolate (versus vanilla) ice cream on happiness. In this simulation, each individual has a known outcome for each exposure. Since we know each potential outcome, we can calculate the individual causal effects on happiness of eating chocolate versus vanilla ice cream."
+#| tbl-cap: "잠재적 결과 시뮬레이션: 초콜릿(바닐라 대비) 아이스크림을 먹는 것이 행복도에 미치는 인과 효과. 이 시뮬레이션에서 각 개인은 각 노출에 대해 알려진 결과를 가집니다. 우리가 각 잠재적 결과를 알고 있기 때문에, 초콜릿 대 바닐라 아이스크림을 먹는 것이 행복도에 미치는 개별 인과 효과를 계산할 수 있습니다."
 #| code-fold: true
 library(gt)
 data |>
@@ -165,22 +159,22 @@ data |>
     columns = c(y_chocolate, y_vanilla, causal_effect)
   ) |>
   tab_header(
-    title = md("**Potential Outcomes and Causal Effect**")
+    title = md("**잠재적 결과와 인과 효과**")
   ) |>
   tab_spanner(
-    label = "Potential Outcomes",
+    label = "잠재적 결과",
     columns = c(y_chocolate, y_vanilla)
   ) |>
   tab_spanner(
-    label = "Causal Effect",
+    label = "인과 효과",
     columns = causal_effect
   )
 ```
 
-For example, examining @tbl-po, the causal effect of eating chocolate ice cream (versus vanilla) for individual 4 is `r data |> filter(id == 4) |> pull(causal_effect)`, whereas the causal effect for individual 9 is `r data |> filter(id == 9) |> pull(causal_effect)`.
+예를 들어 @tbl-po 를 살펴보면, 개인 4에 대해 초콜릿 아이스크림을 먹는 것(바닐라 대비)의 인과 효과는 `r data |> filter(id == 4) |> pull(causal_effect)`인 반면, 개인 9에 대한 인과 효과는 `r data |> filter(id == 9) |> pull(causal_effect)`입니다.
 
-The average potential happiness after eating chocolate is `r mean(data |> pull(y_chocolate))`, and the average potential happiness after eating vanilla is `r mean(data |> pull(y_vanilla))`.
-The average treatment effect of eating chocolate (versus vanilla) ice cream among the ten individuals in this study is `r mean(data |> pull(y_chocolate))` - `r mean(data |> pull(y_vanilla))` = `r mean(data |> pull(causal_effect))`.
+초콜릿을 먹은 후의 평균 잠재적 행복도는 `r mean(data |> pull(y_chocolate))`이고, 바닐라를 먹은 후의 평균 잠재적 행복도는 `r mean(data |> pull(y_vanilla))`입니다.
+이 연구에 참여한 10명에 대해 초콜릿(바닐라 대비) 아이스크림을 먹는 것의 평균 처치 효과는 `r mean(data |> pull(y_chocolate))` - `r mean(data |> pull(y_vanilla))` = `r mean(data |> pull(causal_effect))`입니다.
 
 ```{r}
 data |>
@@ -191,23 +185,22 @@ data |>
   )
 ```
 
-In reality, we cannot observe both potential outcomes at any given moment; each individual in our study can only eat one flavor of ice cream at the time the study is conducted[^03-po-counterfactuals-1].
-Suppose we randomly gave one flavor or the other to each participant.
-Now, what we *observe* is shown in @tbl-obs. We only know one potential outcome (the one related to the exposure the participant received).
-We don't know the other one, and consequently, we don't know the individual causal effect.
+실제로 우리는 어떤 주어진 순간에 두 가지 잠재적 결과를 모두 관찰할 수 없습니다; 우리 연구의 각 개인은 연구가 수행되는 시점에 오직 한 가지 맛의 아이스크림만 먹을 수 있습니다[^03-po-counterfactuals-1].
+우리가 각 참가자에게 두 가지 맛 중 하나를 무작위로 주었다고 가정해 봅시다.
+이제 우리가 *관찰*하는 것은 @tbl-obs 에 나와 있습니다. 우리는 오직 하나의 잠재적 결과(참가자가 실제로 받은 노출과 관련된 결과)만을 알 수 있습니다.
+우리는 다른 하나를 알 수 없으며, 결과적으로 개별 인과 효과도 알 수 없습니다.
 
-[^03-po-counterfactuals-1]: Ice cream swirls were prohibited per the study protocol.
+[^03-po-counterfactuals-1]: 연구 프로토콜에 따라 아이스크림 혼합(swirls)은 금지되었습니다.
 
 ```{r}
-## we are doing something *random* so let's
-## set a seed so we always observe the
-## same result each time we run the code
+## 우리는 무작위적인 일을 하고 있으므로,
+## 코드를 실행할 때마다 항상 동일한 결과를 관찰할 수 있도록
+## 시드를 설정합니다.
 set.seed(11)
 data_observed <- data |>
   mutate(
-    # change the exposure to randomized, generated from
-    # a binomial distribution with a probability of 0.5 for
-    # being in either group
+    # 노출을 무작위로 변경합니다. 각 그룹에 속할 확률이 0.5인
+    # 이항 분포로부터 생성됩니다.
     exposure = if_else(
       rbinom(n(), 1, 0.5) == 1, "chocolate", "vanilla"
     ),
@@ -220,7 +213,7 @@ data_observed <- data |>
 
 ```{r}
 #| label: tbl-obs
-#| tbl-cap: "Potential Outcomes Simulation: The observed exposure is the only potential outcome we know. We don't know the missing potential outcome, and thus, we cannot calculate the individual causal effect. We need to use the observed exposure and outcome to estimate the effect of eating chocolate (versus vanilla) ice cream on happiness. Unfortunately, we can't do it at the individual level."
+#| tbl-cap: "잠재적 결과 시뮬레이션: 관찰된 노출은 우리가 아는 유일한 잠재적 결과입니다. 우리는 누락된 잠재적 결과를 알지 못하며, 따라서 개별 인과 효과를 계산할 수 없습니다. 우리는 행복도에 대한 초콜릿(바닐라 대비) 아이스크림 섭취의 효과를 추정하기 위해 관찰된 노출과 결과를 사용해야 합니다. 불행히도, 개인 수준에서는 이를 수행할 수 없습니다."
 #| code-fold: true
 avg_chocolate <- data_observed |>
   filter(exposure == "chocolate") |>
@@ -252,22 +245,22 @@ data_observed |>
     missing_text = md("---") # Format missing values as blank
   ) |>
   tab_header(
-    title = md("**Potential Outcomes and Hidden Causal Effect**")
+    title = md("**잠재적 결과와 숨겨진 인과 효과**")
   ) |>
   tab_spanner(
-    label = "Potential Outcomes",
+    label = "잠재적 결과",
     columns = c(y_chocolate, y_vanilla)
   ) |>
   tab_spanner(
-    label = "Causal Effect",
+    label = "인과 효과",
     columns = causal_effect
   )
 ```
 
-Now, the observed average outcome among those who ate chocolate ice cream is `r round(avg_chocolate, 1)`, while the observed average outcome among those who ate vanilla is `r round(avg_vanilla, 1)`.
-These are close to the actual averages, even though we are now missing the counterfactual outcomes.
-The estimated average causal effect is `r round(avg_chocolate, 1)` - `r round(avg_vanilla, 1)` = `r round(avg_chocolate - avg_vanilla, 1)`.
-We're a little off because of the low sample size, but we would get a more exact answer as the sample size increased.
+이제 초콜릿 아이스크림을 먹은 사람들 사이에서 관찰된 평균 결과는 `r round(avg_chocolate, 1)`인 반면, 바닐라를 먹은 사람들 사이에서 관찰된 평균 결과는 `r round(avg_vanilla, 1)`입니다.
+비록 지금은 반사실적 결과가 누락되었음에도 불구하고, 이 값들은 실제 평균에 가깝습니다.
+추정된 평균 인과 효과는 `r round(avg_chocolate, 1)` - `r round(avg_vanilla, 1)` = `r round(avg_chocolate - avg_vanilla, 1)`입니다.
+표본 크기가 작아서 약간의 오차가 있지만, 표본 크기가 커질수록 더 정확한 답을 얻을 수 있을 것입니다.
 
 ```{r}
 data_observed |>
@@ -275,57 +268,57 @@ data_observed |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-Why does this work even though we can no longer calculate the true causal effect?
-Randomization, it turns out, has the properties we need to meet causal assumptions about observed data.
-Because these assumptions are met, we can use the observed averages as proxies for the averages of the two potential outcomes.
+더 이상 진정한 인과 효과를 계산할 수 없음에도 불구하고 왜 이 방식이 작동할까요?
+알고 보니, 무작위 배정은 우리가 관찰된 데이터에 대한 인과적 가정을 충족하는 데 필요한 속성들을 가지고 있습니다.
+이러한 가정들이 충족되기 때문에, 우리는 관찰된 평균을 두 잠재적 결과의 평균에 대한 대리인(proxies)으로 사용할 수 있습니다.
 
-Let's see why this is and what happens when those assumptions are violated.
+그 이유가 무엇인지, 그리고 이러한 가정들이 위배될 때 어떤 일이 일어나는지 알아봅시다.
 
-## Causal assumptions {#sec-assump}
+## 인과적 가정 {#sec-assump}
 
-We'll discuss many methods throughout this book.
-Each method comes with unverifiable assumptions that we need to interpret the results as causal.
-These assumptions have one goal: to allow us to use observed data to represent unobservable counterfactuals.
-What does it require for us to be able to do this?
-
-::: callout-note
-## Apples-to-apples
-
-Most of the assumptions we need to make for causal inference are to make an apples-to-apples comparison: We want to compare similar individuals who would serve as reasonable proxies for each other's counterfactuals.
-
-The phrase "apples-to-apples" comes from the saying "comparing apples to oranges," which means comparing two incomparable things.
-
-That's only one way to say it.
-[There are a lot of variations worldwide](https://en.wikipedia.org/wiki/Apples_and_oranges).
-Here are some other things people should not try to compare:
-
--   Cheese and chalk (UK English)
--   Apples and pears (German)
--   Potatoes and sweet potatoes (Latin American Spanish)
--   Grandmothers and toads (Serbian)
--   Horses and donkeys (Hindi)
-:::
-
-For the first three-fourths or so of the book, we'll deal with so-called **unconfoundedness** methods.
-These methods all assume[^03-po-counterfactuals-2] three things: **exchangeability**, **positivity**, and **consistency**.
-We'll focus on these three assumptions for now, but other methods, such as instrumental variable analysis (@sec-iv-friends) and difference-in-differences (@sec-did), make other causal assumptions.
-Knowing a method's assumptions is essential for using it correctly, but it's also worth considering if another method's assumptions are more tenable for the problem you are trying to solve.
-
-[^03-po-counterfactuals-2]: These *causal* assumptions are in addition to any *statistical* assumptions, such as distributional assumptions, that the estimators we use require.
+우리는 이 책 전반에 걸쳐 많은 방법론을 논의할 것입니다.
+각 방법론에는 결과를 인과적으로 해석하기 위해 필요한 검증 불가능한 가정들이 수반됩니다.
+이러한 가정들은 한 가지 목표를 가지고 있습니다: 관찰된 데이터를 사용하여 관찰 불가능한 반사실을 표현할 수 있게 하는 것입니다.
+우리가 이를 수행하기 위해 필요한 것은 무엇일까요?
 
 ::: callout-note
-These assumptions are sometimes called **identifiability conditions** since we need them to hold to identify causal estimates.
-Likewise, you'll sometimes see people discussing whether or not a given causal effect is "identifiable."
+## 사과 대 사과 (Apples-to-apples)
+
+인과 추론을 위해 우리가 해야 하는 대부분의 가정은 "사과 대 사과" 비교를 하기 위한 것입니다: 우리는 서로의 반사실에 대해 합리적인 대리인 역할을 할 수 있는 유사한 개인들을 비교하고 싶어 합니다.
+
+"사과 대 사과(apples-to-apples)"라는 표현은 서로 비교할 수 없는 두 가지를 비교한다는 뜻의 "사과와 오렌지를 비교한다(comparing apples to oranges)"는 속담에서 유래했습니다.
+
+이는 한 가지 표현 방식일 뿐입니다.
+[전 세계적으로 많은 변형이 있습니다](https://en.wikipedia.org/wiki/Apples_and_oranges).
+다음은 사람들이 비교하려고 해서는 안 되는 다른 것들입니다:
+
+-   치즈와 분필 (영국 영어)
+-   사과와 배 (독일어)
+-   감자와 고구마 (라틴 아메리카 스페인어)
+-   할머니와 두꺼비 (세르비아어)
+-   말과 당나귀 (힌디어)
 :::
 
-### Exchangeability
+책의 약 4분의 3 정도까지 우리는 소위 **비교란(unconfoundedness)** 방법론들을 다룰 것입니다.
+이 방법론들은 모두[^03-po-counterfactuals-2] 세 가지를 가정합니다: **교환 가능성(exchangeability)**, **긍정성(positivity)**, 그리고 **일관성(consistency)**입니다.
+지금은 이 세 가지 가정에 집중하겠지만, 도구 변수 분석(@sec-iv-friends)이나 이중 차분법(@sec-did)과 같은 다른 방법론들은 다른 인과적 가정을 합니다.
+방법론의 가정을 아는 것은 그것을 올바르게 사용하는 데 필수적이지만, 여러분이 해결하려는 문제에 대해 다른 방법론의 가정이 더 타당한지 고려해 볼 가치도 있습니다.
 
-The exchangeability assumption is the hallmark of unconfoundedness methods like inverse probability weighting and regression adjustment.
-Here, we assume that each exposure group has the same potential outcomes on average.
-So, the group that was assigned "chocolate" ice cream has the same potential outcomes for happiness for chocolate as the vanilla group (had *they* been assigned to chocolate).
-Mathematically, exchangeability is written as $Y(x) \perp\!\!\!\perp X$.
-Exposure status is independent of the potential outcomes; being in the chocolate group, for instance, doesn't change your potential outcome `y(chocolate)` compared to being in the vanilla group.
-When this assumption holds, we can treat the vanilla group as the proxy for the chocolate group's `y(vanilla)` and vice versa, as in @fig-po.
+[^03-po-counterfactuals-2]: 이러한 *인과적* 가정은 우리가 사용하는 추정량이 요구하는 분포 가정과 같은 *통계적* 가정에 추가되는 것입니다.
+
+::: callout-note
+이러한 가정들은 인과 추정치를 식별하기 위해 필요하기 때문에 때때로 **식별 조건(identifiability conditions)**이라고 불리기도 합니다.
+마찬가지로, 특정 인과 효과가 "식별 가능한지(identifiable)" 여부를 논의하는 것을 가끔 볼 수 있을 것입니다.
+:::
+
+### 교환 가능성 (Exchangeability)
+
+교환 가능성 가정은 역확률 가중치 부여 및 회귀 조정과 같은 비교란 방법론의 핵심입니다.
+여기서 우리는 각 노출군이 평균적으로 동일한 잠재적 결과를 갖는다고 가정합니다.
+따라서 "초콜릿" 아이스크림에 배정된 그룹은 바닐라 그룹이 (초콜릿에 배정되었을 경우 가졌을) 초콜릿에 대한 행복도와 동일한 잠재적 결과를 갖습니다.
+수학적으로 교환 가능성은 $Y(x) \perp\!\!\!\perp X$ 로 표기됩니다.
+노출 상태는 잠재적 결과와 독립적입니다. 예를 들어, 초콜릿 그룹에 속한다는 사실이 바닐라 그룹에 속했을 때와 비교하여 여러분의 잠재적 결과 `y(chocolate)`를 변화시키지 않습니다.
+이 가정이 성립할 때,리는 @fig-po 에서처럼 바닐라 그룹을 초콜릿 그룹의 `y(vanilla)`에 대한 대리인으로, 그 반대의 경우도 마찬가지로 취급할 수 있습니다.
 
 ```{r}
 #| include: false
@@ -397,7 +390,7 @@ po_theme <- theme(
 
 ```{r}
 #| label: fig-po
-#| fig-cap: "The average potential outcomes by observed exposure group. Under exchangeability, the exposure groups have nothing to do with the potential outcomes. Had the vanilla group received chocolate, their potential outcomes would have been about the same on average as the chocolate group, and vice versa. Exchangeability allows us to use each group as a counterfactual for the other."
+#| fig-cap: "관찰된 노출군별 평균 잠재적 결과. 교환 가능성 하에서 노출군은 잠재적 결과와 아무런 관련이 없습니다. 만약 바닐라 그룹이 초콜릿을 받았다면, 그들의 잠재적 결과는 평균적으로 초콜릿 그룹과 거의 같았을 것이고, 그 반대도 마찬가지입니다. 교환 가능성은 우리가 각 그룹을 다른 그룹의 반사실적 상황으로 사용할 수 있게 해줍니다."
 #| message: false
 #| code-fold: true
 plot_data <- data_observed |>
@@ -406,31 +399,31 @@ plot_data <- data_observed |>
   prepare_plot_data(
     pivot_prefix = "y_",
     potential_outcome_transform = \(x) paste0("potential outcome: y(", x, ")"),
-    transform_exposure = \(exp) if_else(exp == "vanilla", "actually ate vanilla", "actually ate chocolate"),
+    transform_exposure = \(exp) if_else(exp == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음"),
     id_assignment = FALSE
   )
 
-# Compute group averages and add label text
+# 그룹 평균 계산 및 레이블 텍스트 추가
 avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed")) |>
   mutate(
-    exposure_lbl = str_replace_all(exposure, "actually ate ", ""),
+    exposure_lbl = str_replace_all(exposure, "실제로 |를 먹음", ""),
     po_lbl = str_replace_all(potential_outcome, "potential outcome: ", ""),
-    label = glue("Avg {po_lbl}\n({exposure_lbl} group, {observed})") |> str_wrap(19)
+    label = glue("평균 {po_lbl}\n({exposure_lbl} 그룹, {observed})") |> str_wrap(19)
   )
 
-# Prepare an annotation for ID 3
+# ID 3에 대한 주석 준비
 id_annotation <- plot_data |>
   filter(id == 3) |>
-  mutate(label = glue("Potential outcomes\nfor ID 3 ({observed})") |> str_wrap(15))
+  mutate(label = glue("ID 3의 잠재적 결과\n({observed})") |> str_wrap(15))
 
-# Exchangeability annotation between group averages
+# 그룹 평균 간의 교환 가능성 주석
 exchangeability_annotation <- tibble(
   x = 5.43,
   xend = 5.33,
   y = 1,
   yend = 0.5,
   potential_outcome = "potential outcome: y(chocolate)",
-  label = str_wrap("For exchangeability to hold, these\ngroup averages should be similar", 19)
+  label = str_wrap("교환 가능성이 성립하려면, 이 그룹 평균들이 비슷해야 합니다", 19)
 )
 
 ggplot(plot_data, aes(happiness, y_id, color = observed, shape = observed)) +
@@ -496,18 +489,18 @@ ggplot(plot_data, aes(happiness, y_id, color = observed, shape = observed)) +
 ```
 
 ::: callout-note
-Exchangeability is sometimes called the "no confounding" or "unconfoundedness" assumption.
-It's also sometimes called "ignorability."
+교환 가능성은 때때로 "교란 없음(no confounding)" 또는 "비교란(unconfoundedness)" 가정이라고 불리기도 합니다.
+또한 때때로 "무시 가능성(ignorability)"이라고 불리기도 합니다.
 :::
 
-Exchangeability is guaranteed in the limit when you randomize the exposure, as we did earlier with ice cream flavors.
-You can see where the name comes from by considering exchangeability from a randomization process.
-Let's say we mixed up the labels for who got which flavor, and we accidentally gave chocolate to the "vanilla" group and vanilla to the "chocolate" group.
-Because flavor assignment is independent of the potential outcomes, this mix-up doesn't matter.
-We've exchanged the groups by flipping their assignments, but we can still detect the right causal effect [^03-po-counterfactuals-3].
+교환 가능성은 앞서 아이스크림 맛의 경우와 같이 노출을 무작위로 배정할 때 극한 상황에서 보장됩니다.
+무작위 배정 과정을 통해 교환 가능성을 고려해 보면 그 이름이 어디에서 유래했는지 알 수 있습니다.
+누가 어떤 맛을 받았는지에 대한 레이블이 섞여서 "바닐라" 그룹에 실수로 초콜릿을 주고 "초콜릿" 그룹에 바닐라를 주었다고 가정해 봅시다.
+맛 배정이 잠재적 결과와 독립적이기 때문에, 이러한 실수는 중요하지 않습니다.
+우리는 할당을 뒤바꿈으로써 그룹을 교환했지만, 여전히 올바른 인과 효과를 감지할 수 있습니다[^03-po-counterfactuals-3].
 
-[^03-po-counterfactuals-3]: The numbers are slightly different because of the sample size.
-    As the sample size increases, exchangeability is more likely to hold with randomization, and so with a large enough sample, we'd get identical answers.
+[^03-po-counterfactuals-3]: 숫자는 표본 크기 때문에 약간 다릅니다.
+    표본 크기가 커질수록 무작위 배정을 통해 교환 가능성이 유지될 가능성이 높아지며, 따라서 충분히 큰 표본을 사용하면 동일한 답을 얻게 됩니다.
 
 ```{r}
 set.seed(11)
@@ -533,9 +526,9 @@ data_observed |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-So, what does it mean for exchangeability to be violated?
-Let's say, instead, we allowed each participant to select their own ice cream flavor.
-80% of the time, participants chose the flavor that made them happiest---their preference.
+그렇다면 교환 가능성이 위배된다는 것은 무엇을 의미할까요?
+대신 각 참가자가 자신의 아이스크림 맛을 직접 선택하도록 허용했다고 가정해 봅시다.
+80%의 경우 참가자들은 자신을 가장 행복하게 만드는 맛, 즉 자신의 선호도를 선택했습니다.
 
 ```{r}
 set.seed(113)
@@ -543,13 +536,13 @@ data_observed_exch <- data |>
   mutate(
     prefer_chocolate = y_chocolate > y_vanilla,
     exposure = case_when(
-      # people who like chocolate more chose that 80% of the time
+      # 초콜릿을 더 좋아하는 사람들은 80%의 확률로 그것을 선택했습니다
       prefer_chocolate ~ if_else(
         rbinom(n(), 1, 0.8) == 1,
         "chocolate",
         "vanilla"
       ),
-      # people who like vanilla more chose that 80% of the time
+      # 바닐라를 더 좋아하는 사람들은 80%의 확률로 그것을 선택했습니다
       !prefer_chocolate ~ if_else(
         rbinom(n(), 1, 0.8) == 1,
         "vanilla",
@@ -563,7 +556,7 @@ data_observed_exch <- data |>
   )
 ```
 
-Now, it seems like vanilla makes you happier!
+이제 바닐라가 여러분을 더 행복하게 만드는 것처럼 보입니다!
 
 ```{r}
 data_observed_exch |>
@@ -571,19 +564,19 @@ data_observed_exch |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-Why does this happen?
-We'll explore this problem more deeply in @sec-dags and beyond, but from an assumptions perspective, exchangeability no longer holds.
-The potential outcomes are no longer the same on average for the two exposure groups.
-The average values for `y(chocolate)` are still pretty close, but `y(vanilla)` is quite different by group.
-The vanilla group no longer serves as a good proxy for the potential outcome for the chocolate group, and we get a biased result.
-What we see here is actually the potential outcomes for `y(flavor, preference)`.
-This is always true because there are individuals for whom the individual causal effect is not 0.
-What's changed is that the potential outcomes are no longer independent of which `flavor` a person has: their preference influences both the choice of flavor and the potential outcome.
-As we see in @fig-po-confounding, our groups are no longer exchangeable; they don't have the same potential outcomes on average for `y(vanilla)`.
+왜 이런 일이 일어날까요?
+우리는 @sec-dags 와 그 이후에서 이 문제를 더 깊이 탐구하겠지만, 가정의 관점에서 보면 교환 가능성이 더 이상 성립하지 않기 때문입니다.
+두 노출군에 대해 잠재적 결과가 평균적으로 더 이상 동일하지 않습니다.
+`y(chocolate)`의 평균값은 여전히 꽤 가깝지만, `y(vanilla)`는 그룹별로 상당히 다릅니다.
+바닐라 그룹은 더 이상 초콜릿 그룹의 잠재적 결과에 대한 좋은 대리인 역할을 하지 못하며, 우리는 편향된 결과를 얻게 됩니다.
+여기서 우리가 보는 것은 실제로는 `y(flavor, preference)`에 대한 잠재적 결과입니다.
+개별 인과 효과가 0이 아닌 개인들이 존재하기 때문에 이는 항상 사실입니다.
+바뀐 점은 잠재적 결과가 더 이상 개인이 어떤 `flavor`를 가졌는지와 독립적이지 않다는 것입니다: 그들의 선호도가 맛의 선택과 잠재적 결과 모두에 영향을 미칩니다.
+@fig-po-confounding 에서 볼 수 있듯이, 우리 그룹들은 더 이상 교환 가능하지 않습니다; 그들은 `y(vanilla)`에 대해 평균적으로 동일한 잠재적 결과를 갖지 않습니다.
 
 ```{r}
 #| label: "fig-po-confounding"
-#| fig-cap: "The average potential outcomes by observed exposure group in the presence of confounding. The groups are no longer exchangeable because the flavor assignment is no longer independent of the potential outcomes."
+#| fig-cap: "교란(confounding)이 존재할 때 관찰된 노출 그룹별 평균 잠재적 결과. 맛 배정이 더 이상 잠재적 결과와 독립적이지 않기 때문에 그룹들은 더 이상 교환 가능하지 않습니다."
 #| code-fold: true
 #| message: false 
 data_observed_exch |>
@@ -596,8 +589,8 @@ data_observed_exch |>
   ) |> 
   mutate(
     observed = if_else(exposure == potential_outcome, "observed", "unobserved"),
-    potential_outcome = paste0("potential outcome: y(", potential_outcome, ")"),
-    exposure = if_else(exposure == "vanilla", "actually ate\nvanilla", "actually ate\nchocolate")
+    potential_outcome = paste0("잠재적 결과: y(", potential_outcome, ")"),
+    exposure = if_else(exposure == "vanilla", "실제로 바닐라를\n먹음", "실제로 초콜릿을\n먹음")
   ) |>
   ggplot(aes(happiness, exposure, color = observed, fill = observed, shape = observed)) +
   stat_summary(
@@ -621,7 +614,7 @@ data_observed_exch |>
     axis.title.y = element_blank()
   ) + 
   labs(
-    y = "actual exposure", 
+    y = "실제 노출", 
     color = NULL,
     shape = NULL,
     fill = NULL
@@ -632,21 +625,21 @@ data_observed_exch |>
   scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(-2, 12)) 
 ```
 
-What can we do when exchangeability is violated?
-Throughout the book, we'll devote a lot of time to this problem.
-The heart of the solution, though, is that we can sometimes still achieve exchangeability within levels of another variable.
-This is called **conditional exchangeability**: $Y(x) \perp\!\!\!\perp X \mid Z$. In this case, we need exchangeability within levels of `prefer_chocolate`.
+교환 가능성이 위배될 때 우리는 무엇을 할 수 있을까요?
+책 전반에 걸쳐 우리는 이 문제에 많은 시간을 할애할 것입니다.
+하지만 해결책의 핵심은, 때때로 다른 변수의 수준 내에서 여전히 교환 가능성을 달성할 수 있다는 점입니다.
+이를 **조건부 교환 가능성(conditional exchangeability)**이라고 부릅니다: $Y(x) \perp\!\!\!\perp X \mid Z$. 이 사례에서는 `prefer_chocolate`의 수준 내에서 교환 가능성이 필요합니다.
 
 ```{r}
 #| label: fig-po-cond-exch
-#| fig-cap: "The average potential outcomes by observed exposure group in the presence of confounding. We can still achieve *conditional* exchangeability within levels of the confounder. Here, we also start to see the limits of our sample size, as the potential outcomes, which would be valid in higher numbers, start to fail."
+#| fig-cap: "교란이 존재할 때 관찰된 노출 그룹별 평균 잠재적 결과. 우리는 여전히 교란 요인의 수준 내에서 *조건부* 교환 가능성을 달성할 수 있습니다. 여기서는 또한 표본 크기의 한계도 보이기 시작합니다. 더 큰 수에서는 유효했을 잠재적 결과들이 어긋나기 시작하기 때문입니다."
 #| code-fold: true
 #| message: false
 data_observed_exch |>
   mutate(prefer_chocolate = if_else(
     prefer_chocolate,
-    "prefers\nchocolate",
-    "prefers\nvanilla"
+    "초콜릿을\n선호함",
+    "바닐라를\n선호함"
   )) |>
   pivot_longer(
     starts_with("y"),
@@ -657,7 +650,7 @@ data_observed_exch |>
   mutate(
     observed = if_else(exposure == potential_outcome, "observed", "unobserved"),
     potential_outcome = paste0("potential outcome: y(", potential_outcome, ")"),
-    exposure = if_else(exposure == "vanilla", "actually ate\nvanilla", "actually ate\nchocolate")
+    exposure = if_else(exposure == "vanilla", "실제로 바닐라를\n먹음", "실제로 초콜릿을\n먹음")
   ) |>
   
   ggplot(aes(happiness, exposure, color = observed, fill = observed, shape = observed)) +
@@ -682,7 +675,7 @@ data_observed_exch |>
     axis.title.y = element_blank()
   ) + 
   labs(
-    y = "actual exposure", 
+    y = "실제 노출", 
     color = NULL,
     shape = NULL,
     fill = NULL
@@ -694,32 +687,32 @@ data_observed_exch |>
 ```
 
 ::: callout-warning
-In @fig-po-cond-exch, we've already started to encounter the curse of dimensionality: our sample size is so small that we have very few values for the combination of exposure and preference.
-We'd achieve better exchangeability as our sample size increases, but this quickly becomes difficult without a good statistical model.
+@fig-po-cond-exch 에서 우리는 이미 차원의 저주를 만나기 시작했습니다: 표본 크기가 너무 작아서 노출과 선호도의 조합에 대한 값이 매우 적습니다.
+표본 크기가 커질수록 더 나은 교환 가능성을 달성하겠지만, 좋은 통계 모델 없이는 이것이 금세 어려워집니다.
 :::
 
-### Positivity
+### 긍정성 (Positivity)
 
-The positivity assumption states that every individual has a non-zero probability of receiving each level of exposure.
-Mathematically, this means that $P(X = x) > 0$ for all $x$. In other words, we assume that there is no one for whom one or more levels of exposure are impossible.
-We need this assumption because it defines the potential outcome for a given exposure level.
-If someone is never, under any circumstances, exposed to chocolate, then the potential outcome for `y(chocolate)` isn't defined for that person.
-We can't use them to provide information about this potential outcome.
-In a randomized trial, the probability of exposure is known by design.
-In the ice cream example, everyone had the same probabilities: 50% to receive chocolate and 50% to receive vanilla.
-These possibilities define both potential outcomes for both groups.
+긍정성 가정은 모든 개인이 각 수준의 노출을 받을 확률이 0보다 크다는 것을 의미합니다.
+수학적으로 이는 모든 $x$ 에 대해 $P(X = x) > 0$ 임을 의미합니다. 다시 말해, 우리는 하나 이상의 노출 수준이 불가능한 사람이 아무도 없다고 가정합니다.
+우리가 이 가정을 필요로 하는 이유는 그것이 주어진 노출 수준에 대한 잠재적 결과를 정의하기 때문입니다.
+만약 누군가가 어떤 상황에서도 초콜릿에 노출될 일이 없다면, 그 사람에게 `y(chocolate)`라는 잠재적 결과는 정의되지 않습니다.
+우리는 그들을 이 잠재적 결과에 대한 정보를 제공하는 데 사용할 수 없습니다.
+무작위 시험에서 노출 확률은 설계에 의해 알려져 있습니다.
+아이스크림 예시에서 모든 사람은 동일한 확률을 가졌습니다: 초콜릿을 받을 확률 50%, 바닐라를 받을 확률 50%입니다.
+이러한 가능성들이 두 그룹 모두에 대해 두 잠재적 결과를 모두 정의합니다.
 
 ::: callout-note
-Sometimes, positivity is referred to as the **probabilistic assumption**.
+때때로 긍정성은 **확률론적 가정(probabilistic assumption)**이라고 불리기도 합니다.
 :::
 
-Positivity violations come in two forms: stochastic and structural.
-Stochastic violations are chance occurrences where you don't have any observations for a given exposure level.
-In the example where 80% of participants chose the ice cream that would make them happiest, it's feasible that, given our low sample size, we might end up with people who only choose chocolate.
-Naturally, we can only calculate the effect of vanilla vs. chocolate if we have observations of vanilla.
+긍정성 위배는 두 가지 형태로 나타납니다: 확률적(stochastic) 위배와 구조적(structural) 위배입니다.
+확률적 위배는 주어진 노출 수준에 대한 관측치가 하나도 없는 우연한 발생입니다.
+참가자의 80%가 자신을 가장 행복하게 만들 아이스크림을 선택하는 예시에서, 표본 크기가 작을 경우 우연히 초콜릿만 선택하는 사람들만 남게 될 수도 있습니다.
+당연히, 바닐라에 대한 관측치가 있어야만 바닐라 대 초콜릿의 효과를 계산할 수 있습니다.
 
-A nuance of positivity is that it needs to hold within levels of all covariates required for exchangeability: $P(X = x \mid Z = z) > 0$ for all $x$ and $z$. Even if the flavors vary, we also need variability within levels of `prefer_chocolate`.
-That can also fail by chance.
+긍정성의 미묘한 점은 교환 가능성에 필요한 모든 공변량의 수준 내에서 긍정성이 유지되어야 한다는 것입니다: 모든 $x$ 와 $z$ 에 대해 $P(X = x \mid Z = z) > 0$ 이어야 합니다. 맛이 다양하더라도, `prefer_chocolate`의 수준 내에서도 다양성이 필요합니다.
+이 또한 우연히 실패할 수 있습니다.
 
 ```{r}
 set.seed(1)
@@ -753,10 +746,10 @@ data_observed_pos |>
   )
 ```
 
-Structural positivity violations are when an individual cannot receive at least one exposure level by definition.
-Let's say some of our participants had an allergy to vanilla.
-Even in a randomized setting, these participants can't eat vanilla.
-In this case, let's say that anyone with an allergy to vanilla who is assigned vanilla switches to chocolate.
+구조적 긍정성 위배는 개인이 정의상 적어도 하나의 노출 수준을 받을 수 없는 경우입니다.
+참가자 중 일부가 바닐라 알레르기가 있다고 가정해 봅시다.
+무작위 설정에서도 이 참가자들은 바닐라를 먹을 수 없습니다.
+이 경우, 바닐라를 배정받은 바닐라 알레르기 환자는 모두 초콜릿으로 바꾼다고 가정해 봅시다.
 
 ```{r}
 set.seed(11)
@@ -772,13 +765,13 @@ data_observed_struc <- data |>
 set.seed(1)
 data_observed_struc <- data_observed_struc |>
   mutate(
-    # 30% chance of allergy
+    # 알레르기 확률 30%
     allergy = rbinom(n(), 1, 0.3) == 1,
-    # in which case `y_vanilla` is impossible
+    # 이 경우 `y_vanilla`는 불가능함
     exposure = if_else(allergy, "chocolate", exposure),
     y_vanilla = if_else(allergy, NA, y_vanilla),
     observed_outcome = case_when(
-      # those with allergies always take chocolate
+      # 알레르기가 있는 사람들은 항상 초콜릿을 선택함
       allergy ~ y_chocolate,
       exposure == "chocolate" ~ y_chocolate,
       exposure == "vanilla" ~ y_vanilla
@@ -786,7 +779,7 @@ data_observed_struc <- data_observed_struc |>
   )
 ```
 
-Now, our estimates are off quite a bit.
+이제 우리의 추정치가 꽤 많이 빗나갑니다.
 
 ```{r}
 data_observed_struc |>
@@ -794,11 +787,11 @@ data_observed_struc |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-For those with a vanilla allergy, `y_vanilla` is not defined, as in @fig-po-pos.
+바닐라 알레르기가 있는 사람들에게 `y_vanilla`는 @fig-po-pos 에서 보듯이 정의되지 않습니다.
 
 ```{r}
 #| label: "fig-po-pos"
-#| fig-cap: "Potential outcomes in the presence of a structural positivity violation. When potential outcomes can't occur, they are not defined. Those who have an allergy to vanilla do not have a counterpart `y(vanilla)`."
+#| fig-cap: "구조적 긍정성 위배가 존재할 때의 잠재적 결과. 잠재적 결과가 발생할 수 없을 때, 그것은 정의되지 않습니다. 바닐라 알레르기가 있는 사람들은 그에 대응하는 `y(vanilla)`를 갖지 않습니다."
 #| code-fold: true
 #| warning: false
 plot_data <- data_observed_struc |>
@@ -807,32 +800,32 @@ plot_data <- data_observed_struc |>
   prepare_plot_data(
     pivot_prefix = "y_",
     potential_outcome_transform = \(x) paste0("y(", x, ")"),
-    transform_exposure = \(exp) if_else(exp == "vanilla", "actually ate vanilla", "actually ate chocolate"),
+    transform_exposure = \(exp) if_else(exp == "vanilla", "실제로 바닐라를 먹음", "실제로 초콜릿을 먹음"),
     id_assignment = FALSE
   )
 
 avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed")) |>
   mutate(
-    exposure_lbl = str_replace_all(exposure, "actually ate ", ""),
+    exposure_lbl = str_replace_all(exposure, "실제로 |를 먹음", ""),
     po_lbl = str_replace_all(potential_outcome, "potential outcome: ", ""),
-    label = glue("Avg {po_lbl}\n({exposure_lbl} group, {observed})") |> str_wrap(19)
+    label = glue("평균 {po_lbl}\n({exposure_lbl} 그룹, {observed})") |> str_wrap(19)
   )
 
-# Missing y(vanilla) points on the chocolate side
+# 초콜릿 쪽에서 누락된 y(vanilla) 지점들
 missing_points <- plot_data |>
-  filter(is_missing_y_vanilla, exposure == "actually ate chocolate") |>
+  filter(is_missing_y_vanilla, exposure == "실제로 초콜릿을 먹음") |>
   select(happiness, y_id) |>
   drop_na()
 
-# Annotation for missing points
+# 누락된 지점들에 대한 주석
 missing_annotation <- tibble(
   x = max(missing_points$happiness, na.rm = TRUE) + 1,
   y = max(missing_points$y_id, na.rm = TRUE) - 1,
-  label = "Missing y(vanilla)\ncounterpart",
+  label = "누락된 y(vanilla)\n대응치",
   potential_outcome = "y(chocolate)"
 )
 
-# Arrows from annotation to missing points
+# 주석에서 누락된 지점들로 향하는 화살표
 missing_arrows <- missing_points |>
   mutate(
     xend = happiness + 0.3,
@@ -890,62 +883,62 @@ ggplot(
   facet_wrap(~ potential_outcome) +
   scale_y_continuous(
     breaks = c(unique(plot_data$y_id), min(plot_data$y_id) - 1),
-    labels = c(unique(plot_data$id), expression(bold("Avg")))
+    labels = c(unique(plot_data$id), expression(bold("평균(Avg)")))
   ) +
   scale_shape_manual(values = c(19, 21)) +
   scale_fill_manual(
     name = NULL,
     values = c("TRUE" = ggokabeito::palette_okabe_ito(7)),
-    labels = c("TRUE" = "Missing y(vanilla) counterpart"),
+    labels = c("TRUE" = "누락된 y(vanilla) 대응치"),
     na.value = "grey80"
   ) +
   scale_color_manual(
     name = NULL,
     values = c("TRUE" = ggokabeito::palette_okabe_ito(7)),
-    labels = c("TRUE" = "Missing y(vanilla) counterpart"),
+    labels = c("TRUE" = "누락된 y(vanilla) 대응치"),
     na.value = "grey80"
   ) +
   scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
   po_theme
 ```
 
-There are a few things we can do to improve positivity problems.
-For stochastic positivity violations, we can collect more data.
-Increasing the sample size reduces the chances of stochastic violations.
-However, because we require positivity with each combination of covariates, we often need to use a statistical model to extrapolate over the data's dimensionality.
-We'll discuss this topic more in [Chapter -@sec-ps] and [Chapter -@sec-g-comp].
-Additionally, we can specify eligibility criteria (which we'll discuss in @sec-target-trial) to exclude people for whom some level of exposure is impossible.
-If positivity is an issue within a particular confounder, we could also consider removing the confounder; if the confounding bias induced by not controlling for it is less than the bias induced by positivity, it might be worth the trade.
-Finally, we can modify the causal estimand we are trying to estimate.
-As we'll see in @sec-estimands, different causal effects are stricter in meeting the causal assumptions.
+긍정성 문제를 개선하기 위해 할 수 있는 몇 가지 방법이 있습니다.
+확률적 긍정성 위배의 경우, 더 많은 데이터를 수집할 수 있습니다.
+표본 크기를 늘리면 확률적 위배가 발생할 가능성이 줄어듭니다.
+그러나 모든 공변량의 조합 내에서 긍정성이 요구되기 때문에, 우리는 종속 데이터의 차원을 가로질러 외삽(extrapolate)하기 위해 종종 통계 모델을 사용해야 합니다.
+이에 대해서는 [@sec-ps]장과 [@sec-g-comp]장에서 더 자세히 논의할 것입니다.
+또한, 특정 노출 수준이 불가능한 사람들을 제외하기 위해 적격성 기준(eligibility criteria, @sec-target-trial 에서 논의할 것임)을 명시할 수 있습니다.
+만약 특정 교란 요인 내에서 긍정성이 문제라면, 해당 교란 요인을 제거하는 것을 고려할 수도 있습니다. 그 교란 요인을 통제하지 않음으로써 발생하는 교란 편향이 긍정성에 의해 유발되는 편향보다 작다면 그럴 가치가 있을 수 있습니다.
+마지막으로, 우리가 추정하려는 인과 추정 대상(causal estimand)을 수정할 수 있습니다.
+@sec-estimands 에서 보겠지만, 서로 다른 인과 효과들은 인과적 가정을 충족하는 데 있어 그 엄격함의 정도가 다릅니다.
 
-### Consistency
+### 일관성 (Consistency)
 
-Consistency assumes that the causal question you claim you are answering is consistent with the one you are *actually* answering with your analysis.
-Consistency allows us to see one of the potential outcomes for each group: the factual outcome.
-Mathematically, this means that $Y_{obs} = (X)Y(1) + (1 - X)Y(0)$.
-In plain language, the consistency assumption says that the potential outcome of a given treatment value is equal to the value we actually observe when someone is assigned that treatment value.
-It seems almost silly when you say it.
-What else would it be?
-If you think this issue through, though, you'll see that this assumption can be violated easily for any given exposure.
-Let's consider two common cases:
+일관성은 여러분이 답하고 있다고 주장하는 인과적 질문이 여러분이 분석을 통해 *실제로* 답하고 있는 질문과 일치한다고 가정합니다.
+일관성은 우리가 각 그룹에 대해 잠재적 결과 중 하나인 사실적(factual) 결과를 볼 수 있게 해줍니다.
+수학적으로 이는 $Y_{obs} = (X)Y(1) + (1 - X)Y(0)$ 임을 의미합니다.
+쉬운 말로 하면, 일관성 가정은 특정 처치 값의 잠재적 결과가 누군가가 그 처치 값을 배정받았을 때 우리가 실제로 관찰하는 값과 동일하다는 것을 말합니다.
+이렇게 말하면 거의 우스꽝스러울 정도로 당연해 보입니다.
+그게 아니면 또 무엇이겠어요?
+하지만 이 문제를 깊이 생각해 보면, 이 가정이 어떤 노출에 대해서든 쉽게 위배될 수 있음을 알게 될 것입니다.
+두 가지 일반적인 경우를 고려해 봅시다:
 
--   **Poorly-defined exposure**: For each exposure value, there is a difference between subjects when delivering that exposure. Put another way, multiple treatment versions exist. Instead, we need a *well-defined exposure*.
--   **Interference**: The outcome (technically all potential outcomes, regardless of whether they are observed) for any subject depends on another subject's exposure; Instead, we need *no interference*.
+-   **잘못 정의된 노출 (Poorly-defined exposure)**: 각 노출 값에 대해, 그 노출을 전달할 때 대상자들 사이에 차이가 있습니다. 달리 말하면, 여러 버전의 처치가 존재합니다. 대신, 우리는 **잘 정의된 노출 (well-defined exposure)**이 필요합니다.
+-   **간섭 (Interference)**: 특정 대상자의 결과(관찰 여부와 관계없이 엄밀히 말하면 모든 잠재적 결과)가 다른 대상자의 노출에 의존합니다. 대신, 우리는 **간섭이 없음 (no interference)**이 필요합니다.
 
 ::: callout-tip
-Consistency is sometimes called the  **stable-unit-treatment-value assumption** or **SUTVA** [@imbens2015causal].
-However, causal consistency is a distinct idea from *statistical* consistency, which is a property where an estimator moves closer to the truth as the sample size increases.
+일관성은 때때로 **안정적 단위 처치값 가정(stable-unit-treatment-value assumption)** 또는 **SUTVA**라고 불리기도 합니다 [@imbens2015causal].
+그러나 인과적 일관성은 통계적 일관성(표본 크기가 커짐에 따라 추정량이 참값에 가까워지는 속성)과는 별개의 개념입니다.
 :::
 
-#### Poorly-defined exposures
+#### 잘못 정의된 노출 (Poorly-defined exposures)
 
-Consistency violations are common when an exposure is poorly defined.
-They occur in everything from surgeries (say if one doctor is more experienced with a surgical procedure than another) to income (are all income sources dollar-for-dollar the same? Is the lottery the same as a weekly paycheck?) to education (do years of education have the same effect across school quality?), and many others [@Rehkopf2016].
+일관성 위배는 노출이 제대로 정의되지 않았을 때 흔히 발생합니다.
+수술(한 의사가 다른 의사보다 수술 절차에 더 숙련된 경우)부터 소득(모든 소득원이 달러 대 달러로 동일한가? 복권 당첨금이 주급과 같은가?), 교육(교육 연수가 학교의 질에 관계없이 동일한 효과를 갖는가?) 등 많은 분야에서 나타납니다 [@Rehkopf2016].
 
-Suppose there were two containers of chocolate ice cream, one of which was spoiled.
-Exposure to "chocolate" could mean different things depending on where the individual's scoop came from (regular chocolate ice cream or spoiled chocolate ice cream); we are lumping them all together under a single term.
-Eating spoiled ice cream makes you miserable, regardless of how you feel about chocolate ice cream in general, so it is not the same potential outcome.
+두 통의 초콜릿 아이스크림이 있는데 그중 하나가 상했다고 가정해 봅시다.
+"초콜릿"에 노출된다는 것은 개인이 푼 아이스크림이 어디서 왔느냐(일반 초콜릿 아이스크림인가 아니면 상한 초콜릿 아이스크림인가)에 따라 서로 다른 의미를 가질 수 있습니다; 우리는 이들을 하나의 용어로 묶어서 취급하고 있습니다.
+상한 아이스크림을 먹는 것은 여러분이 일반적으로 초콜릿 아이스크림에 대해 어떻게 느끼는지와 관계없이 여러분을 비참하게 만들 것이므로, 이는 동일한 잠재적 결과가 아닙니다.
 
 ```{r}
 data <- tibble(
@@ -978,7 +971,7 @@ data_observed_poorly_defined <- data |>
   )
 ```
 
-We know the *true* average causal effect of (unspoiled) chocolate in the sample is `r mean(data |> pull(causal_effect))`; however, our estimated causal effect is `r data_observed |> group_by(exposure) |> summarise(avg_outcome = mean(observed_outcome)) |> mutate(exposure = c(1, 0)) |> pivot_wider(names_from = exposure, values_from = avg_outcome, names_prefix = "x_") |> summarise(estimate = x_1 - x_0) |> pull() |> round(1)`.
+우리는 표본에서 (상하지 않은) 초콜릿의 *진정한* 평균 인과 효과가 `r mean(data |> pull(causal_effect))`라는 것을 알고 있습니다. 하지만 우리의 추정된 인과 효과는 `r data_observed |> group_by(exposure) |> summarise(avg_outcome = mean(observed_outcome)) |> mutate(exposure = c(1, 0)) |> pivot_wider(names_from = exposure, values_from = avg_outcome, names_prefix = "x_") |> summarise(estimate = x_1 - x_0) |> pull() |> round(1)`입니다.
 
 ```{r}
 data_observed_poorly_defined |>
@@ -986,14 +979,14 @@ data_observed_poorly_defined |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-The potential outcome we think we are estimating is not the one we are observing.
-We're treating fresh chocolate ice cream and spoiled chocolate ice cream as the same exposure, but they have different effects on the potential outcomes.
-Because the exposure is random, we actually do a pretty good job of estimating the effect of `y(chocolate, spoiled = FALSE) | y(chocolate, spoiled = TRUE)`, but that's not what we're interested in.
-We just want `y(chocolate, spoiled = FALSE)`.
+우리가 추정하고 있다고 생각하는 잠재적 결과는 우리가 실제로 관찰하고 있는 것이 아닙니다.
+우리는 신선한 초콜릿 아이스크림과 상한 초콜릿 아이스크림을 동일한 노출로 취급하고 있지만, 그들은 잠재적 결과에 서로 다른 영향을 미칩니다.
+노출이 무작위이기 때문에, 우리는 사실 `y(chocolate, spoiled = FALSE) | y(chocolate, spoiled = TRUE)`의 효과를 추정하는 일을 꽤 잘 해내고 있지만, 그것은 우리가 관심을 갖는 것이 아닙니다.
+우리는 단지 `y(chocolate, spoiled = FALSE)`를 원할 뿐입니다.
 
 ```{r}
 #| label: "fig-po-cons"
-#| fig-cap: "Potential outcomes under a consistency violation. Consistency allows us to treat the observed data as the factual outcome. Here, we're treating the chocolate group as representative of `y(chocolate)`, but this isn't true. The data represent a mixture of `y(chocolate, spoiled = FALSE)` and `y(chocolate, spoiled = TRUE)`, different potential outcomes."
+#| fig-cap: "일관성 위배가 있을 때의 잠재적 결과. 일관성은 우리가 관찰된 데이터를 사실적 결과로 취급할 수 있게 해줍니다. 여기서 우리는 초콜릿 그룹을 `y(chocolate)`를 대표하는 것으로 취급하고 있지만, 이는 사실이 아닙니다. 데이터는 서로 다른 잠재적 결과인 `y(chocolate, spoiled = FALSE)`와 `y(chocolate, spoiled = TRUE)`의 혼합을 나타냅니다."
 #| code-fold: true
 plot_data <- data_observed_poorly_defined |>
   mutate(is_spoiled = exposure_unobserved == "chocolate (spoiled)") |>
@@ -1021,11 +1014,11 @@ plot_data <- data_observed_poorly_defined |>
 
 avg_labels <- compute_avg_labels(plot_data, c("potential_outcome", "exposure", "observed"))
 
-# Annotations for spoiled chocolate
+# 상한 초콜릿에 대한 주석
 spoiled_annotation <- plot_data |>
   filter(is_spoiled, potential_outcome == "y(chocolate)") |>
   slice(1) |>
-  mutate(label = "Their chocolate was spoiled")
+  mutate(label = "초콜릿이 상했습니다")
 
 spoiled_arrows <- plot_data |>
   filter(is_spoiled, potential_outcome == "y(chocolate)") |>
@@ -1039,7 +1032,7 @@ spoiled_arrows <- plot_data |>
 flawed_avg_annotation <- avg_labels |>
   filter(potential_outcome == "y(chocolate)", exposure == "chocolate", observed == "observed") |>
   mutate(
-    label = "This is an average of\nboth potential outcomes",
+    label = "두 잠재적 결과의\n평균입니다",
     x = happiness + 2.25,
     y = y_id + .9,
     happiness = happiness + 0.25,
@@ -1050,7 +1043,7 @@ unspoiled_annotation <- plot_data |>
   filter(!is_spoiled, exposure == "chocolate", potential_outcome == "y(chocolate)", observed == "observed") |>
   slice(1) |>
   mutate(
-    label = "But theirs\nwasn't",
+    label = "하지만 이들은\n상하지 않았습니다",
     x = happiness + 2,
     y = y_id
   )
@@ -1155,19 +1148,19 @@ ggplot(plot_data, aes(x = happiness, y = y_id)) +
     labels = c(unique(plot_data$id), expression(bold("Avg")))
   ) +
   scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
-  labs(y = "actual exposure") +
+  labs(y = "실제 노출") +
   po_theme
 ```
 
-We can imagine other ways in which slight variations in the treatment occur: high-quality and low-quality brands of vanilla ice cream are categorized as "vanilla." One person eats in the morning and another in the afternoon.
-One has a spoonful, and one has three bowls full.
-There will almost always be *some* consistency violation in this sense; the question for us is whether or not that violation is meaningful regarding the potential outcomes we see.
-If two brands of ice cream produce the same happiness, this variation doesn't matter.
-If they differ, by how much?
+우리는 처치 과정에서 미세한 변화가 발생하는 다른 방식들을 상상할 수 있습니다: 고품질 및 저품질 브랜드의 바닐라 아이스크림이 모두 "바닐라"로 분류되는 경우입니다. 한 사람은 아침에 먹고 다른 사람은 오후에 먹는 경우입니다.
+누군가는 한 숟가락만 먹고 누군가는 세 그릇을 가득 먹는 경우입니다.
+이런 의미에서의 일관성 위배는 거의 항상 어느 정도 존재하기 마련입니다; 우리에게 중요한 질문은 그 위배가 우리가 관찰하는 잠재적 결과와 관련하여 유의미한지 여부입니다.
+만약 두 브랜드의 아이스크림이 동일한 행복도를 만들어낸다면, 이러한 변화는 중요하지 않습니다.
+만약 차이가 있다면, 그 차이는 얼마나 클까요?
 
-One way to address consistency violations, in addition to being more specific, is to investigate potential deviations within treatment levels.
-Let's say we tested the ice cream containers after the experiment and had data on the spoiled status of the ice cream in the data.
-Now, we can group it by the actual exposure.
+보다 구체적으로 노출을 정의하는 것 외에도 일관성 위배를 해결하는 한 가지 방법은 처치 수준 내에서의 잠재적 편차를 조사하는 것입니다.
+실험 후에 아이스크림 통을 테스트하여 아이스크림이 상했는지 여부에 대한 데이터를 확보했다고 가정해 봅시다.
+이제 우리는 실제 노출 상태에 따라 그룹을 나눌 수 있습니다.
 
 ```{r}
 data_observed_poorly_defined |>
@@ -1175,11 +1168,11 @@ data_observed_poorly_defined |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-Now we're back to the right answer because we've correctly separated the potential outcomes in our analysis, as in @fig-po-const-defined.
+이제 분석에서 잠재적 결과들을 올바르게 분리했기 때문에 @fig-po-const-defined 에서처럼 정답으로 돌아왔습니다.
 
 ```{r}
 #| label: "fig-po-const-defined"
-#| fig-cap: "Potential outcomes under a consistency violation. Now we've correctly linked the observed data to their underlying potential outcome, making them consistent."
+#| fig-cap: "일관성 위배 상황에서의 잠재적 결과. 이제 관찰된 데이터를 기저의 잠재적 결과와 올바르게 연결하여 일관성을 확보했습니다."
 #| code-fold: true
 plot_data <- data_observed_poorly_defined |>
   pivot_longer(
@@ -1238,21 +1231,21 @@ ggplot(plot_data, aes(x = happiness, y = y_id, color = exposure_unobserved)) +
   scale_color_manual(values = ggokabeito::palette_okabe_ito(c(1, 2, 7))) +
   scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
   labs(
-    y = "True exposure",
+    y = "실제 노출",
     color = NULL,
     fill = NULL
   ) +
   po_theme
 ```
 
-#### Interference
+#### 간섭 (Interference)
 
-Interference means that an individual's exposure impacts another's potential outcome.
-It's very common in infectious diseases, where someone's exposure to a vaccine or treatment often impacts someone else's outcome risk.
-However, it can also occur in various other settings, including via social networks, policy interventions, the geographic proximity of treated units, and so on.
+간섭은 개인의 노출이 다른 개인의 잠재적 결과에 영향을 미치는 것을 의미합니다.
+간섭은 전염병 분야에서 매우 흔합니다. 백신 접종이나 치료제에 대한 누군가의 노출이 종종 다른 사람의 결과 위험에 영향을 미치기 때문입니다.
+그러나 간섭은 소셜 네트워크, 정책 개입, 처치된 단위들의 지리적 근접성 등을 통해서도 다양한 다른 설정에서 발생할 수 있습니다.
 
-Let's say each individual in our ice cream study has a partner, and their potential outcome depends on both what flavor of ice cream they ate *and* what flavor their partner ate.
-In the simulation below, having a partner who receives a *different* flavor of ice cream increases their happiness by two units.
+우리 아이스크림 연구의 각 개인에게 파트너가 있고, 그들의 잠재적 결과가 자신이 먹은 아이스크림의 맛 *뿐만 아니라* 파트너가 먹은 맛에도 의존한다고 가정해 봅시다.
+아래의 시뮬레이션에서, *다른* 맛의 아이스크림을 받은 파트너가 있는 경우 그 사람의 행복도는 2단위 증가합니다.
 
 ```{r}
 data <- tibble(
@@ -1261,8 +1254,8 @@ data <- tibble(
   y_chocolate_chocolate = c(4, 4, 6, 5, 6, 5, 6, 7, 5, 6),
   y_vanilla_vanilla = c(1, 3, 4, 5, 5, 6, 8, 6, 3, 5)
 ) |>
-  # partner's happiness increases by 2
-  # when they get a different flavor
+  # 파트너가 다른 맛을 얻었을 때
+  # 행복도가 2 증가함
   mutate(
     y_chocolate_vanilla = y_chocolate_chocolate + 2,
     y_vanilla_chocolate = y_vanilla_vanilla + 2
@@ -1290,7 +1283,7 @@ data_observed_interf <- data |>
   )
 ```
 
-As with a poorly defined exposure, we don't get the right answer under interference.
+잘못 정의된 노출의 경우와 마찬가지로, 간섭이 있는 상황에서도 우리는 올바른 답을 얻지 못합니다.
 
 ```{r}
 data_observed_interf |>
@@ -1298,16 +1291,16 @@ data_observed_interf |>
   summarise(avg_outcome = mean(observed_outcome))
 ```
 
-Similarly, the problem is that we're estimating the wrong potential outcome (@fig-const-interf).
-Interference and poorly defined exposures are different manifestations of the same assumption violation.
-The potential outcomes we are estimating are not consistent with the causal question we're asking.
-In this case, we have three counterfactuals: the flavor an individual had with the exposure their partner *didn't* have, and the flavor an individual *didn't* have with the two flavors their partner could have.
-The averages we calculated don't seem to be estimating any of these combinations. 
+마찬가지로 문제는 우리가 엉뚱한 잠재적 결과를 추정하고 있다는 점입니다 (@fig-const-interf).
+간섭과 잘못 정의된 노출은 동일한 가정 위배의 서로 다른 발현일 뿐입니다.
+우리가 추정하고 있는 잠재적 결과들이 우리가 묻고 있는 인과적 질문과 일치하지 않습니다.
+이 사례에서 우리에게는 세 가지 반사실이 있습니다: 한 개인이 가졌던 맛과 파트너가 가지지 *않았던* 노출의 조합, 그리고 개인이 가지지 *않았던* 맛과 파트너가 가질 수 있었던 두 가지 맛의 조합입니다.
+우리가 계산한 평균들은 이러한 조합 중 어느 것도 추정하고 있는 것 같지 않습니다. 
 
 
 ```{r}
 #| label: "fig-const-interf"
-#| fig-cap: "Potential outcomes under a consistency violation. This time, the vanilla group's `y(vanilla)` and the chocolate group's `y(chocolate)` are not correct: they are a mixture of effects due to interference by the partner's flavor."
+#| fig-cap: "일관성 위배 상황에서의 잠재적 결과. 이번에는 바닐라 그룹의 `y(vanilla)`와 초콜릿 그룹의 `y(chocolate)`가 올바르지 않습니다. 파트너의 맛에 의한 간섭으로 인해 효과들이 뒤섞여 있기 때문입니다."
 #| code-fold: true
 plot_data <- data_observed_interf |>
   pivot_longer(
@@ -1319,7 +1312,7 @@ plot_data <- data_observed_interf |>
   mutate(
     potential_outcome = paste0("y(", str_remove(po_combination, "_.*"), ")"),
     observed = po_combination == paste0(exposure, "_", exposure_partner),
-    flavor_match = if_else(exposure == exposure_partner, "Same Flavors", "Different Flavors"),
+    flavor_match = if_else(exposure == exposure_partner, "같은 맛", "다른 맛"),
     y_id = dense_rank(id)
   ) |>
   filter(
@@ -1332,7 +1325,7 @@ flavor_annotation <- plot_data |>
   summarize(
     x = max(happiness) + 0.5,
     y = mean(y_id) - 2,
-    label = str_wrap("Different exposure pairs yield different potential outcomes", 20),
+    label = str_wrap("서로 다른 노출 쌍은 서로 다른 잠재적 결과를 낳습니다", 20),
     potential_outcome = "y(chocolate)"
   )
 
@@ -1355,7 +1348,7 @@ unobserved_annotation <- plot_data |>
   summarize(
     x = max(happiness) + 0.75,
     y = mean(y_id) - 0.5,
-    label = str_wrap("There are two unobserved potential outcomes for the opposite exposure", 20),
+    label = str_wrap("반대 노출에 대해 두 개의 관찰되지 않은 잠재적 결과가 존재합니다", 20),
     potential_outcome = "y(vanilla)"
   )
 
@@ -1376,7 +1369,7 @@ chocolate_unobserved_annotation <- plot_data |>
   summarize(
     x = min(happiness) - 2.5,
     y = mean(y_id) + .75,
-    label = str_wrap("There is an unobserved potential outcome for the partner's other flavor", 15),
+    label = str_wrap("파트너의 다른 맛에 대한 관찰되지 않은 잠재적 결과가 있습니다", 15),
     potential_outcome = "y(chocolate)"
   )
 
@@ -1466,27 +1459,27 @@ ggplot(plot_data, aes(x = happiness, y = y_id)) +
   ) +
   scale_fill_manual(
     values = c(
-      "Same Flavors" = ggokabeito::palette_okabe_ito(3),
-      "Different Flavors" = ggokabeito::palette_okabe_ito(5)
+      "같은 맛" = ggokabeito::palette_okabe_ito(3),
+      "다른 맛" = ggokabeito::palette_okabe_ito(5)
     ),
     name = NULL
   ) +
   scale_color_manual(
     values = c(
-      "Same Flavors" = ggokabeito::palette_okabe_ito(3),
-      "Different Flavors" = ggokabeito::palette_okabe_ito(5)
+      "같은 맛" = ggokabeito::palette_okabe_ito(3),
+      "다른 맛" = ggokabeito::palette_okabe_ito(5)
     ),
     name = NULL
   ) +
   scale_x_continuous(breaks = seq(0, 12, by = 2.5), limits = c(NA, 12)) +
   labs(
-    x = "Happiness",
+    x = "행복도",
     y = "ID"
   ) +
   po_theme
 ```
 
-As before, we can be more specific about the potential outcomes.
+이전과 마찬가지로, 우리는 잠재적 결과에 대해 더 구체적으로 명시할 수 있습니다.
 
 ```{r}
 data_observed_interf |>
@@ -1494,18 +1487,18 @@ data_observed_interf |>
   summarise(avg_outcome = mean(observed_outcome), .groups = "drop")
 ```
 
-One of the main ways to combat interference is to change the *unit* under consideration.
-Here, each individual, each unique ID, is considered a unit, and there is interference between units (i.e., partners).
-Suppose we consider each *partnership* as a unit and randomize the partnerships rather than the individuals.
-In that case, we solve the interference issue, as there is no interference between different partner sets.
-This type of randomization is sometimes referred to as a cluster randomized trial.
-What we decide to do within each cluster may depend on the causal question at hand.
-For example, if we want to know what would happen if both people ate chocolate ice cream versus vanilla ice cream, we would want to randomly assign both partners to either chocolate or vanilla, as seen below.
+간섭에 대처하는 주요 방법 중 하나는 고려 중인 *단위(unit)*를 변경하는 것입니다.
+여기서 각 개인, 즉 각 고유 ID는 하나의 단위로 간주되며 단위 간(즉, 파트너 간) 간섭이 존재합니다.
+만약 각 *파트너십*을 하나의 단위로 간주하고 개인이 아닌 파트너십을 무작위로 배정한다고 가정해 봅시다.
+이 경우 서로 다른 파트너십 세트 간에는 간섭이 없으므로 간섭 문제를 해결할 수 있습니다.
+이러한 유형의 무작위 배정은 때때로 클러스터 무작위 시험(cluster randomized trial)이라고 불립니다.
+각 클러스터 내에서 무엇을 하기로 결정할지는 당면한 인과적 질문에 달려 있습니다.
+예를 들어, 두 사람 모두 초콜릿 아이스크림을 먹었을 때와 바닐라를 먹었을 때 어떤 일이 일어날지 알고 싶다면, 아래와 같이 두 파트너 모두에게 초콜릿이나 바닐라를 무작위로 배정하고 싶을 것입니다.
 
 ```{r}
 set.seed(11)
 
-## we are now randomizing the *partnerships* not the individuals
+## 우리는 이제 개인이 아니라 *파트너십*을 무작위 배정하고 있습니다
 partners <- tibble(
   partner_id = 1:5,
   exposure = if_else(
@@ -1515,7 +1508,7 @@ partners <- tibble(
 partners_observed <- data |>
   left_join(partners, by = "partner_id") |>
   mutate(
-    # all partnerships have the same exposure
+    # 모든 파트너십은 동일한 노출을 가집니다
     exposure_partner = exposure,
     observed_outcome = case_when(
       exposure == "chocolate" & exposure_partner == "chocolate" ~
@@ -1526,7 +1519,7 @@ partners_observed <- data |>
   )
 ```
 
-Now, we can detect the correct causal effect.
+이제 우리는 올바른 인과 효과를 감지할 수 있습니다.
 
 ```{r}
 partners_observed |>
@@ -1535,151 +1528,151 @@ partners_observed |>
 ```
 
 ::: callout-note
-There are also methods for identifying effects with multiple versions of treatments or interference, but they are technical and more limited under their consistency violations [@Tchetgen2012; @VanderWeele2013].
+여러 버전의 처치나 간섭이 있는 상황에서 효과를 식별하기 위한 방법들도 존재하지만, 이는 기술적이며 일관성 위배 상황에서 더 제한적입니다 [@Tchetgen2012; @VanderWeele2013].
 :::
 
-Similarly, we could assign partners either the same flavor or different flavors, which would allow us to calculate the cross-flavor effect.
-Another option would be to exclude partners so there is no interference effect.
-The key is to think about what you want to estimate and try to represent the potential outcomes for that question as precisely as possible.
+마찬가지로, 파트너에게 같은 맛이나 다른 맛을 배정하여 교차 맛 효과(cross-flavor effect)를 계산할 수도 있습니다.
+또 다른 옵션은 간섭 효과가 없도록 파트너를 제외하는 것입니다.
+핵심은 무엇을 추정하고 싶은지 생각하고, 해당 질문에 대한 잠재적 결과를 가능한 한 정확하게 표현하려고 노력하는 것입니다.
 
 ::: callout-note
-## Malaria nets, revisited
+## 모기장 사례, 재검토
 
-In @sec-whole-game, we estimated the causal effect of mosquito nets on malaria risk.
-Let's consider the causal assumptions for this question and how they might have been violated in a real-life analysis.
+@sec-whole-game 에서 우리는 모기장이 말라리아 위험에 미치는 인과 효과를 추정했습니다.
+이 질문에 대한 인과적 가정과 실제 분석에서 어떻게 위배될 수 있었을지 고려해 봅시다.
 
--   **Exchangeability**: We saw what can happen with this problem when an unmeasured confounder (in this case, genetic resistance to malaria) is present. Thinking about exchangeability is one of the more demanding and more common tasks in causal inference with observational data. We'll discuss this in-depth in @sec-dags, and what to do if we think (or know) we're wrong in @sec-sensitivity. We should also be concerned that we haven't measured the covariates we need well or are missing values (@sec-missingness).
--   **Positivity**: A positivity violation would occur if any household would *always* or *never* use a bed net. A situation like this is feasible in real life. Someone may be allergic to the material, or one type of net may be unapproved in a region. As mentioned, we also need positivity to hold within the levels of the combination confounders in the analysis. Is it possible, for instance, that someone of low economic status in cold weather (when mosquitoes are not very active) and good health would never use a bed net because it wasn't worth the expense?
--   **Consistency**: We already saw an example of the well-defined exposure problem: a "bed net" can mean many things. We decided we were comparing insecticide-treated bed nets compared to no nets, but we may need more. Does the manufacturer matter? The type of insecticide? The amount of insecticide? We need to think about the effect on the potential outcomes each of these variations might have. Interference is a real problem for bed-net research, particularly for insecticidal nets. Notably, we used households as the unit of observation, which would reduce some of the local interference. We could also consider households that are geographically dispersed from one another.
+-   **교환 가능성**: 우리는 측정되지 않은 교란 요인(이 사례에서는 말라리아에 대한 유전적 저항력)이 존재할 때 이 문제에 어떤 일이 일어날 수 있는지 보았습니다. 교환 가능성에 대해 생각하는 것은 관찰 데이터로 인과 추론을 할 때 가장 까다로우면서도 흔한 과업 중 하나입니다. 우리는 @sec-dags 에서 이에 대해 심도 있게 논의할 것이며, 우리가 틀렸다고 생각될 때(혹은 알고 있을 때) 어떻게 해야 할지를 @sec-sensitivity 에서 다룰 것입니다. 또한 필요한 공변량을 제대로 측정하지 못했거나 결측치가 있는 상황에 대해서도 우려해야 합니다 (@sec-missingness).
+-   **긍정성**: 어떤 가구가 모기장을 *항상* 사용하거나 *전혀* 사용하지 않는 경우 긍정성 위배가 발생합니다. 이런 상황은 실제 생활에서 충분히 가능합니다. 누군가는 재질에 알레르기가 있을 수도 있고, 특정 지역에서 한 종류의 모기장이 승인되지 않았을 수도 있습니다. 언급했듯이, 분석에 포함된 공변량 조합의 수준 내에서도 긍정성이 유지되어야 합니다. 예를 들어, 경제적 수준이 낮고 날씨가 추우며(모기가 활발하지 않음) 건강 상태가 좋은 사람이 비용을 들일 가치가 없다고 판단하여 모기장을 절대 사용하지 않을 가능성이 있을까요?
+-   **일관성**: 우리는 이미 잘 정의된 노출 문제의 사례를 보았습니다: "모기장"은 많은 것을 의미할 수 있습니다. 우리는 살충제 처리 모기장과 모기장 없음을 비교하기로 결정했지만, 더 많은 정보가 필요할 수도 있습니다. 제조사가 중요한가요? 살충제의 종류는요? 살충제의 양은요? 이러한 각각의 변화가 잠재적 결과에 미칠 수 있는 영향을 생각해야 합니다. 간섭은 모기장 연구, 특히 살충제 처리 모기장 연구에서 실제적인 문제입니다. 특히 우리는 관측 단위로 가구를 사용했는데, 이는 일부 국소적인 간섭을 줄여줄 것입니다. 또한 서로 지리적으로 멀리 떨어진 가구들을 고려할 수도 있습니다.
 :::
 
-## When do study designs support causal inference? {#sec-designs}
+## 연구 설계는 언제 인과 추론을 뒷받침하는가? {#sec-designs}
 
-Exchangeability, positivity, and consistency are simple assumptions, but as we've seen, they can easily be violated.
-When the assumptions for a causal method are not met, we cannot use the observed data to simulate counterfactuals and compare them to the observed outcomes.
-However, we can address many of the potential violations through careful study design, whether before collecting data or working with "found" observational data.
+교환 가능성, 긍정성, 일관성은 단순한 가정들이지만, 우리가 보았듯이 쉽게 위배될 수 있습니다.
+인과적 방법론을 위한 가정들이 충족되지 않을 때, 우리는 관찰된 데이터를 사용하여 반사실을 시뮬레이션하고 이를 관찰된 결과와 비교할 수 없습니다.
+그러나 데이터를 수집하기 전이든, 이미 확보된 관찰 데이터를 다루든 상관없이 신중한 연구 설계를 통해 많은 잠재적 위배 사항을 해결할 수 있습니다.
 
-### Randomized trials
+### 무작위 시험 (Randomized trials)
 
-As we've seen, randomized trials have excellent properties in terms of meeting the causal assumptions we need.
-In the limit, we expect exchangeability because the only cause of the exposure is the randomization process itself.
-Since it's random, it's completely independent of the potential outcomes under study.
-Similarly, the randomization process guarantees positivity so long as no one has a deterministic exposure; we know the probabilities we use to assign exposures.
-Randomized trials also help, but do not guarantee, consistency, particularly for well-defined exposures.
-An exposure needs to be defined in order to be administered.
-Interference, however, can still happen.
-For instance, if we randomize some people to receive a vaccine for an infectious disease, their receiving it could lower the chance of those around them contracting it because it changes the probability of exposure.
-This requires additional considerations in the trial's design, e.g., cluster randomization or unit separation, as in the examples above.
+우리가 보았듯이, 무작위 시험은 우리가 필요로 하는 인과적 가정을 충족하는 측면에서 탁월한 속성을 가지고 있습니다.
+극한 상황에서 우리는 교환 가능성을 기대할 수 있는데, 이는 노출의 유일한 원인이 무작위 배정 과정 그 자체이기 때문입니다.
+무작위이므로 연구 대상인 잠재적 결과와 완전히 독립적입니다.
+마찬가지로 무작위 배정 과정은 아무도 결정론적인 노출을 갖지 않는 한 긍정성을 보장합니다; 우리는 노출을 배정하기 위해 사용하는 확률을 알고 있습니다.
+무작위 시험은 또한 일관성, 특히 잘 정의된 노출을 보장하는 데 도움이 되지만 이를 완전히 보장하지는 않습니다.
+노출을 실행하기 위해서는 노출이 정의되어야 하기 때문입니다.
+하지만 간섭은 여전히 발생할 수 있습니다.
+예를 들어, 일부 사람들에게 전염병 백신을 접종하도록 무작위 배정한다면, 그들이 백신을 접종받는 것이 주변 사람들이 병에 걸릴 확률을 낮출 수 있습니다. 노출 확률을 변화시키기 때문입니다.
+이는 위의 예시들처럼 클러스터 무작위 배정이나 단위 분리 등 시험 설계에서 추가적인 고려 사항을 필요로 합니다.
 
 ::: callout-note
-We refer to analyses where the exposure is randomly assigned as a *randomized trial*.
-Sometimes, this type of randomized design is called an A/B test, as in "Which is better, A or B?".
-A/B tests are common in industry, for instance, in testing two different website UI designs.
-At their heart, though, they are randomized experiments, and everything in this section still applies.
+우리는 노출이 무작위로 배정되는 분석을 *무작위 시험*이라고 부릅니다.
+때때로 이러한 유형의 무작위 설계는 "어느 것이 더 나은가, A인가 B인가?"라는 의미에서 A/B 테스트라고 불리기도 합니다.
+A/B 테스트는 산업계에서 흔히 쓰이며, 예를 들어 두 가지 다른 웹사이트 UI 디자인을 테스트하는 경우 등이 있습니다.
+하지만 그 본질은 무작위 실험이며, 이 섹션의 모든 내용이 동일하게 적용됩니다.
 :::
 
-However, these properties are for an *ideal* randomized trial.
-In actual randomized trials, things can go wrong.
-Exchangeability can fail by chance when the sample size is too low.
-People also don't necessarily do what they're told to do; many people in studies will not adhere to their assigned exposure.
-Often, the reasons for non-adherence create problems of exchangeability.
-Similarly, people may drop out of a study in a way that creates non-exchangeability.
-We'll tackle these topics and what we can do about them in more depth in @sec-longitudinal and @sec-iv-friends.
-Exposures can also be inconsistent in real trials, either by implementation (as in the surgery example above) or by participants.
-For instance, a participant might be assigned to take two pills per day but decide to only take one per day.
-Attempts to prevent interference can also fail, e.g., randomizing on the wrong unit or units interacting with one another unexpectedly.
+그러나 이러한 속성들은 *이상적인* 무작위 시험에 대한 것입니다.
+실제 무작위 시험에서는 문제가 생길 수 있습니다.
+표본 크기가 너무 작으면 우연히 교환 가능성이 깨질 수 있습니다.
+사람들은 또한 지시받은 대로 정확히 행동하지 않을 수도 있습니다; 연구에 참여한 많은 사람들은 배정된 노출을 준수하지 않을 것입니다.
+종종 이러한 비준수(non-adherence)의 원인은 교환 가능성의 문제를 야기합니다.
+마찬가지로 사람들은 비교환 가능성을 만드는 방식으로 연구에서 탈락(중도 탈락)할 수도 있습니다.
+우리는 @sec-longitudinal 과 @sec-iv-friends 에서 이러한 주제들과 그에 대해 우리가 할 수 있는 일들을 더 깊이 다룰 것입니다.
+노출 또한 실제 시험에서 일관되지 않을 수 있는데, 이는 구현 과정에서의 문제(위의 수술 예시처럼)이거나 참가자에 의한 것일 수 있습니다.
+예를 들어, 참가자가 하루에 두 알의 약을 먹도록 배정받았지만 하루에 한 알만 먹기로 결정할 수 있습니다.
+간섭을 방지하려는 시도 또한 실패할 수 있습니다. 예를 들어 잘못된 단위에 대해 무작위 배정을 하거나 단위들이 예상치 못한 방식으로 서로 상호작용하는 경우입니다.
 
-Non-randomized (observational) studies have none of these guarantees, even ideal ones.
-Like a realistic randomized trial, observational studies require careful design and execution to better meet the assumptions necessary for causal inference.
-@tbl-assump-solved summarizes how well ideal randomized trials, realistic randomized trials, and observational studies each meet the exchangeability, positivity, and consistency criteria.
+비무작위(관찰) 연구는 이러한 보장이 전혀 없으며, 이상적인 상황에서도 마찬가지입니다.
+실제 무작위 시험과 마찬가지로, 관찰 연구 또한 인과 추론에 필요한 가정들을 더 잘 충족하기 위해 신중한 설계와 실행이 필요합니다.
+@tbl-assump-solved 는 이상적인 무작위 시험, 실제 무작위 시험, 그리고 관찰 연구가 각각 교환 가능성, 긍정성, 일관성 기준을 얼마나 잘 충족하는지 요약합니다.
 
-| Assumption                          | Ideal Randomized Trial | Realistic Randomized Trial | Observational Study  |
+| 가정 | 이상적인 무작위 시험 | 실제 무작위 시험 | 관찰 연구 |
 |----------------------|-----------------|-----------------|-----------------|
-| Consistency (Well defined exposure) | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
-| Consistency (No interference)       | `r emo::ji("shrug")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
-| Positivity                          | `r emo::ji("smile")`   | `r emo::ji("smile")`       | `r emo::ji("shrug")` |
-| Exchangeability                     | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+| 일관성 (잘 정의된 노출) | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+| 일관성 (간섭 없음) | `r emo::ji("shrug")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
+| 긍정성 | `r emo::ji("smile")`   | `r emo::ji("smile")`       | `r emo::ji("shrug")` |
+| 교환 가능성 | `r emo::ji("smile")`   | `r emo::ji("shrug")`       | `r emo::ji("shrug")` |
 
-: Assumptions solved by study design. `r emo::ji("smile")` indicates it is solved by default, `r emo::ji("shrug")` indicates that it is *solvable* but not solved by default. {#tbl-assump-solved}
+: 연구 설계에 의해 해결되는 가정들. `r emo::ji("smile")`는 기본적으로 해결됨을 나타내고, `r emo::ji("shrug")`는 해결 *가능*하지만 기본적으로 해결되지는 않음을 나타냅니다. {#tbl-assump-solved}
 
-The design of a causal analysis requires a clear causal question.
-We then can map this question to a *protocol*, consisting of the following seven elements which comprise the target trial framework, as defined by @hernan2016using:
+인과 분석의 설계에는 명확한 인과적 질문이 필요합니다.
+그런 다음 우리는 @hernan2016using 이 정의한 목표 시험 프레임워크를 구성하는 다음 7가지 요소로 구성된 *프로토콜*에 이 질문을 매핑할 수 있습니다:
 
--   **Eligibility criteria**: Who or what should be included in the study?
--   **Exposure definition**: When eligible, what precise exposure will units under study receive?
--   **Assignment procedures**: How will eligible units be assigned to an exposure?
--   **Follow-up period**: When does follow-up start and end?
--   **Outcome definition**: What precise outcomes will be measured?
--   **Causal contrast of interest**: Which causal estimand will be estimated?
--   **Analysis plan**: What data manipulation and statistical procedures will be applied to the data to estimate the causal contrast of interest?
+-   **적격성 기준 (Eligibility criteria)**: 누구를 또는 무엇을 연구에 포함해야 하는가?
+-   **노출 정의 (Exposure definition)**: 적격할 때, 연구 대상 단위가 받게 될 정확한 노출은 무엇인가?
+-   **배정 절차 (Assignment procedures)**: 적격한 단위가 노출에 어떻게 배정되는가?
+-   **추적 관찰 기간 (Follow-up period)**: 추적 관찰은 언제 시작하고 끝나는가?
+-   **결과 정의 (Outcome definition)**: 어떤 정확한 결과가 측정될 것인가?
+-   **관심 있는 인과적 대비 (Causal contrast of interest)**: 어떤 인과 추정 대상(estimand)을 추정할 것인가?
+-   **분석 계획 (Analysis plan)**: 관심 있는 인과적 대비를 추정하기 위해 데이터에 어떤 데이터 조작 및 통계적 절차가 적용될 것인가?
 
-Recall our diagrams from @sec-diag (@fig-diagram-4); several of these protocol elements can be mapped to these diagrams when we are attempting to define our causal question.
+@sec-diag 의 다이어그램(@fig-diagram-4)을 다시 떠올려 보십시오; 인과적 질문을 정의하려고 할 때 이러한 프로토콜 요소 중 여러 가지를 이 다이어그램들에 매핑할 수 있습니다.
 
 ```{r}
 #| echo: false
 #| label: fig-diagram-4-again
 #| fig-height: 2
-#| fig-cap: "Example diagram mapped to causal analysis terminology"
+#| fig-cap: "인과 분석 용어에 매핑된 다이어그램 예시"
 knitr::include_graphics("../images/sentence-diagram-4.png")
 ```
 
-### Emulating target trials {#sec-target-trial}
+### 목표 시험 모방 (Emulating target trials) {#sec-target-trial}
 
-Randomized trials help meet the causal assumptions, but as discussed in @sec-causal-question, there are many reasons we may not be able to randomize, including time, money, and ethical considerations.
-We might also be able to get a preliminary answer sooner with observational data while randomized trials are being conducted.
+무작위 시험은 인과적 가정을 충족하는 데 도움이 되지만, @sec-causal-question 에서 논의했듯이 시간, 비용, 윤리적 고려 사항 등 무작위 배정을 할 수 없는 많은 이유가 있습니다.
+또한 무작위 시험이 진행되는 동안 관찰 데이터를 사용하여 예비적인 답을 더 빨리 얻을 수도 있습니다.
 
-Even when we are not conducting a randomized trial, imagining how such a trial would proceed can improve the quality of inferences from observational data.
-This is the idea behind target trial emulation: you specify a target trial (the randomized trial you would run or which has been run previously) and try to emulate this design with observational data.
+무작위 시험을 수행하지 않을 때에도, 그러한 시험이 어떻게 진행될지 상상해보는 것은 관찰 데이터로부터의 추론 품질을 높일 수 있습니다.
+이것이 바로 목표 시험 모방(target trial emulation)의 핵심 아이디어입니다: 여러분은 목표 시험(여러분이 실행하고 싶거나 이전에 실행된 적이 있는 무작위 시험)을 명시하고, 관찰 데이터를 사용하여 이 설계를 모방하려고 노력합니다.
 
-Whether the design is a randomized trial or observational study, using a protocol can improve our likelihood of meeting the causal assumptions.
-In @tbl-protocol, we map these elements to the corresponding assumption they can address.
+설계가 무작위 시험이든 관찰 연구이든 상관없이, 프로토콜을 사용하면 인과적 가정을 충족할 가능성을 높일 수 있습니다.
+@tbl-protocol 에서는 이러한 요소들을 각각 해결할 수 있는 해당 가정에 매핑합니다.
 
-| Assumption                          | Eligibility Criteria            | Exposure Definition             | Assignment Procedures           | Follow-up Period                | Outcome Definition              | Causal contrast                 | Analysis Plan                   |
+| 가정 | 적격성 기준 | 노출 정의 | 배정 절차 | 추적 관찰 기간 | 결과 정의 | 인과적 대비 | 분석 계획 |
 |---------|---------|---------|---------|---------|---------|---------|---------|
-| Consistency (Well-defined exposure) | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 |                                 | `r emo::ji("heavy_check_mark")` |
-| Consistency (No interference)       | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |
-| Positivity                          | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
-| Exchangeability                     | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
+| 일관성 (잘 정의된 노출) | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 |                                 | `r emo::ji("heavy_check_mark")` |
+| 일관성 (간섭 없음) | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |                                 | `r emo::ji("heavy_check_mark")` |
+| 긍정성 | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |                                 |                                 | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
+| 교환 가능성 | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` | `r emo::ji("heavy_check_mark")` |
 
-: Mapping assumptions to elements of a study protocol {#tbl-protocol}
+: 인과적 가정을 연구 프로토콜 요소에 매핑하기 {#tbl-protocol}
 
--   **Eligibility criteria**: Eligibility criteria are beneficial for preventing positivity violations (by excluding those who can never have one of the exposures) but are also helpful for consistency and exchangeability. You can, for instance, exclude people who are likely to affect each other's outcomes or only include people without extreme characteristics.
--   **Exposure definition**: A precise exposure definition is particularly useful for improving consistency since it encourages a well-defined exposure and can better control the potential of interference. A precise exposure also helps identify factors related to exchangeability and positivity.
--   **Assignment procedures**: In randomized assignment, exchangeability and positivity are met. Understanding how an exposure occurs also improves exchangeability and positivity in non-randomized studies. As we've seen, we can also use assignment procedures to prevent interference, and likewise, they can help improve a well-defined exposure since the assignment mechanism needs to be precise.
--   **Follow-up period**: We'll discuss the issues that defining a follow-up period solves in more detail in @sec-longitudinal, but it helps with exchangeability by ensuring the follow-up time is comparable for all exposure levels. It's also closely related to consistency because a well-defined exposure may require a time element.
--   **Outcome definition**: Precisely defining the outcome helps identify prognostic factors, improving precision in a randomized trial but also improving exchangeability in an observational study.
--   **Causal contrast of interest**: As we'll see in @sec-estimands, some causal contrasts are less strict about exchangeability and positivity than others.
--   **Analysis plan**: A clear analysis plan improves all aspects of meeting the causal assumptions in observational studies. For instance, we must be clear about variables we must adjust to meet exchangeability. Additionally, while we can never confirm the assumptions of a causal method are met, we can provide evidence through exploratory analysis (@sec-data-causal) or probe the consequences of violating them with sensitivity analysis (@sec-sensitivity).
+-   **적격성 기준**: 적격성 기준은 (노출 중 하나를 가질 수 없는 사람들을 제외함으로써) 긍정성 위배를 방지하는 데 유익할 뿐만 아니라, 일관성과 교환 가능성에도 도움이 됩니다. 예를 들어, 서로의 결과에 영향을 미칠 가능성이 있는 사람들을 제외하거나 극단적인 특성을 가진 사람들만 포함할 수 있습니다.
+-   **노출 정의**: 정확한 노출 정의는 잘 정의된 노출을 장려하고 간섭의 가능성을 더 잘 통제할 수 있기 때문에 일관성을 개선하는 데 특히 유용합니다. 정확한 노출은 또한 교환 가능성 및 긍정성과 관련된 요인들을 식별하는 데 도움이 됩니다.
+-   **배정 절차**: 무작위 배정에서는 교환 가능성과 긍정성이 충족됩니다. 노출이 어떻게 발생하는지 이해하는 것은 비무작위 연구에서도 교환 가능성과 긍정성을 개선합니다. 우리가 보았듯이, 배정 절차를 사용하여 간섭을 방지할 수도 있으며, 마찬가지로 배정 메커니즘이 정밀해야 하므로 잘 정의된 노출을 개선하는 데 도움이 될 수 있습니다.
+-   **추적 관찰 기간**: 추적 관찰 기간을 정의함으로써 해결되는 문제들은 @sec-longitudinal 에서 더 자세히 논의하겠지만, 이는 모든 노출 수준에 대해 추적 관찰 시간을 비교 가능하게 보장함으로써 교환 가능성에 도움이 됩니다. 또한 잘 정의된 노출에는 시간적 요소가 필요할 수 있으므로 일관성과도 밀접하게 관련되어 있습니다.
+-   **결과 정의**: 결과를 정확하게 정의하면 예후 요인(prognostic factors)을 식별하는 데 도움이 되어, 무작위 시험에서는 정밀도를 높이고 관찰 연구에서는 교환 가능성을 개선합니다.
+-   **관심 있는 인과적 대비**: @sec-estimands 에서 보겠지만, 일부 인과적 대비는 다른 것들에 비해 교환 가능성과 긍정성에 대해 덜 엄격합니다.
+-   **분석 계획**: 명확한 분석 계획은 관찰 연구에서 인과적 가정을 충족하는 모든 측면을 개선합니다. 예를 들어, 교환 가능성을 충족하기 위해 조정해야 할 변수들에 대해 명확해야 합니다. 또한 인과 방법론의 가정이 충족되었는지 결코 확인할 수는 없지만, 탐색적 분석(@sec-data-causal)을 통해 증거를 제시하거나 민감도 분석(@sec-sensitivity)을 통해 가정이 위배되었을 때의 결과를 조사할 수 있습니다.
 
-What would a target trial and emulation look like for the ice cream example?
-Imagine that we have a database that has all the information we need.
-A store serves precisely 100g of either chocolate or vanilla, both of the same brand.
-Thanks to this database, we have information on participants' flavor choices and a variety of other characteristics, including happiness (measured by the same tool we used above), with measurements at the door (baseline) and 30 minutes after eating their ice cream (follow-up).
-In @tbl-target-trial, we outline some ideas for a randomized trial of this question and an observational study that would emulate it using this database.
-Notably, the target trial we can emulate is usually a so-called pragmatic trial---a trial *without* blinding.
-That is because it's often not possible to blind someone's exposure from themselves.
+아이스티와 스파이크의 예시에서 목표 시험과 그 모방은 어떤 모습일까요?
+우리가 필요한 모든 정보를 가진 데이터베이스를 가지고 있다고 상상해 보십시오.
+한 가게에서 동일한 브랜드의 초콜릿 또는 바닐라 아이스크림을 정확히 100g씩 제공합니다.
+이 데이터베이스 덕분에 우리는 참가자들의 맛 선택 정보와 입구에서의 측정치(기준점) 및 아이스크림을 먹은 지 30분 후의 측정치(추적 관찰)를 포함하여 행복도(위에서 사용한 것과 동일한 도구로 측정)와 같은 다양한 다른 특성 정보를 가지고 있습니다.
+@tbl-target-trial 에서는 이 질문에 대한 무작위 시험 아이디어와 이 데이터베이스를 사용하여 이를 모방할 관찰 연구의 프로토콜을 요약합니다.
+특히, 우리가 모방할 수 있는 목표 시험은 대개 소위 실용적 시험(pragmatic trial) — 눈가림(blinding)이 없는 시험 — 입니다.
+누군가의 노출을 자신으로부터 숨기는 것이 불가능한 경우가 많기 때문입니다.
 
-| Protocol Step               | Description                                                                                                                | Target Trial                                                                                                                                                                                                                                      | Emulation                                                                                                                                                                                                                                                                                                          |
+| 프로토콜 단계 | 설명 | 목표 시험 | 모방 연구 |
 |-------------|-------------|--------------------|--------------------------|
-| Eligibility criteria        | Who should be included in the study?                                                                                       | Inclusion: Age 18 to 65. Exclusion: No lactose intolerance or allergy to any ingredients; entered store within the week of the study.                                                                                                             | Same as target trial.                                                                                                                                                                                                                                                                                              |
-| Exposure definition         | When eligible, what precise exposure will units under study receive?                                                       | 100g vanilla or chocolate ice cream in a bowl, both Don and Jerzy brand ice cream.                                                                                                                                                                | Same as target trial.                                                                                                                                                                                                                                                                                              |
-| Assignment procedures       | How will eligible units be assigned to an exposure?                                                                        | Participants are randomized with a 50% probability of either flavor. The assignment is non-blinded.                                                                                                                                               | Participants are assigned the flavor consistent with their data, e.g., the flavor they chose. Randomization is emulated using baseline covariates.                                                                                                                                                                 |
-| Follow-up period            | When does follow-up start and end?                                                                                         | Start: When eligibility criteria are met and flavor is assigned; End: 30 minutes after flavor assignment.                                                                                                                                         | Same as target trial.                                                                                                                                                                                                                                                                                              |
-| Outcome definition          | What precise outcomes will be measured?                                                                                    | Happiness (1-10) as measured by the gold-standard tool.                                                                                                                                                                                           | Same as target trial.                                                                                                                                                                                                                                                                                              |
-| Causal contrast of interest | Which causal estimand will be estimated?                                                                                   | Average Treatment Effect (ATE).                                                                                                                                                                                                                   | Same as target trial.                                                                                                                                                                                                                                                                                              |
-| Analysis plan               | What data manipulation and statistical procedures will be applied to the data to estimate the causal contrast of interest? | ATE will be calculated using inverse probability weighting, weighted for baseline happiness, age, income, education, physical activity, self-rated physical health, self-rated mental health, quality of relationships, and preference of flavor. | ATE will be calculated using inverse probability weighting, weighted for confounders (baseline happiness, age, preference of flavor) and additional baseline prognostic variables (age, income, education, physical activity, self-rated physical health, self-rated mental health, and quality of relationships). |
+| 적격성 기준 | 누구를 연구에 포함해야 하는가? | 포함 기준: 18세 이상 65세 이하. 제외 기준: 유당 불내증 또는 성분 알레르기가 없음; 연구 기간 내에 가게에 입장함. | 목표 시험과 동일. |
+| 노출 정의 | 적격할 때, 연구 대상 단위가 받게 될 정확한 노출은 무엇인가? | 그릇에 담긴 100g의 바닐라 또는 초콜릿 아이스크림 (둘 다 Don and Jerzy 브랜드). | 목표 시험과 동일. |
+| 배정 절차 | 적격한 단위가 노출에 어떻게 배정되는가? | 참가자들은 각 맛에 대해 50%의 확률로 무작위 배정됩니다. 배정은 눈가림되지 않습니다. | 참가자들은 자신의 데이터와 일치하는 맛(예: 본인이 선택한 맛)을 배정받습니다. 무작위 배정은 기준점 공변량을 사용하여 모방됩니다. |
+| 추적 관찰 기간 | 추적 관찰은 언제 시작하고 끝나는가? | 시작: 적격성 기준을 충족하고 맛이 배정된 시점; 종료: 맛 배정 30분 후. | 목표 시험과 동일. |
+| 결과 정의 | 어떤 정확한 결과가 측정될 것인가? | 표준 도구로 측정한 행복도 (1-10점). | 목표 시험과 동일. |
+| 관심 있는 인과적 대비 | 어떤 인과 추정 대상이 추정될 것인가? | 평균 처치 효과 (ATE). | 목표 시험과 동일. |
+| 분석 계획 | 어떤 통계적 절차가 적용될 것인가? | ATE는 기준점 행복도, 연령, 소득, 교육 수준 등에 대해 가중치를 둔 역확률 가중치 부여를 사용하여 계산됩니다. | ATE는 교란 요인 및 추가적인 예후 변수들에 대해 가중치를 둔 역확률 가중치 부여를 사용하여 계산됩니다. |
 
-: A protocol of a target trial of ice cream flavor on happiness and a corresponding protocol for an observational study that emulates the target trial {#tbl-target-trial}
+: 행복도에 대한 아이스크림 맛의 효과를 알아보는 목표 시험 프로토콜 및 이를 모방하는 관찰 연구 프로토콜 {#tbl-target-trial}
 
-The protocol in @tbl-target-trial helps us meet the causal assumptions in a variety of ways.
-For instance, we are more likely to have positivity without people with allergies or sensitivities.
-We're more likely to have consistency when the exposure is well-defined.
-If we thought interference was an issue, we could also change the randomization procedure to use a cluster design or exclude people we think might interfere with one another (for instance, by only including one person per group).
-We also try to address exchangeability by replicating randomization through IPW.
-In this causal question, we believe that mutual causes of flavor choice and happiness are baseline happiness, age, and preference of flavor.
-We think additional causes of happiness are age, income, education, physical activity, self-rated physical health, self-rated mental health, and quality of relationships.
-We'll discuss this idea in greater detail in @sec-dags.
-There are a few other elements here that we'll take up in more detail later.
-As mentioned, we'll address follow-up in @sec-longitudinal and estimands in @sec-estimands, including estimands that are specific to randomized trials.
-We also use IPW for the target trial even though we are randomizing.
-We'll discuss the benefits of this in @sec-ci-rct.
+@tbl-target-trial 의 프로토콜은 다양한 방식으로 인과적 가정을 충족하도록 도와줍니다.
+예를 들어, 알레르기나 민감성이 있는 사람들을 제외하면 긍정성이 유지될 가능성이 더 높습니다.
+노출이 잘 정의되어 있으면 일관성이 유지될 가능성이 더 높습니다.
+만약 간섭이 문제라고 생각된다면, 무작위 배정 절차를 클러스터 설계로 바꾸거나 서로 간섭할 것으로 생각되는 사람들을 제외(예: 그룹당 한 명만 포함)할 수도 있습니다.
+또한 IPW를 통해 무작위 배정을 재현함으로써 교환 가능성을 다루려고 노력합니다.
+이 인과적 질문에서 우리가 맛 선택과 행복도의 공통 원인이 기준점 행복도, 연령, 그리고 맛 선호도라고 믿습니다.
+행동도에 영향을 미치는 추가적인 원인은 연령, 소득, 교육 수준, 신체 활동, 본인이 평가한 신체적/정신적 건강, 관계의 질 등이라고 생각합니다.
+우리는 @sec-dags 에서 이 아이디어를 더 자세히 논의할 것입니다.
+나중에 더 자세히 다룰 몇 가지 다른 요소들이 여기에 있습니다.
+언급했듯이, @sec-longitudinal 에서 추적 관찰을, @sec-estimands 에서 무작위 시험에 특화된 추정 대상을 포함한 추정 대상을 다룰 것입니다.
+또한 무작위 배정을 하더라도 목표 시험을 위해 IPW를 사용합니다.
+우리는 @sec-ci-rct 에서 이 방식의 장점에 대해 논의할 것입니다.
