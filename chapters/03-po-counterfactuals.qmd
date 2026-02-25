@@ -6,6 +6,7 @@
 #| echo: false
 # TODO: remove when first edition complete
 status("complete")
+library(gt)
 ```
 
 > | 노란 숲 속에 두 갈래 길이 나 있었습니다.
@@ -148,24 +149,24 @@ data <- tibble(
 #| code-fold: true
 library(gt)
 data |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     id = "ID",
-    y_chocolate = md("$$Y_{\\text{id}}(\\text{chocolate})$$"),
-    y_vanilla = md("$$Y_{\\text{id}}(\\text{vanilla})$$"),
-    causal_effect = md("$$Y_{\\text{id}}(\\text{chocolate}) - Y_{\\text{id}}(\\text{vanilla})$$")
+    y_chocolate = gt::md("$$Y_{\\text{id}}(\\text{chocolate})$$"),
+    y_vanilla = gt::md("$$Y_{\\text{id}}(\\text{vanilla})$$"),
+    causal_effect = gt::md("$$Y_{\\text{id}}(\\text{chocolate}) - Y_{\\text{id}}(\\text{vanilla})$$")
   ) |>
-  fmt_markdown(
+  gt::fmt_markdown(
     columns = c(y_chocolate, y_vanilla, causal_effect)
   ) |>
-  tab_header(
-    title = md("**잠재적 결과와 인과 효과**")
+  gt::tab_header(
+    title = gt::md("**잠재적 결과와 인과 효과**")
   ) |>
-  tab_spanner(
+  gt::tab_spanner(
     label = "잠재적 결과",
     columns = c(y_chocolate, y_vanilla)
   ) |>
-  tab_spanner(
+  gt::tab_spanner(
     label = "인과 효과",
     columns = causal_effect
   )
@@ -215,6 +216,7 @@ data_observed <- data |>
 #| label: tbl-obs
 #| tbl-cap: "잠재적 결과 시뮬레이션: 관찰된 노출은 우리가 아는 유일한 잠재적 결과입니다. 우리는 누락된 잠재적 결과를 알지 못하며, 따라서 개별 인과 효과를 계산할 수 없습니다. 우리는 행복도에 대한 초콜릿(바닐라 대비) 아이스크림 섭취의 효과를 추정하기 위해 관찰된 노출과 결과를 사용해야 합니다. 불행히도, 개인 수준에서는 이를 수행할 수 없습니다."
 #| code-fold: true
+library(gt)
 avg_chocolate <- data_observed |>
   filter(exposure == "chocolate") |>
   pull(observed_outcome) |>
@@ -232,26 +234,26 @@ data_observed |>
     causal_effect = NA_real_
   ) |>
   select(-observed_outcome, -exposure) |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     id = "ID",
-    y_chocolate = md("$$Y_{\\text{id}}(\\text{chocolate})$$"),
-    y_vanilla = md("$$Y_{\\text{id}}(\\text{vanilla})$$"),
-    causal_effect = md("$$Y_{\\text{id}}(\\text{chocolate}) - Y_{\\text{id}}(\\text{vanilla})$$")
+    y_chocolate = gt::md("$$Y_{\\text{id}}(\\text{chocolate})$$"),
+    y_vanilla = gt::md("$$Y_{\\text{id}}(\\text{vanilla})$$"),
+    causal_effect = gt::md("$$Y_{\\text{id}}(\\text{chocolate}) - Y_{\\text{id}}(\\text{vanilla})$$")
   ) |>
-  fmt_markdown(columns = c(y_chocolate, y_vanilla, causal_effect)) |>
-  sub_missing(
+  gt::fmt_markdown(columns = c(y_chocolate, y_vanilla, causal_effect)) |>
+  gt::sub_missing(
     columns = c(y_chocolate, y_vanilla, causal_effect),
-    missing_text = md("---") # Format missing values as blank
+    missing_text = gt::md("---") # Format missing values as blank
   ) |>
-  tab_header(
-    title = md("**잠재적 결과와 숨겨진 인과 효과**")
+  gt::tab_header(
+    title = gt::md("**잠재적 결과와 숨겨진 인과 효과**")
   ) |>
-  tab_spanner(
+  gt::tab_spanner(
     label = "잠재적 결과",
     columns = c(y_chocolate, y_vanilla)
   ) |>
-  tab_spanner(
+  gt::tab_spanner(
     label = "인과 효과",
     columns = causal_effect
   )

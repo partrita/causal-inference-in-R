@@ -6,6 +6,7 @@
 #| echo: false
 # TODO: remove when first edition complete
 status("wip")
+library(gt)
 ```
 
 누락되거나(missing) 잘못 측정된(mismeasured) 데이터는 대부분의 실제 데이터셋에서 발생하는 문제로, 묘사, 예측, 인과 추론의 세 가지 분석 유형 모두에 영향을 미칩니다.
@@ -390,7 +391,7 @@ map(
   pull_interaction
 ) |>
   list_rbind(names_to = "모델") |>
-  gt()
+  gt::gt()
 ```
 
 ### 구조적 결측 (Structural missingness)

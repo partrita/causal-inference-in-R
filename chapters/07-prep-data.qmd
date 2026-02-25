@@ -736,8 +736,8 @@ prop_exposed |>
 library(gt)
 prop_exposed |>
   filter(prop_exposed %in% c(1, 0)) |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     park_close_bin = "폐쇄 시간",
     park_temperature_high_bin = "기온",
     park_ticket_season = "티켓 시즌",

@@ -188,10 +188,10 @@ seven_dwarfs_9_with_ps |>
     park_temperature_high
   ) |>
   head() |>
-  gt() |>
-  fmt_number(decimals = 3) |>
-  fmt_integer(park_extra_magic_morning) |>
-  cols_label(
+  gt::gt() |>
+  gt::fmt_number(decimals = 3) |>
+  gt::fmt_integer(park_extra_magic_morning) |>
+  gt::cols_label(
     .fitted = "P(EMM)",
     park_date = "날짜",
     park_extra_magic_morning = "엑스트라 매직 아워",
@@ -515,8 +515,8 @@ seven_dwarfs_9_with_wt |>
     w_ate
   ) |>
   head() |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     .fitted = "P(EMM)",
     park_date = "날짜",
     park_extra_magic_morning = "엑스트라 매직 아워",
@@ -576,8 +576,8 @@ seven_dwarfs_9_with_wt |>
     .fitted,
     w_ate
   ) |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     .fitted = "P(EMM)",
     park_date = "날짜",
     park_extra_magic_morning = "엑스트라 매직 아워",

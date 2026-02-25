@@ -102,13 +102,13 @@ effects <- causal_quartet |>
   select(-data, dataset) |>
   ungroup()
 
-gt(effects) |>
-  fmt_number(columns = -dataset) |>
-  cols_label(
+gt::gt(effects) |>
+  gt::fmt_number(columns = -dataset) |>
+  gt::cols_label(
     dataset = "데이터셋",
-    ate_x = md("`covariate`를 조정하지 않음"),
-    ate_xz = md("`covariate`를 조정함"),
-    cor = md("`exposure`와 `covariate` 사이의 상관관계")
+    ate_x = gt::md("`covariate`를 조정하지 않음"),
+    ate_xz = gt::md("`covariate`를 조정함"),
+    cor = gt::md("`exposure`와 `covariate` 사이의 상관관계")
   )
 ```
 
@@ -129,8 +129,8 @@ gt(effects) |>
 effects |>
   mutate(percent_change = scales::percent((ate_x - ate_xz) / ate_x)) |>
   select(dataset, percent_change) |>
-  gt() |>
-  cols_label(
+  gt::gt() |>
+  gt::cols_label(
     dataset = "데이터셋",
     percent_change = "변화율"
   )
@@ -343,7 +343,7 @@ tibble::tribble(
     "(3) 매개 요인", "직접 효과: outcome ~ exposure + covariate, 총 효과: outcome ~ exposure", "직접 효과: 0, 총 효과: 1",
   "(4) M-편향", "outcome ~ exposure", "1"
 ) |>
-  gt()
+  gt::gt()
 ```
 
 ## 인과 구조의 휴리스틱으로서의 시간
@@ -460,8 +460,8 @@ causal_quartet_time |>
   select(-data, dataset) |>
   ungroup() |>
   set_names(c("데이터셋", "조정된 효과", "참값")) |>
-  gt() |>
-  fmt_number(columns = -데이터셋)
+  gt::gt() |>
+  gt::fmt_number(columns = -데이터셋)
 ```
 
 이것이 실패하는 곳은 M-편향 예시인 데이터셋 4입니다.
@@ -526,12 +526,12 @@ causal_quartet |>
   ) |>
   select(dataset, rmse = rmse_diff, r_squared = r_squared_diff) |>
   ungroup() |>
-  gt() |>
-  fmt_number() |>
-  cols_label(
+  gt::gt() |>
+  gt::fmt_number() |>
+  gt::cols_label(
     dataset = "데이터셋",
     rmse = "RMSE",
-    r_squared = md("R^2^")
+    r_squared = gt::md("R^2^")
   )
 ```
 
