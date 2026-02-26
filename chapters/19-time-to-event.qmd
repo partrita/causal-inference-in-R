@@ -91,25 +91,31 @@ survival_sim |>
 풀링된 로지스틱 회귀를 위해 생존 데이터를 각 시간 구간마다 하나의 행이 있는 **장기형(long format)**으로 변환해야 합니다.
 
 ```{r}
-# 생존 데이터를 장기형으로 변환
-# 각 개인에 대해 사건이 발생하거나 검열될 때까지의 각 시간 구간에 대한 행 생성
+# 생존 데이터를 장기형으로 변환 (purrr::map + tidyr::unnest 방식)
+# ceiling(time)이 0이 될 수 있으므로 pmax(1, ...) 로 최솟값을 1로 보장
+make_long_rows <- function(id, treatment, age_group, severity, time_int, event) {
+  max_t <- pmax(1L, as.integer(time_int))  # 최소 1구간 보장
+  tibble(
+    id              = id,
+    treatment       = treatment,
+    age_group       = age_group,
+    severity        = severity,
+    interval        = seq_len(max_t),
+    event_at_interval = as.integer(seq_len(max_t) == max_t & event == 1)
+  )
+}
+
 survival_long <- survival_sim |>
-  # 단순화를 위해 월 단위 시간 구간 사용
   mutate(time_int = ceiling(time)) |>
-  rowwise() |>
-  do({
-    row <- .
-    max_t <- row$time_int
-    tibble(
-      id = row$id,
-      treatment = row$treatment,
-      age_group = row$age_group,
-      severity = row$severity,
-      interval = 1:max_t,
-      event_at_interval = ifelse(1:max_t == max_t & row$event == 1, 1, 0)
+  filter(!is.na(time_int)) |>        # NA 행 제거
+  mutate(
+    rows = purrr::pmap(
+      list(id, treatment, age_group, severity, time_int, event),
+      make_long_rows
     )
-  }) |>
-  ungroup()
+  ) |>
+  tidyr::unnest(rows) |>
+  select(id, treatment, age_group, severity, interval, event_at_interval)
 
 cat("장기형 데이터 첫 10행:\n")
 head(survival_long, 10)
@@ -225,23 +231,18 @@ library(rsample)
 compute_survival_effect <- function(.split) {
   .df <- as.data.frame(.split)
 
-  # 선택된 샘플에 대한 장기형 데이터 재생성
+  # 선택된 샘플에 대한 장기형 데이터 재생성 (make_long_rows 재사용)
   survival_long_boot <- .df |>
     mutate(time_int = ceiling(time)) |>
-    rowwise() |>
-    do({
-      row <- .
-      max_t <- row$time_int
-      tibble(
-        id = row$id,
-        treatment = row$treatment,
-        age_group = row$age_group,
-        severity = row$severity,
-        interval = 1:max_t,
-        event_at_interval = ifelse(1:max_t == max_t & row$event == 1, 1, 0)
+    filter(!is.na(time_int)) |>
+    mutate(
+      rows = purrr::pmap(
+        list(id, treatment, age_group, severity, time_int, event),
+        make_long_rows
       )
-    }) |>
-    ungroup()
+    ) |>
+    tidyr::unnest(rows) |>
+    select(id, treatment, age_group, severity, interval, event_at_interval)
 
   # 풀링된 로지스틱 회귀
   fit <- glm(
