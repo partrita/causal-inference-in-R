@@ -5,12 +5,199 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
 
-## 함수 형태, 이질적 효과, 그리고 공동 원인 (Functional form, hetereogenous effects, and joint causes)
+인과 추론에서 **상호작용(interaction)**은 한 변수의 효과가 다른 변수의 값에 따라 달라지는 현상을 말합니다.
+예를 들어, 아침 엑스트라 매직 아워(Extra Magic Morning)가 대기 시간에 미치는 효과가 티켓 시즌에 따라 다를 수 있습니다 — 성수기에는 효과가 더 크고, 비수기에는 효과가 작을 수 있습니다.
+이처럼 상호작용은 "효과 수정(effect modification)"이라고도 불리며, 인과 추론에서 매우 중요한 개념입니다.
+
+## 함수 형태, 이질적 효과, 그리고 공동 원인 (Functional form, heterogeneous effects, and joint causes)
+
+인과 효과는 모집단 전체에서 동일하지 않은 경우가 많습니다.
+이처럼 개인마다 다른 효과를 **이질적 처치 효과(heterogeneous treatment effects, HTE)**라고 합니다.
+이질적 효과를 탐색하는 것은 단순히 통계적 개념을 넘어, "누구에게 개입이 더 효과적인가?"라는 중요한 실용적 질문에 답하게 해줍니다.
+
+### 함수 형태 (Functional form)
+
+우리가 선형 회귀 모델을 적합시킬 때, 기본 가정은 예측변수와 결과 사이의 관계가 **선형(linear)**이라는 것입니다.
+그러나 현실 세계의 관계는 종종 비선형적입니다.
+예를 들어, 공원 기온이 올라갈수록 대기 시간이 증가하지만, 그 증가폭이 점점 커지거나 일정 수준에서 포화될 수 있습니다.
+
+함수 형태를 잘못 설정하면 추정치에 편향이 생길 수 있습니다.
+이를 해결하기 위해 다항식 항(polynomial terms), 스플라인(splines), 또는 기타 비선형 변환을 사용할 수 있습니다.
+
+```{r}
+#| message: false
+#| warning: false
+library(broom)
+library(touringplans)
+library(splines)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9)
+
+# 선형 모델
+fit_linear <- lm(
+  wait_minutes_posted_avg ~ park_temperature_high,
+  data = seven_dwarfs_9
+)
+
+# 비선형 모델 (3차 자연 스플라인)
+fit_spline <- lm(
+  wait_minutes_posted_avg ~ ns(park_temperature_high, df = 3),
+  data = seven_dwarfs_9
+)
+
+# 두 모델 비교
+tidy(fit_linear)
+tidy(fit_spline)
+```
+
+### 이질적 처치 효과 (Heterogeneous treatment effects)
+
+이질적 처치 효과가 존재할 때, 우리는 평균 처치 효과(ATE)만이 아니라 특정 하위집단에서의 효과에 관심을 갖게 됩니다.
+이를 **조건부 평균 처치 효과(Conditional Average Treatment Effect, CATE)**라고 합니다:
+
+$$\text{CATE}(x) = E[Y(1) - Y(0) \mid X = x]$$
+
+예를 들어, 티켓 시즌에 따라 엑스트라 매직 아워의 효과가 다른지 살펴봅시다.
+
+```{r}
+#| message: false
+#| warning: false
+
+# 티켓 시즌별 하위집단에서의 효과 탐색
+library(dplyr)
+
+seven_dwarfs_9 |>
+  group_by(park_ticket_season) |>
+  summarize(
+    mean_wait_emm = mean(wait_minutes_posted_avg[park_extra_magic_morning == 1], na.rm = TRUE),
+    mean_wait_no_emm = mean(wait_minutes_posted_avg[park_extra_magic_morning == 0], na.rm = TRUE),
+    n_emm = sum(park_extra_magic_morning == 1),
+    n_no_emm = sum(park_extra_magic_morning == 0)
+  ) |>
+  mutate(diff = mean_wait_emm - mean_wait_no_emm)
+```
+
+이 단순한 비교는 교란 요인을 통제하지 않으므로 인과적 해석에는 주의가 필요합니다.
+
+### 공동 원인 (Joint causes)
+
+두 변수가 동시에 결과를 유발하는 경우, 이를 **공동 원인(joint causes)**이라고 합니다.
+DAG에서 이는 두 노출 변수가 모두 결과를 향하는 화살표를 가지는 형태로 나타납니다.
+공동 원인 자체는 상호작용이 아닙니다 — 두 변수의 효과가 단순히 합산될 수 있습니다.
+상호작용은 한 변수의 *효과 크기*가 다른 변수에 의해 *수정(modified)*될 때 발생합니다.
+
+::: callout-note
+## 상호작용 vs. 교란 (Interaction vs. Confounding)
+
+상호작용과 교란을 혼동하지 않도록 주의하십시오.
+
+- **교란(confounding)**: 공통 원인에 의해 노출과 결과 사이에 허위 연관이 생기는 것
+- **상호작용(interaction)**: 하나의 변수가 다른 변수의 효과 크기를 수정하는 것
+
+교란은 편향의 원천이고, 상호작용은 실제로 존재하는 인과 구조의 특성입니다.
+:::
 
 ## 인과 모델에서 상호작용 항 적합시키기 (Fitting interaction terms in causal models)
+
+상호작용을 모델링하는 표준적인 방법은 두 변수의 **곱(product)**을 모델에 포함시키는 것입니다.
+R에서는 `*` 연산자를 사용하여 주효과(main effects)와 상호작용 항을 동시에 포함시킵니다.
+
+$$E[Y \mid X, Z] = \beta_0 + \beta_1 X + \beta_2 Z + \beta_3 (X \times Z)$$
+
+여기서 $\beta_3$가 상호작용 효과를 나타냅니다.
+
+### IPW를 활용한 상호작용 추정
+
+성향 점수 가중치(IPW)를 사용하는 경우, 가중된 결과 모델에 상호작용 항을 추가하여 이질적 효과를 추정할 수 있습니다.
+
+```{r}
+#| message: false
+#| warning: false
+library(propensity)
+
+propensity_model <- glm(
+  park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+seven_dwarfs_9_with_wt <- propensity_model |>
+  augment(type.predict = "response", data = seven_dwarfs_9) |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+
+# 티켓 시즌과의 상호작용 포함
+fit_interaction <- lm(
+  wait_minutes_posted_avg ~
+    park_extra_magic_morning * park_ticket_season,
+  data = seven_dwarfs_9_with_wt,
+  weights = w_ate
+)
+
+tidy(fit_interaction, conf.int = TRUE)
+```
+
+결과에서 `park_extra_magic_morning:park_ticket_seasonvalue` 같은 항들이 상호작용 추정치입니다.
+이 계수들은 각 티켓 시즌에서 기준 시즌(peak)에 비해 엑스트라 매직 아워의 효과가 얼마나 다른지를 나타냅니다.
+
+### 상호작용의 가산적($\times$ 절대적) vs. 승법적($\times$ 상대적) 척도
+
+상호작용은 **가산적(additive) 척도**와 **승법적(multiplicative) 척도** 모두에서 정의될 수 있으며, 두 척도에서의 상호작용이 항상 일치하는 것은 아닙니다.
+
+- **가산적 상호작용(additive interaction)**: 두 요인이 결합되었을 때의 효과가 각각의 효과의 합보다 크거나 작은 경우
+- **승법적 상호작용(multiplicative interaction)**: 로지스틱 회귀 등의 곱셈 척도에서 두 요인의 효과의 곱보다 효과가 크거나 작은 경우
+
+공중보건학에서는 특히 가산적 상호작용이 중요하게 여겨집니다.
+왜냐하면 가산적 상호작용이 없다는 가정 하에서는 하위집단 모두애서 개입 효과의 절대적 크기가 같음을 의미하기 때문입니다.
+
+::: callout-tip
+## 상호작용 해석 시 주의 사항
+
+상호작용 계수는 해석이 까다롭습니다.
+특히 연속형 변수들 사이의 상호작용은 상호작용 항 자체만으로는 직관적으로 이해하기 어렵습니다.
+이러한 경우 **예측 그림(prediction plots)**을 사용하여 상호작용을 시각화하는 것이 좋습니다.
+:::
+
+```{r}
+#| message: false
+#| warning: false
+#| label: fig-interaction-plot
+#| fig-cap: "티켓 시즌별 엑스트라 매직 아워가 평균 게시 대기 시간에 미치는 효과. 상호작용이 존재한다면 선들의 기울기나 차이가 시즌마다 달라질 것입니다."
+
+library(ggplot2)
+
+# 각 조합의 예측값 계산
+pred_data <- expand.grid(
+  park_extra_magic_morning = c(0, 1),
+  park_ticket_season = unique(seven_dwarfs_9$park_ticket_season)
+) |>
+  mutate(
+    pred = predict(fit_interaction, newdata = pick(everything())),
+    emm_label = ifelse(park_extra_magic_morning == 1,
+                       "엑스트라 매직 아워 있음", "엑스트라 매직 아워 없음")
+  )
+
+ggplot(pred_data, aes(
+  x = park_ticket_season,
+  y = pred,
+  color = emm_label,
+  group = emm_label
+)) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  labs(
+    x = "티켓 시즌",
+    y = "예측 평균 게시 대기 시간 (분)",
+    color = NULL,
+    title = "티켓 시즌별 엑스트라 매직 아워의 효과"
+  )
+```
+
+이 그림에서 두 선이 평행하지 않다면 상호작용(가산적 척도에서)이 존재함을 시각적으로 확인할 수 있습니다.
+각 시즌에서 두 그룹 간의 차이가 엑스트라 매직 아워의 효과를 나타내며, 이 차이가 시즌마다 다르다면 효과 수정이 존재하는 것입니다.
 
 <!-- Maybe also: -->
 

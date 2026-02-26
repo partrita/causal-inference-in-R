@@ -299,15 +299,201 @@ wait_times_wts |>
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
+
+이진 노출과 연속형 노출 외에도, 많은 연구에서 **범주형 노출(categorical exposures)**을 다루게 됩니다.
+예를 들어, 세 가지 치료 옵션(A, B, C) 중 하나, 또는 세 가지 티켓 시즌(peak, regular, value) 중 하나와 같이 세 개 이상의 범주를 가진 노출입니다.
+
+범주형 노출에서도 성향 점수 접근법을 적용할 수 있지만, 이진 노출에 비해 몇 가지 추가적인 고려가 필요합니다.
 
 ## 범주형 노출에 대한 성향 점수 계산하기 (Calculating propensity scores for categorical exposures)
 
+범주형 노출에서 성향 점수는 각 처치 범주를 받을 확률의 벡터입니다.
+$K$개의 범주가 있는 노출에서, 개인 $i$에 대한 성향 점수 벡터는 다음과 같습니다:
+
+$$\hat{e}_k(C_i) = P(X_i = k \mid C_i), \quad k = 1, 2, \ldots, K$$
+
+이 확률들의 합은 1입니다: $\sum_{k=1}^{K} \hat{e}_k(C_i) = 1$.
+
+**다항 로지스틱 회귀(multinomial logistic regression)**가 범주형 노출의 성향 점수를 추정하는 가장 일반적인 방법입니다.
+
 ```{r}
-rnorm(5)
+#| message: false
+#| warning: false
+library(broom)
+library(touringplans)
+library(dplyr)
+
+# 범주형 노출 예시: 티켓 시즌(peak, regular, value)이 대기 시간에 미치는 영향
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  drop_na() |>
+  mutate(
+    # 티켓 시즌을 명시적으로 factor로 지정
+    park_ticket_season = factor(
+      park_ticket_season,
+      levels = c("value", "regular", "peak")  # value를 기준 범주로
+    )
+  )
+
+cat("티켓 시즌 분포:\n")
+table(seven_dwarfs_9$park_ticket_season)
+```
+
+```{r}
+#| message: false
+# 다항 로지스틱 회귀로 성향 점수 계산
+# nnet::multinom()을 사용
+# install.packages("nnet")
+library(nnet)
+
+# 범주형 노출(티켓 시즌)에 대한 다항 로지스틱 회귀
+# 티켓 시즌을 예측하는 교란 요인: 공원 폐쇄 시간, 기온, 엑스트라 매직 아워
+ps_model_multinom <- multinom(
+  park_ticket_season ~
+    park_close + park_temperature_high + park_extra_magic_morning,
+  data = seven_dwarfs_9,
+  trace = FALSE
+)
+
+# 각 범주에 대한 예측 확률 (성향 점수)
+ps_probs <- predict(ps_model_multinom, type = "probs") |>
+  as.data.frame() |>
+  setNames(paste0("ps_", c("value", "regular", "peak")))
+
+head(ps_probs)
+```
+
+### 범주형 노출에 대한 IPTW 계산
+
+범주형 노출에서 각 개인의 가중치는 실제로 받은 처치를 받을 확률의 역수입니다:
+
+$$w_i = \frac{1}{P(X_i = k_i \mid C_i)} = \frac{1}{\hat{e}_{k_i}(C_i)}$$
+
+```{r}
+# 각 개인의 실제 처치에 해당하는 확률 추출
+seven_dwarfs_with_ps <- seven_dwarfs_9 |>
+  bind_cols(ps_probs) |>
+  mutate(
+    # 실제 받은 처치의 성향 점수
+    ps_actual = case_when(
+      park_ticket_season == "value"   ~ ps_value,
+      park_ticket_season == "regular" ~ ps_regular,
+      park_ticket_season == "peak"    ~ ps_peak
+    ),
+    # ATE 가중치 (역확률)
+    w_ate = 1 / ps_actual,
+    # 안정화된 ATE 가중치
+    marginal_prob = case_when(
+      park_ticket_season == "value"   ~ mean(park_ticket_season == "value"),
+      park_ticket_season == "regular" ~ mean(park_ticket_season == "regular"),
+      park_ticket_season == "peak"    ~ mean(park_ticket_season == "peak")
+    ),
+    w_ate_stable = marginal_prob / ps_actual
+  )
+
+cat("ATE 가중치 요약:\n")
+summary(seven_dwarfs_with_ps$w_ate_stable)
 ```
 
 ### 범주가 많을 때의 진단 (Diagnostics with many categories)
 
+범주형 노출에서 가중치 부여의 효과를 진단하는 방법은 이진 노출과 유사합니다.
+각 처치 범주 쌍 사이의 공변량 균형을 확인해야 합니다.
+
+```{r}
+#| message: false
+#| label: fig-categorical-love
+#| fig-cap: >
+#|   범주형 노출에서 가중치 부여 전후의 공변량 균형. 각 처치 쌍 간의 표준화 평균 차이를
+#|   보여줍니다. 가중치 부여 후 SMD가 0.1 미만이면 균형이 달성된 것입니다.
+
+library(ggplot2)
+
+# 각 처치 쌍의 균형 점검 (단순화된 버전)
+seasons <- c("value", "regular", "peak")
+balance_results <- list()
+
+for (s1 in 1:(length(seasons) - 1)) {
+  for (s2 in (s1 + 1):length(seasons)) {
+    season_a <- seasons[s1]
+    season_b <- seasons[s2]
+
+    subset_data <- seven_dwarfs_with_ps |>
+      filter(park_ticket_season %in% c(season_a, season_b))
+
+    # 가중치 부여 전후 온도의 SMD
+    preweight_smd <- with(
+      subset_data,
+      (mean(park_temperature_high[park_ticket_season == season_a]) -
+       mean(park_temperature_high[park_ticket_season == season_b])) /
+      sd(park_temperature_high)
+    )
+
+    postweight_smd <- with(
+      subset_data,
+      (weighted.mean(park_temperature_high[park_ticket_season == season_a],
+                     w_ate_stable[park_ticket_season == season_a]) -
+       weighted.mean(park_temperature_high[park_ticket_season == season_b],
+                     w_ate_stable[park_ticket_season == season_b])) /
+      sd(park_temperature_high)
+    )
+
+    balance_results[[paste(season_a, "vs", season_b)]] <- tibble(
+      comparison = paste(season_a, "vs", season_b),
+      variable = "park_temperature_high",
+      before = abs(preweight_smd),
+      after = abs(postweight_smd)
+    )
+  }
+}
+
+balance_df <- bind_rows(balance_results) |>
+  tidyr::pivot_longer(
+    cols = c(before, after),
+    names_to = "timing",
+    values_to = "smd"
+  ) |>
+  mutate(timing = factor(timing, levels = c("before", "after"),
+                         labels = c("가중치 부여 전", "가중치 부여 후")))
+
+ggplot(balance_df, aes(x = smd, y = comparison, color = timing, shape = timing)) +
+  geom_point(size = 4) +
+  geom_vline(xintercept = 0.1, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = c("가중치 부여 전" = "#E69F00", "가중치 부여 후" = "#009E73")) +
+  labs(
+    x = "표준화 평균 차이 (기온)",
+    y = "처치 비교 그룹",
+    color = NULL,
+    shape = NULL,
+    title = "범주형 노출에서의 공변량 균형 점검"
+  )
+```
+
 ### 결과 모델 다시 적합시키기 (Fitting the outcome model again)
+
+범주형 노출에서 결과 모델은 기준 범주와 비교한 각 범주의 효과를 추정합니다.
+
+```{r}
+# 가중치를 사용한 결과 모델
+outcome_categorical <- lm(
+  wait_minutes_posted_avg ~ park_ticket_season,
+  data = seven_dwarfs_with_ps,
+  weights = w_ate_stable
+)
+
+tidy(outcome_categorical, conf.int = TRUE)
+```
+
+`park_ticket_seasonregular`와 `park_ticket_seasonpeak` 계수는 기준 범주(`value`)에 비해 각 시즌이 평균 게시 대기 시간에 미치는 추정 효과입니다.
+
+::: callout-note
+## 범주형 노출 vs. 이진 노출
+
+범주형 노출에서는 여러 개의 비교(pairwise comparisons)가 가능합니다.
+$K$개의 범주가 있을 때, 가능한 쌍별 비교의 수는 $\binom{K}{2} = K(K-1)/2$입니다.
+각 쌍별 비교에 대해 별도의 인과 추정치를 보고하거나, 공통 기준 범주와 비교한 효과를 보고할 수 있습니다.
+
+어떤 비교가 인과적으로 의미 있는지는 연구 질문에 따라 다릅니다.
+:::

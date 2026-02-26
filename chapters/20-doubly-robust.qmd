@@ -5,13 +5,271 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
+
+지금까지 이 책에서 우리는 두 가지 주요 접근 방식을 배웠습니다:
+
+1. **성향 점수 기반 방법(PS-based methods)**: 처치 메커니즘 모델($P(X \mid C)$)을 올바르게 명시
+2. **결과 회귀 방법(Outcome regression)**: 결과 모델($E[Y \mid X, C]$)을 올바르게 명시(G-공식)
+
+두 방법 모두 모델을 올바르게 명시해야만 편향되지 않은 추정치를 제공합니다.
+**이중 로버스트(doubly robust, DR) 추정량**은 이 두 모델 중 *하나만* 올바르게 명시되어도 여전히 편향되지 않은 추정치를 제공하는 특별한 성질을 가집니다.
 
 ## 증강된 성향 점수 (Augmented propensity scores)
 
+이중 로버스트 추정량의 대표적인 형태는 **증강된 역확률 가중치(Augmented Inverse Probability Weighting, AIPW)** 추정량입니다.
+AIPW는 IPTW와 G-공식(결과 회귀)을 결합합니다.
+
+ATE에 대한 AIPW 추정량은 다음과 같이 정의됩니다:
+
+$$\hat{\tau}_{AIPW} = \frac{1}{n}\sum_{i=1}^{n}\left[\hat{\mu}_1(C_i) - \hat{\mu}_0(C_i) + \frac{X_i(Y_i - \hat{\mu}_1(C_i))}{\hat{e}(C_i)} - \frac{(1-X_i)(Y_i - \hat{\mu}_0(C_i))}{1-\hat{e}(C_i)}\right]$$
+
+여기서:
+- $\hat{\mu}_x(C_i) = E[Y \mid X = x, C = C_i]$: 결과 모델의 예측값
+- $\hat{e}(C_i) = P(X = 1 \mid C = C_i)$: 성향 점수
+
+이 추정량은 두 가지 "방어선"을 갖습니다:
+- 결과 모델이 올바르면: 성향 점수 부분의 기대값이 0이 되어 결과 모델만으로 추정
+- 성향 점수 모델이 올바르면: 결과 모델의 편향을 성향 점수 부분이 보정
+
 ```{r}
-rnorm(5)
+#| message: false
+#| warning: false
+library(broom)
+library(touringplans)
+library(dplyr)
+library(propensity)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  drop_na()
+
+# 1단계: 성향 점수 모델 적합
+ps_model <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+# 2단계: 결과 모델 적합 (G-공식 스타일)
+outcome_model <- lm(
+  wait_minutes_posted_avg ~
+    park_extra_magic_morning *
+    (park_ticket_season + park_close + park_temperature_high),
+  data = seven_dwarfs_9
+)
+
+# 3단계: AIPW 추정량 계산
+seven_dwarfs_aipw <- seven_dwarfs_9 |>
+  mutate(
+    # 성향 점수
+    ps = predict(ps_model, type = "response"),
+
+    # 결과 모델: 처치군으로 설정했을 때의 예측값
+    mu1 = predict(outcome_model,
+                  newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1)),
+
+    # 결과 모델: 비처치군으로 설정했을 때의 예측값
+    mu0 = predict(outcome_model,
+                  newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0)),
+
+    # AIPW 개별 공헌
+    aipw_component = (mu1 - mu0) +
+      park_extra_magic_morning * (wait_minutes_posted_avg - mu1) / ps -
+      (1 - park_extra_magic_morning) * (wait_minutes_posted_avg - mu0) / (1 - ps)
+  )
+
+# AIPW ATE 추정치
+aipw_ate <- mean(seven_dwarfs_aipw$aipw_component)
+cat("AIPW ATE 추정치:", round(aipw_ate, 3), "분\n")
+
+# 비교: 순수 IPTW
+iptw_estimate <- seven_dwarfs_9 |>
+  mutate(
+    ps = predict(ps_model, type = "response"),
+    w_ate = wt_ate(ps, park_extra_magic_morning)
+  ) |>
+  lm(wait_minutes_posted_avg ~ park_extra_magic_morning, data = _, weights = w_ate) |>
+  tidy() |>
+  filter(term == "park_extra_magic_morning") |>
+  pull(estimate)
+
+# 비교: 순수 G-공식
+gcomp_estimate <- mean(
+  predict(outcome_model,
+          newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1)) -
+  predict(outcome_model,
+          newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0))
+)
+
+cat("\n세 가지 추정량 비교:\n")
+cat("  AIPW (이중 로버스트):", round(aipw_ate, 2), "분\n")
+cat("  IPTW (성향 점수만):", round(iptw_estimate, 2), "분\n")
+cat("  G-공식 (결과 모델만):", round(gcomp_estimate, 2), "분\n")
+```
+
+::: callout-note
+## 이중 로버스티(Double Robustness)란?
+
+이중 로버스트 추정량은 두 모델 중 하나가 잘못 명시되어도 추정치가 편향되지 않습니다:
+
+- **성향 점수 모델이 올바른 경우**: 결과 모델의 오명시를 보정
+- **결과 모델이 올바른 경우**: 성향 점수 모델의 오명시를 보정
+- **둘 다 올바른 경우**: 더 효율적인(분산이 작은) 추정치 제공
+
+물론 두 모델이 모두 잘못 명시되면 이중 로버스트 추정량도 편향됩니다.
+:::
+
+### `{DoubleML}` 또는 `{AIPW}` 패키지 사용
+
+실무에서는 전용 패키지를 사용하는 것이 편리합니다:
+
+```{r}
+#| eval: false
+# install.packages("AIPW")
+library(AIPW)
+
+aipw_result <- AIPW$new(
+  Y = seven_dwarfs_9$wait_minutes_posted_avg,
+  A = seven_dwarfs_9$park_extra_magic_morning,
+  W = select(seven_dwarfs_9, park_ticket_season, park_close, park_temperature_high),
+  Q.SL.library = "SL.glm",  # 결과 모델에 Super Learner 사용 가능
+  g.SL.library = "SL.glm",  # 성향 점수에 Super Learner 사용 가능
+  k_split = 5,               # 교차 적합(cross-fitting)
+  verbose = FALSE
+)
+
+aipw_result$fit()
+aipw_result$summary()
 ```
 
 ## 대상 학습 (Targeted Learning)
+
+**대상 학습(Targeted Learning, TL)**은 Laan과 동료들이 개발한 세미파라메트릭 추정 프레임워크로, 사전에 지정된 추정 대상에 대해 최적의 통계적 성능을 달성하는 것을 목표로 합니다 [@laan2006targeted; @laan2011targeted].
+
+대상 학습의 핵심 알고리즘은 **TMLE(Targeted Maximum Likelihood Estimation)** 또는 **TMLE(Targeted Minimum Loss-based Estimation)**입니다.
+
+### TMLE의 작동 원리
+
+TMLE은 세 가지 단계로 구성됩니다:
+
+**1단계: 초기 추정(Initial estimation)**
+- 결과 모델 $Q = E[Y \mid X, C]$ 추정 (G-공식 부분)
+- 성향 점수 $g = P(X = 1 \mid C)$ 추정
+
+**2단계: 목표 갱신(Targeting/Fluctuation)**
+- 초기 결과 모델을 성향 점수 정보를 사용하여 "목표" 추정 대상 쪽으로 갱신
+- 이 과정이 이중 로버스트 성질을 보장
+
+**3단계: 추정치 계산(Substitution)**
+- 갱신된 모델로 최종 추정치 계산
+
+```{r}
+#| message: false
+#| warning: false
+# TMLE 수동 구현 (개념 설명 목적)
+# 실제로는 tmle, tmle3, ltmle 패키지 사용 권장
+
+# 1단계: 초기 추정
+# 결과 모델 초기 예측
+Q0_1 <- predict(outcome_model,
+                newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1))
+Q0_0 <- predict(outcome_model,
+                newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0))
+Q0   <- predict(outcome_model)
+
+# 성향 점수
+g1 <- predict(ps_model, type = "response")
+g0 <- 1 - g1
+
+# 2단계: 영리한 공변량(clever covariate)으로 갱신
+# 영리한 공변량: 처치군은 1/g(X=1), 비처치군은 -1/g(X=0)
+clever_cov <- seven_dwarfs_9$park_extra_magic_morning / g1 -
+  (1 - seven_dwarfs_9$park_extra_magic_morning) / g0
+
+# 잔차에 대해 영리한 공변량으로 로지스틱 회귀 (fluctuation)
+# 선형 결과이므로 선형 회귀 사용
+fluctuation <- lm(
+  (seven_dwarfs_9$wait_minutes_posted_avg - Q0) ~ clever_cov - 1
+)
+epsilon <- coef(fluctuation)["clever_cov"]
+
+# 3단계: 갱신된 예측값으로 ATE 계산
+Q_star_1 <- Q0_1 + epsilon / g1
+Q_star_0 <- Q0_0 - epsilon / g0
+
+tmle_ate <- mean(Q_star_1 - Q_star_0)
+cat("TMLE ATE 추정치:", round(tmle_ate, 3), "분\n")
+```
+
+### `{tmle}` 패키지를 사용한 TMLE
+
+실무에서는 `{tmle}` 또는 `{tmle3}` 패키지를 사용하는 것이 더 편리하고 정확합니다:
+
+```{r}
+#| eval: false
+# install.packages("tmle")
+library(tmle)
+
+# TMLE에서는 머신러닝 알고리즘을 사용하는 Super Learner와 결합하여
+# 모델 오명시의 위험을 더욱 줄일 수 있습니다
+tmle_fit <- tmle(
+  Y = seven_dwarfs_9$wait_minutes_posted_avg,
+  A = seven_dwarfs_9$park_extra_magic_morning,
+  W = select(seven_dwarfs_9, park_ticket_season, park_close, park_temperature_high),
+  family = "gaussian",
+  Q.SL.library = c("SL.glm", "SL.ranger"),   # 결과 Super Learner
+  g.SL.library = c("SL.glm", "SL.ranger")    # 성향 점수 Super Learner
+)
+
+summary(tmle_fit)
+```
+
+### 이중 로버스트 방법의 실무적 장점
+
+```{r}
+#| label: fig-dr-comparison
+#| fig-cap: >
+#|   모델 오명시 상황에서 세 가지 추정량의 비교. 결과 모델이나 성향 점수 모델 중
+#|   하나가 올바르면 이중 로버스트 추정량(AIPW, TMLE)은 편향되지 않습니다.
+#| message: false
+#| warning: false
+
+library(ggplot2)
+
+# 각 추정량의 특성 비교를 위한 시각화
+methods_comparison <- tibble(
+  방법 = c("G-공식\n(결과 모델만)", "IPTW\n(성향 점수만)", "AIPW\n(이중 로버스트)", "TMLE\n(이중 로버스트)"),
+  이중_로버스트 = c("아니요", "아니요", "예", "예"),
+  효율성 = c("중간", "낮음", "높음", "가장 높음"),
+  ATE = c(gcomp_estimate, iptw_estimate, aipw_ate, tmle_ate),
+  방법_순서 = 1:4
+)
+
+ggplot(methods_comparison, aes(x = reorder(방법, 방법_순서), y = ATE,
+                                fill = 이중_로버스트)) +
+  geom_col(alpha = 0.8) +
+  geom_hline(yintercept = aipw_ate, linetype = "dashed", color = "grey40") +
+  scale_fill_manual(values = c("아니요" = "#E69F00", "예" = "#009E73")) +
+  labs(
+    x = NULL,
+    y = "ATE 추정치 (분)",
+    fill = "이중 로버스트",
+    title = "추정 방법별 ATE 비교"
+  )
+```
+
+::: callout-tip
+## 어떤 방법을 선택해야 할까요?
+
+실무적으로 다음을 고려하십시오:
+
+1. **표본 크기가 작을 때**: AIPW나 TMLE이 더 안정적
+2. **모델 오명시 우려가 있을 때**: 이중 로버스트 방법이 보험을 제공
+3. **머신러닝과 결합할 때**: TMLE이 자연스러운 선택
+4. **해석 가능성이 중요할 때**: G-공식이나 IPTW가 더 직관적
+
+현대 인과 추론 실무에서는 이중 로버스트 방법을 기본으로 사용하고, 단순 방법들과 결과를 비교하는 것이 좋은 관행입니다.
+:::

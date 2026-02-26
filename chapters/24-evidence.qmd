@@ -5,17 +5,445 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
 
 > "정황 증거는 매우 까다로운 것입니다. 그것은 한 가지를 매우 분명하게 가리키는 것처럼 보일 수 있지만, 관점을 조금만 바꾸면 전혀 다른 것을 가리키고 있음을 발견하게 될 수도 있습니다." --- 셜록 홈즈 (Sherlock Holmes)
 
+이 책의 마지막 장에서는 한 걸음 물러서서 더 큰 그림을 봅니다.
+단일 연구가 아무리 잘 설계되었더라도, 그 연구만으로 인과적 주장을 확립하기는 어렵습니다.
+과학적 지식은 단일 연구가 아닌 **증거의 축적(accumulation of evidence)**을 통해 구축됩니다.
+
+이 장에서는 인과 추론의 맥락에서 증거를 평가하고, 여러 연구로부터 일관된 결론을 도출하는 방법을 탐구합니다:
+
+1. **삼각 측량(Triangulation)**: 다양한 방법과 데이터로 같은 질문에 접근하기
+2. **일반화 가능성과 운송 가능성(Generalization and transportability)**: 연구 결과를 새로운 맥락에 적용하기
+3. **불완전한 근거(Ragged evidence)**: 불완전하고 이질적인 증거를 다루는 방법
+
 ## 삼각 측량 (Triangulation)
 
+**삼각 측량(triangulation)**은 서로 다른 방법, 데이터 출처, 또는 가정을 사용하여 동일한 인과적 질문에 접근하는 전략입니다.
+서로 다른 접근법들이 동일한 결론을 도출한다면, 그 결론에 대한 신뢰가 높아집니다.
+
+삼각 측량의 논리는 다음과 같습니다: 각 방법은 서로 다른 가정에 의존하고 서로 다른 편향의 원천을 가집니다.
+여러 방법이 같은 결론을 내린다면, 그 결론은 어떤 특정 가정의 위반에 덜 의존한다고 볼 수 있습니다.
+
 ```{r}
-rnorm(5)
+#| message: false
+#| label: fig-triangulation
+#| fig-cap: >
+#|   삼각 측량의 개념 시각화. 서로 다른 방법들이 동일한 인과 효과를 추정할 때,
+#|   비슷한 결과는 견고성의 증거가 됩니다.
+
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(touringplans)
+library(propensity)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  drop_na()
+
+# 방법 1: IPTW (ATE)
+ps_model <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+seven_dwarfs_with_wt <- ps_model |>
+  augment(type.predict = "response", data = seven_dwarfs_9) |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+
+iptw_result <- lm(
+  wait_minutes_posted_avg ~ park_extra_magic_morning,
+  data = seven_dwarfs_with_wt,
+  weights = w_ate
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "park_extra_magic_morning") |>
+  mutate(method = "IPTW (ATE)")
+
+# 방법 2: IPTW (ATT)
+seven_dwarfs_with_att <- ps_model |>
+  augment(type.predict = "response", data = seven_dwarfs_9) |>
+  mutate(w_att = wt_att(.fitted, park_extra_magic_morning))
+
+att_result <- lm(
+  wait_minutes_posted_avg ~ park_extra_magic_morning,
+  data = seven_dwarfs_with_att,
+  weights = w_att
+) |>
+  tidy(conf.int = TRUE) |>
+  filter(term == "park_extra_magic_morning") |>
+  mutate(method = "IPTW (ATT)")
+
+# 방법 3: G-공식 (결과 모델)
+outcome_model <- lm(
+  wait_minutes_posted_avg ~
+    park_extra_magic_morning *
+    (park_ticket_season + park_close + park_temperature_high),
+  data = seven_dwarfs_9
+)
+
+gcomp_ate <- mean(
+  predict(outcome_model,
+          newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1)) -
+  predict(outcome_model,
+          newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0))
+)
+
+gcomp_result <- tibble(
+  term = "park_extra_magic_morning",
+  estimate = gcomp_ate,
+  conf.low = gcomp_ate - 1.96 * 3,  # 근사 SE (설명 목적)
+  conf.high = gcomp_ate + 1.96 * 3,
+  method = "G-공식"
+)
+
+# 방법 4: AIPW (이중 로버스트)
+ps_hat <- predict(ps_model, type = "response")
+mu1_hat <- predict(outcome_model,
+                   newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1))
+mu0_hat <- predict(outcome_model,
+                   newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0))
+Y <- seven_dwarfs_9$wait_minutes_posted_avg
+A <- seven_dwarfs_9$park_extra_magic_morning
+
+aipw_scores <- (mu1_hat - mu0_hat) +
+  A * (Y - mu1_hat) / ps_hat -
+  (1 - A) * (Y - mu0_hat) / (1 - ps_hat)
+
+aipw_result <- tibble(
+  term = "park_extra_magic_morning",
+  estimate = mean(aipw_scores),
+  conf.low = mean(aipw_scores) - 1.96 * sd(aipw_scores) / sqrt(length(aipw_scores)),
+  conf.high = mean(aipw_scores) + 1.96 * sd(aipw_scores) / sqrt(length(aipw_scores)),
+  method = "AIPW (이중 로버스트)"
+)
+
+# 결과 통합 및 시각화
+all_results <- bind_rows(iptw_result, att_result, gcomp_result, aipw_result) |>
+  mutate(method = factor(method, levels = c("IPTW (ATE)", "IPTW (ATT)",
+                                            "G-공식", "AIPW (이중 로버스트)")))
+
+ggplot(all_results, aes(x = estimate, y = method, color = method)) +
+  geom_point(size = 4) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  scale_color_okabe_ito() +
+  labs(
+    x = "추정된 처치 효과 (분)",
+    y = NULL,
+    color = NULL,
+    title = "삼각 측량: 여러 방법의 인과 효과 추정치 비교"
+  ) +
+  theme(legend.position = "none")
+```
+
+### 삼각 측량의 과학적 맥락
+
+역학에서의 유명한 예시는 흡연과 폐암 사이의 인과관계 규명 과정입니다.
+관찰 연구, 동물 실험, 메커니즘 연구, 자연 실험 등 다양한 접근법이 모두 같은 방향을 가리켰을 때, 과학자들은 인과관계를 확신하게 되었습니다.
+
+Hill(1965)의 **인과성 기준(Hill's criteria)**은 역학에서 인과성을 판단하는 전통적인 지침입니다:
+
+```{r}
+#| label: tbl-hill-criteria
+#| tbl-cap: >
+#|   Hill의 인과성 기준과 디즈니 월드 엑스트라 매직 아워 예시 적용
+
+library(gt)
+
+tibble(
+  기준 = c(
+    "강도 (Strength)",
+    "일관성 (Consistency)",
+    "특이성 (Specificity)",
+    "시간성 (Temporality)",
+    "생물학적 구배\n(Biological gradient)",
+    "그럴듯함 (Plausibility)",
+    "일관성 (Coherence)",
+    "실험 (Experiment)",
+    "유사성 (Analogy)"
+  ),
+  설명 = c(
+    "연관성이 강할수록 인과 관계 가능성 높음",
+    "여러 연구에서 반복 발견됨",
+    "특정 원인이 특정 결과에만 연결됨",
+    "원인이 결과보다 시간적으로 선행함",
+    "노출량 증가에 따른 결과 변화",
+    "생물학적/과학적 메커니즘 존재",
+    "역학과 생물학 지식과 모순 없음",
+    "무작위 대조 실험 증거",
+    "유사한 인과 관계 존재"
+  )
+) |>
+  gt() |>
+  tab_header(title = "Hill의 인과성 기준") |>
+  cols_label(
+    기준 = "기준",
+    설명 = "설명"
+  )
 ```
 
 ## 일반화 가능성과 운송 가능성 (Generalization and transportability)
 
+단일 연구에서 얻은 인과 효과 추정치는 특정 연구 모집단에서 도출된 것입니다.
+이를 다른 집단이나 맥락에 적용하려면 **일반화 가능성(generalizability)**과 **운송 가능성(transportability)**을 고려해야 합니다.
+
+- **일반화 가능성**: 연구 표본에서 얻은 효과를 *같은 모집단* 전체로 확장
+- **운송 가능성**: 한 모집단에서 얻은 효과를 *다른 모집단*으로 전달
+
+### 샘플링 편향과 외적 타당성
+
+연구 표본이 목표 모집단을 대표하지 않을 때 **외적 타당성(external validity)** 문제가 발생합니다.
+
+```{r}
+#| label: fig-transportability
+#| fig-cap: >
+#|   운송 가능성의 인과 구조. 연구 표본 포함 여부(S=1)가 공변량(C)에 의해 결정될 때,
+#|   표본 효과를 목표 모집단으로 운송하기 위해 재가중이 필요합니다.
+#| code-fold: true
+#| message: false
+
+library(ggdag)
+
+dagify(
+  Y ~ X + C,
+  X ~ C,
+  S ~ C,  # 표본 포함이 공변량에 의해 결정
+  coords = list(
+    x = c(X = 0, C = 1, Y = 2, S = 1),
+    y = c(X = 0, C = 1, Y = 0, S = -0.5)
+  ),
+  labels = c(
+    X = "노출",
+    Y = "결과",
+    C = "공변량",
+    S = "표본 포함\n(S=1)"
+  )
+) |>
+  tidy_dagitty() |>
+  node_status() |>
+  ggplot(aes(x, y, xend = xend, yend = yend, color = status)) +
+  geom_dag_edges() +
+  geom_dag_point() +
+  geom_dag_label_repel(seed = 42) +
+  scale_color_okabe_ito(na.value = "grey90") +
+  theme_dag() +
+  theme(legend.position = "none")
+```
+
+### 가중치를 사용한 운송 가능성
+
+목표 모집단과 연구 표본이 공변량 분포에서 다를 때, **역확률 샘플링 가중치(Inverse Probability of Sampling Weights, IPSW)**를 사용하여 효과를 운송할 수 있습니다.
+
+```{r}
+#| message: false
+
+# 시뮬레이션: 여름 시즌 데이터로 연구했지만, 연간 효과를 추정하고 싶은 경우
+# 연구 표본: 여름(peak season) 데이터만 있음
+study_sample <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9, park_ticket_season == "peak") |>
+  drop_na() |>
+  mutate(in_study = 1)
+
+# 목표 모집단: 전체 연간 데이터
+target_population <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  drop_na() |>
+  mutate(in_study = 0)
+
+# 결합된 데이터
+combined <- bind_rows(study_sample, target_population)
+
+# 표본 포함 확률 모델
+sampling_model <- glm(
+  in_study ~ park_close + park_temperature_high,
+  data = combined,
+  family = binomial()
+)
+
+# 연구 표본에서의 가중치 계산
+study_sample_with_weights <- sampling_model |>
+  augment(type.predict = "response", data = study_sample) |>
+  mutate(
+    # 운송 가중치: (1 - P(S=1)) / P(S=1)
+    transport_weight = (1 - .fitted) / .fitted
+  )
+
+cat("운송 가중치 요약:\n")
+summary(study_sample_with_weights$transport_weight)
+```
+
+```{r}
+# 연구 표본(peak season)에서의 효과
+ps_study <- glm(
+  park_extra_magic_morning ~
+    park_close + park_temperature_high,
+  data = study_sample,
+  family = binomial()
+)
+
+study_result <- ps_study |>
+  augment(type.predict = "response", data = study_sample) |>
+  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning)) |>
+  lm(wait_minutes_posted_avg ~ park_extra_magic_morning,
+     data = _, weights = w_ate) |>
+  tidy() |>
+  filter(term == "park_extra_magic_morning") |>
+  pull(estimate)
+
+# 운송 가중치를 적용한 효과 (연간 효과로 운송)
+transported_result <- ps_study |>
+  augment(type.predict = "response",
+          data = study_sample_with_weights) |>
+  mutate(
+    w_combined = wt_ate(.fitted, park_extra_magic_morning) * transport_weight
+  ) |>
+  lm(wait_minutes_posted_avg ~ park_extra_magic_morning,
+     data = _, weights = w_combined) |>
+  tidy() |>
+  filter(term == "park_extra_magic_morning") |>
+  pull(estimate)
+
+cat("연구 표본(peak season) 효과:", round(study_result, 2), "분\n")
+cat("운송 후(연간 평균) 효과:", round(transported_result, 2), "분\n")
+```
+
 ## 불완전한 근거 (Ragged evidence)
+
+실제 과학적 작업에서 우리는 완벽한 증거를 가지는 경우가 거의 없습니다.
+**불완전한 근거(ragged evidence)**는 서로 다른 연구들이 서로 다른 추정 대상을 사용하고, 서로 다른 가정을 만들고, 서로 다른 측면을 측정하며, 심지어 서로 다른 결론에 도달할 수 있음을 의미합니다.
+
+### 메타 분석의 한계와 기회
+
+**메타 분석(meta-analysis)**은 여러 연구의 결과를 통합하는 표준적인 방법이지만, 인과 추론에서는 몇 가지 주의점이 있습니다:
+
+1. **출판 편향(Publication bias)**: 통계적으로 유의미한 결과만 출판되는 경향
+2. **이질성(Heterogeneity)**: 연구마다 다른 인구, 노출 정의, 결과 측정
+3. **모델 오명시**: 각 연구의 분석 방법에 따른 편향
+
+```{r}
+#| label: fig-forest-plot
+#| fig-cap: >
+#|   가상의 메타 분석 포레스트 플롯. 여러 연구의 효과 추정치와 신뢰 구간을 표시합니다.
+#|   다이아몬드는 메타 분석 통합 추정치를 나타냅니다.
+#| message: false
+
+# 가상의 여러 연구 결과
+meta_results <- tibble(
+  study = c(
+    "연구 1 (RCT, 작은 규모)",
+    "연구 2 (관찰 연구, IPTW)",
+    "연구 3 (관찰 연구, 매칭)",
+    "연구 4 (자연 실험)",
+    "연구 5 (RCT, 큰 규모)"
+  ),
+  estimate = c(5.2, 6.8, 4.9, 7.1, 6.2),
+  se = c(2.1, 1.8, 2.5, 3.0, 1.2),
+  type = c("RCT", "관찰 연구", "관찰 연구", "자연 실험", "RCT")
+) |>
+  mutate(
+    conf.low = estimate - 1.96 * se,
+    conf.high = estimate + 1.96 * se,
+    weight = 1 / se^2
+  )
+
+# 역분산 가중 메타 분석 추정치
+pooled_estimate <- sum(meta_results$weight * meta_results$estimate) /
+  sum(meta_results$weight)
+pooled_se <- sqrt(1 / sum(meta_results$weight))
+
+ggplot(meta_results, aes(y = study, x = estimate, color = type)) +
+  geom_point(aes(size = weight), alpha = 0.8) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = pooled_estimate, linetype = "dashed", color = "grey50") +
+  annotate("rect",
+           xmin = pooled_estimate - 1.96 * pooled_se,
+           xmax = pooled_estimate + 1.96 * pooled_se,
+           ymin = 0.4, ymax = 0.6,
+           fill = "grey50", alpha = 0.3) +
+  annotate("point", x = pooled_estimate, y = 0.5,
+           shape = 18, size = 5, color = "grey20") +
+  annotate("text",
+           x = pooled_estimate, y = 0.3,
+           label = paste0("통합 추정치: ", round(pooled_estimate, 1), "분"),
+           vjust = 1, color = "grey20") +
+  scale_color_okabe_ito() +
+  labs(
+    x = "처치 효과 추정치 (분)",
+    y = NULL,
+    color = "연구 유형",
+    size = "가중치",
+    title = "메타 분석 포레스트 플롯"
+  )
+```
+
+### 증거를 통합할 때의 원칙
+
+불완전한 증거를 통합할 때 다음 원칙을 고려하십시오:
+
+1. **인과성 사다리를 따라 생각하기**: 모든 연구가 같은 인과적 질문을 다루는가?
+2. **추정 대상 명확히 하기**: ATE인가, ATT인가, 다른 추정 대상인가?
+3. **이질성의 원천 탐색**: 다른 결과가 나오는 이유는 무엇인가?
+4. **편향의 방향 생각하기**: 각 연구의 편향은 어떤 방향인가?
+
+```{r}
+#| label: fig-evidence-synthesis
+#| fig-cap: >
+#|   다양한 증거 유형의 강점과 한계. 각 연구 유형은 서로 다른 내적/외적 타당성을
+#|   가지며, 이를 보완적으로 활용하는 것이 삼각 측량의 핵심입니다.
+#| message: false
+
+evidence_types <- tibble(
+  유형 = c("무작위 대조 실험\n(RCT)", "자연 실험\n(IV/RDD/DiD)", "관찰 연구\n(관측 데이터)", "메커니즘 연구\n(동물/세포)"),
+  내적_타당성 = c(9, 7, 5, 3),
+  외적_타당성 = c(5, 6, 8, 2),
+  실용성 = c(4, 6, 9, 7)
+) |>
+  tidyr::pivot_longer(
+    cols = c(내적_타당성, 외적_타당성, 실용성),
+    names_to = "차원",
+    values_to = "점수"
+  )
+
+ggplot(evidence_types, aes(x = 유형, y = 점수, fill = 차원)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  scale_fill_okabe_ito() +
+  scale_y_continuous(limits = c(0, 10), breaks = 0:10) +
+  labs(
+    x = NULL,
+    y = "점수 (1-10)",
+    fill = NULL,
+    title = "다양한 연구 유형의 특성 비교"
+  )
+```
+
+### 마지막으로: 인과 추론의 실무
+
+이 책에서 우리는 인과 추론의 다양한 측면을 탐구했습니다.
+올바른 인과 효과 추정을 위한 핵심 단계를 정리해 봅시다:
+
+1. **인과 질문 명확히 하기**: 내가 답하고 싶은 인과적 질문은 정확히 무엇인가?
+
+2. **추정 대상 정의하기**: ATE, ATT, ATC, 또는 다른 추정 대상 중 어떤 것이 내 질문에 답하는가?
+
+3. **DAG 그리기**: 인과 가정을 명시적으로 표현하고, 동료들과 공유하여 피드백 받기
+
+4. **적절한 방법 선택하기**: 연구 설계와 데이터 구조에 맞는 방법 선택
+
+5. **가정 검증하기**: 성향 점수 중첩, 교형, 민감도 분석 등으로 가정 확인
+
+6. **불확실성 정직하게 보고하기**: 신뢰 구간, 민감도 분석, 방법의 한계 보고
+
+7. **삼각 측량하기**: 단일 분석에 의존하지 말고, 여러 방법으로 결과 확인
+
+8. **일반화 가능성 논의하기**: 연구 결과가 어떤 집단에, 어떤 맥락에서 적용되는지 명시
+
+인과 추론은 단순히 통계적 기술이 아닙니다.
+그것은 우리가 세계에 대해 알고 있는 것, 알 수 있는 것, 그리고 알아야 하는 것에 대한 과학적 사고의 방식입니다.
+셜록 홈즈의 말처럼, 증거는 까다롭습니다 — 하지만 올바른 도구와 사고방식으로 접근한다면, 우리는 훨씬 더 믿을 만한 결론에 도달할 수 있습니다.

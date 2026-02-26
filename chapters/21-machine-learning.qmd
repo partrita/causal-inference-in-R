@@ -5,15 +5,293 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
+
+전통적인 통계 모델은 인과 추론에서 중요한 역할을 해왔지만, 복잡한 고차원 데이터에서는 한계를 보일 수 있습니다.
+**머신러닝(machine learning)**은 복잡한 비선형 관계를 포착할 수 있는 강력한 도구를 제공하지만, 그 자체로는 인과적 추론에 직접 사용할 수 없습니다.
+
+이 장에서는 머신러닝과 인과 추론을 어떻게 결합할 수 있는지 탐색합니다:
+1. 예측과 인과 추론의 근본적인 차이를 다시 살펴보기
+2. 이중 로버스트 추정량(@sec-dr)과 머신러닝을 결합하기
+3. 교차 적합(cross-fitting)의 중요성
 
 ## 예측과 인과 추론, 다시 보기 (Prediction and causal inference, again)
 
-## 증강된 성향 점수 (Augmented propensity scores)
+@sec-casual-to-causal 에서 예측과 인과 추론의 차이를 처음 소개했습니다.
+여기서 이 차이를 머신러닝의 맥락에서 다시 살펴봅니다.
+
+### 예측 정확도 ≠ 인과 추론
+
+머신러닝 모델의 목표는 주어진 입력에서 결과를 최대한 정확히 예측하는 것입니다.
+반면 인과 추론의 목표는 개입의 효과를 편향 없이 추정하는 것입니다.
+이 두 가지는 근본적으로 다른 목표입니다.
 
 ```{r}
-rnorm(5)
+#| message: false
+#| warning: false
+library(dplyr)
+library(broom)
+library(touringplans)
+library(ggplot2)
+
+seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
+  filter(wait_hour == 9) |>
+  drop_na()
+
+# 예측 정확도가 높은 복잡한 모델이 반드시 좋은 인과 추정치를 주지 않습니다
+# 예시: 교란 요인을 과적합하면 성향 점수가 불안정해짐
+
+# 단순 성향 점수 모델
+ps_simple <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+# 복잡한 모델 (많은 상호작용 포함)
+ps_complex <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season * park_close * park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+# 두 모델의 성향 점수 분포 비교
+seven_dwarfs_9 |>
+  mutate(
+    ps_simple = predict(ps_simple, type = "response"),
+    ps_complex = predict(ps_complex, type = "response")
+  ) |>
+  tidyr::pivot_longer(
+    cols = starts_with("ps_"),
+    names_to = "모델",
+    values_to = "성향점수"
+  ) |>
+  mutate(모델 = ifelse(모델 == "ps_simple", "단순 모델", "복잡한 모델")) |>
+  ggplot(aes(x = 성향점수, fill = 모델)) +
+  geom_histogram(bins = 30, alpha = 0.7, position = "dodge") +
+  facet_wrap(~ 모델) +
+  labs(
+    title = "단순 vs 복잡한 성향 점수 모델의 분포",
+    x = "성향 점수",
+    y = "빈도"
+  ) +
+  theme(legend.position = "none")
+```
+
+복잡한 모델은 예측 성능이 더 좋을 수 있지만, 성향 점수가 0 또는 1에 근접한 극단적인 값을 가질 위험이 있습니다.
+이는 IPTW 가중치를 매우 불안정하게 만들고, 결국 인과 추정치의 분산을 크게 증가시킵니다.
+
+::: callout-warning
+## 머신러닝의 정규화 vs. 인과 추론
+
+머신러닝에서 **정규화(regularization)**는 과적합을 방지하는 데 도움이 됩니다.
+예를 들어 LASSO는 불필요한 변수의 계수를 0으로 만들어 모델을 단순화합니다.
+
+그러나 인과 추론에서 중요한 교란 요인의 계수가 정규화에 의해 0으로 설정된다면, 이는 편향을 유발합니다.
+따라서 머신러닝을 인과 추론에 적용할 때는 각별한 주의가 필요합니다.
+:::
+
+## 증강된 성향 점수 (Augmented propensity scores)
+
+@sec-dr 에서 소개한 AIPW는 성향 점수와 결과 모델 모두를 사용합니다.
+**Super Learner**라는 앙상블 머신러닝 방법과 결합하면 이중 로버스트 추정량을 더욱 강력하게 만들 수 있습니다.
+
+Super Learner는 여러 머신러닝 알고리즘의 예측을 최적으로 결합하여 단일 최상의 예측을 제공하는 앙상블 방법입니다.
+
+```{r}
+#| message: false
+#| warning: false
+# Super Learner를 사용한 AIPW (개념 설명)
+# 실제 구현에서는 SuperLearner 또는 sl3 패키지 사용
+
+library(propensity)
+
+# 성향 점수 모델: 여러 방법으로 시도 후 비교
+# 방법 1: 로지스틱 회귀
+ps_logistic <- glm(
+  park_extra_magic_morning ~
+    park_ticket_season + park_close + park_temperature_high,
+  data = seven_dwarfs_9,
+  family = binomial()
+)
+
+# 방법 2: 랜덤 포레스트 (ranger 패키지)
+# 실제 사용 시 아래 코드를 활성화
+# library(ranger)
+# ps_rf <- ranger(
+#   park_extra_magic_morning ~
+#     park_ticket_season + park_close + park_temperature_high,
+#   data = seven_dwarfs_9,
+#   probability = TRUE
+# )
+
+# 여기서는 로지스틱 회귀만 사용하여 AIPW 구현 보여줌
+outcome_model <- lm(
+  wait_minutes_posted_avg ~
+    park_extra_magic_morning *
+    (park_ticket_season + park_close + park_temperature_high),
+  data = seven_dwarfs_9
+)
+
+# AIPW 추정
+ps_hat <- predict(ps_logistic, type = "response")
+mu1_hat <- predict(outcome_model,
+                   newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 1))
+mu0_hat <- predict(outcome_model,
+                   newdata = mutate(seven_dwarfs_9, park_extra_magic_morning = 0))
+
+Y <- seven_dwarfs_9$wait_minutes_posted_avg
+A <- seven_dwarfs_9$park_extra_magic_morning
+
+aipw_scores <- (mu1_hat - mu0_hat) +
+  A * (Y - mu1_hat) / ps_hat -
+  (1 - A) * (Y - mu0_hat) / (1 - ps_hat)
+
+aipw_ate <- mean(aipw_scores)
+aipw_se <- sd(aipw_scores) / sqrt(length(aipw_scores))
+
+cat("AIPW ATE 추정치:", round(aipw_ate, 3), "분\n")
+cat("표준 오차:", round(aipw_se, 3), "\n")
+cat("95% CI: [",
+    round(aipw_ate - 1.96 * aipw_se, 3), ",",
+    round(aipw_ate + 1.96 * aipw_se, 3), "]\n")
 ```
 
 ## 대상 학습 (Targeted Learning)
+
+@sec-dr 에서 소개한 TMLE은 머신러닝과 결합했을 때 특히 강력합니다.
+TMLE + Super Learner 조합은 현대 인과 추론에서 표준적인 접근법이 되고 있습니다.
+
+### 교차 적합 (Cross-fitting)
+
+머신러닝을 사용할 때 중요한 기술은 **교차 적합(cross-fitting)** 또는 **이중 기계 학습(Double Machine Learning, DML)**입니다.
+
+교차 적합이 필요한 이유: 같은 데이터로 성향 점수/결과 모델을 학습하고 AIPW를 계산하면, 과적합으로 인한 "과잉 적합 편향(overfitting bias)"이 발생할 수 있습니다.
+
+```{r}
+#| message: false
+
+# 교차 적합 AIPW 구현
+library(rsample)
+
+# K-겹 교차 적합
+k_folds <- 5
+set.seed(2024)
+cv_splits <- vfold_cv(seven_dwarfs_9, v = k_folds)
+
+# 각 폴드에서 교차 적합 수행
+compute_aipw_fold <- function(split) {
+  # 훈련 데이터와 검증 데이터 분리
+  train_data <- training(split)
+  test_data  <- testing(split)
+
+  # 훈련 데이터로 모델 적합
+  ps_fold <- glm(
+    park_extra_magic_morning ~
+      park_ticket_season + park_close + park_temperature_high,
+    data = train_data,
+    family = binomial()
+  )
+
+  outcome_fold <- lm(
+    wait_minutes_posted_avg ~
+      park_extra_magic_morning *
+      (park_ticket_season + park_close + park_temperature_high),
+    data = train_data
+  )
+
+  # 검증 데이터에서 AIPW 점수 계산
+  ps_test <- predict(ps_fold, newdata = test_data, type = "response")
+  mu1_test <- predict(outcome_fold,
+                      newdata = mutate(test_data, park_extra_magic_morning = 1))
+  mu0_test <- predict(outcome_fold,
+                      newdata = mutate(test_data, park_extra_magic_morning = 0))
+
+  Y_test <- test_data$wait_minutes_posted_avg
+  A_test <- test_data$park_extra_magic_morning
+
+  aipw_test <- (mu1_test - mu0_test) +
+    A_test * (Y_test - mu1_test) / ps_test -
+    (1 - A_test) * (Y_test - mu0_test) / (1 - ps_test)
+
+  tibble(aipw_score = aipw_test, fold = split$id)
+}
+
+# 모든 폴드에서 AIPW 점수 계산
+cv_aipw_scores <- map_dfr(cv_splits$splits, compute_aipw_fold)
+
+# 교차 적합 AIPW ATE
+cf_ate <- mean(cv_aipw_scores$aipw_score)
+cf_se  <- sd(cv_aipw_scores$aipw_score) / sqrt(nrow(cv_aipw_scores))
+
+cat("교차 적합 AIPW ATE:", round(cf_ate, 3), "분\n")
+cat("표준 오차:", round(cf_se, 3), "\n")
+cat("95% CI: [",
+    round(cf_ate - 1.96 * cf_se, 3), ",",
+    round(cf_ate + 1.96 * cf_se, 3), "]\n")
+```
+
+### 이중 기계 학습 (Double Machine Learning)
+
+Chernozhukov et al.(2018)이 개발한 **이중 기계 학습(DML)**은 교차 적합 AIPW와 유사한 아이디어를 사용하지만, 부분선형 모델(partially linear model)에 초점을 맞춥니다.
+
+DML의 핵심 아이디어는 **잔차화(residualization)**입니다:
+
+1. 머신러닝으로 교란 요인으로부터 노출을 예측하고 잔차 계산: $\tilde{X} = X - \hat{E}[X \mid C]$
+2. 머신러닝으로 교란 요인으로부터 결과를 예측하고 잔차 계산: $\tilde{Y} = Y - \hat{E}[Y \mid C]$
+3. 잔차에 대한 선형 회귀: $\tilde{Y} \sim \tilde{X}$
+
+```{r}
+# DML 부분 선형 모델 구현 (교차 적합 포함)
+compute_dml_fold <- function(split) {
+  train_data <- training(split)
+  test_data  <- testing(split)
+
+  # 노출 모델: E[X | C]
+  x_model <- lm(
+    park_extra_magic_morning ~
+      park_ticket_season + park_close + park_temperature_high,
+    data = train_data
+  )
+
+  # 결과 모델: E[Y | C] (노출 제외)
+  y_model <- lm(
+    wait_minutes_posted_avg ~
+      park_ticket_season + park_close + park_temperature_high,
+    data = train_data
+  )
+
+  # 검증 데이터에서 잔차 계산
+  x_resid <- test_data$park_extra_magic_morning -
+    predict(x_model, newdata = test_data)
+  y_resid <- test_data$wait_minutes_posted_avg -
+    predict(y_model, newdata = test_data)
+
+  tibble(x_resid = x_resid, y_resid = y_resid)
+}
+
+dml_residuals <- map_dfr(cv_splits$splits, compute_dml_fold)
+
+# 잔차에 대한 선형 회귀 = DML 추정치
+dml_fit <- lm(y_resid ~ x_resid - 1, data = dml_residuals)
+tidy(dml_fit, conf.int = TRUE)
+```
+
+::: callout-note
+## 언제 머신러닝을 인과 추론에 사용해야 할까요?
+
+머신러닝을 인과 추론에 사용하면 유리한 상황:
+
+1. **고차원 공변량**: 변수가 많아 수동으로 상호작용이나 비선형 관계를 지정하기 어려울 때
+2. **함수 형태 불확실성**: 올바른 모델 형태를 모를 때
+3. **이질적 효과 추정**: CATE 추정에서 특히 유용
+
+머신러닝 사용 시 주의사항:
+- 항상 교차 적합 사용
+- 이중 로버스트 추정량과 결합
+- 성향 점수의 극단값 확인 (positivity 가정)
+- 결과가 직관과 크게 다르면 의심
+:::

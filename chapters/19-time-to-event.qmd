@@ -5,15 +5,296 @@
 ```{r}
 #| echo: false
 # TODO: remove when first edition complete
-status("unstarted")
+status("wip")
 ```
+
+지금까지 살펴본 대부분의 예시는 연속형이나 이진형 결과를 다루었습니다.
+그러나 많은 연구에서 관심 있는 결과는 **어떤 사건이 발생하기까지의 시간(time-to-event)**입니다.
+예를 들어, 환자가 치료 후 얼마나 오래 생존하는지, 또는 기계 부품이 고장나기까지 얼마나 오래 작동하는지가 관심 대상일 수 있습니다.
+
+이러한 분석을 **생존 분석(survival analysis)** 또는 **시간-사건 분석(time-to-event analysis)**이라고 합니다.
+생존 분석에서 인과 추론을 적용하면 처치가 사건 발생 시간에 미치는 인과적 효과를 추정할 수 있습니다.
+
+이 장에서는 세 가지 핵심 주제를 다룹니다:
+
+1. 시간-사건 분석을 위한 데이터 준비
+2. 인과적 생존 분석을 위한 **풀링된 로지스틱 회귀(pooled logistic regression)**
+3. 신뢰 구간 추정
 
 ## 시간-사건 분석을 위한 데이터 준비 (Preparing data for time-to-event analysis)
 
+시간-사건 분석의 핵심 특징은 **검열(censoring)**입니다.
+검열은 관찰 기간이 종료될 때까지 일부 참가자에서 관심 사건이 발생하지 않을 때 생깁니다.
+이 경우 우리는 그 참가자가 검열 시점까지는 사건이 발생하지 않았다는 것만 알고 있습니다.
+
+### 생존 데이터 구조
+
+생존 데이터는 일반적으로 다음과 같은 형태를 가집니다:
+
+- `id`: 개인 식별자
+- `time`: 추적 관찰 기간 또는 사건 발생 시간
+- `event`: 사건 발생 여부 (1 = 사건 발생, 0 = 검열)
+- 기타 공변량들
+
 ```{r}
-rnorm(5)
+#| message: false
+#| warning: false
+library(dplyr)
+library(tidyr)
+library(broom)
+
+# 생존 분석 데이터를 시뮬레이션합니다
+# (실제 생존 데이터가 없어 touringplans 데이터를 기반으로 시뮬레이션)
+set.seed(2024)
+n <- 500
+
+survival_sim <- tibble(
+  id = 1:n,
+  # 노출: 처치군(1) vs 대조군(0)
+  treatment = rbinom(n, 1, 0.5),
+  # 공변량 (교란 요인)
+  age_group = sample(c("young", "middle", "old"), n, replace = TRUE),
+  severity = rnorm(n, 5, 1.5),  # 질병 중증도
+) |>
+  mutate(
+    # 처치가 사건 발생 위험을 감소시킨다고 가정
+    baseline_hazard = 0.05 * exp(0.3 * (severity - 5)),
+    hazard = baseline_hazard * exp(-0.5 * treatment),
+    # 지수 분포에서 생존 시간 생성
+    true_time = rexp(n, rate = hazard),
+    # 12개월에서 행정적 검열
+    admin_censor = 12,
+    # 무작위 탈락 검열 (처치군과 비교하여 중증도가 높으면 탈락 가능성 증가)
+    random_censor = rexp(n, rate = 0.02 + 0.01 * (severity - 5)),
+    # 최종 추적 관찰 시간과 사건 여부
+    time = pmin(true_time, admin_censor, random_censor),
+    event = as.integer(true_time <= pmin(admin_censor, random_censor))
+  ) |>
+  select(id, treatment, age_group, severity, time, event)
+
+cat("데이터 구조:\n")
+glimpse(survival_sim)
+
+cat("\n사건 발생 요약:\n")
+survival_sim |>
+  group_by(treatment) |>
+  summarize(
+    n = n(),
+    events = sum(event),
+    event_rate = mean(event),
+    median_time = median(time)
+  )
+```
+
+### 장기형 데이터로 변환 (Long format for pooled logistic regression)
+
+풀링된 로지스틱 회귀를 위해 생존 데이터를 각 시간 구간마다 하나의 행이 있는 **장기형(long format)**으로 변환해야 합니다.
+
+```{r}
+# 생존 데이터를 장기형으로 변환
+# 각 개인에 대해 사건이 발생하거나 검열될 때까지의 각 시간 구간에 대한 행 생성
+survival_long <- survival_sim |>
+  # 단순화를 위해 월 단위 시간 구간 사용
+  mutate(time_int = ceiling(time)) |>
+  rowwise() |>
+  do({
+    row <- .
+    max_t <- row$time_int
+    tibble(
+      id = row$id,
+      treatment = row$treatment,
+      age_group = row$age_group,
+      severity = row$severity,
+      interval = 1:max_t,
+      event_at_interval = ifelse(1:max_t == max_t & row$event == 1, 1, 0)
+    )
+  }) |>
+  ungroup()
+
+cat("장기형 데이터 첫 10행:\n")
+head(survival_long, 10)
+cat("\n총 관측 행 수:", nrow(survival_long), "\n")
 ```
 
 ## 풀링된 로지스틱 회귀 (Pooled logistic regression)
 
+**풀링된 로지스틱 회귀(pooled logistic regression)**는 각 시간 구간에서 사건이 발생할 조건부 확률을 모델링하는 방법입니다.
+각 시간 구간에서의 사건 발생 여부를 이진 결과로 취급하고, 로지스틱 회귀를 적합시킵니다.
+
+사건 발생 위험이 충분히 희귀할 때(희귀 사건 가정), 풀링된 로지스틱 회귀는 이산 시간 위험 모델(discrete-time hazard model)로 볼 수 있으며, 연속시간 콕스 비례 위험 모델(Cox proportional hazards model)과 유사한 결과를 제공합니다.
+
+```{r}
+#| message: false
+library(splines)
+
+# 풀링된 로지스틱 회귀 (처치, 시간, 공변량 포함)
+# 시간의 비선형적 영향을 포착하기 위해 자연 스플라인 사용
+pooled_logistic <- glm(
+  event_at_interval ~
+    treatment +
+    ns(interval, df = 3) +  # 시간의 비선형 효과
+    age_group + severity,
+  data = survival_long,
+  family = binomial()
+)
+
+tidy(pooled_logistic, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term == "treatment")
+```
+
+처치 효과의 지수화된 계수는 오즈비(odds ratio)로 해석됩니다.
+희귀 사건 가정 하에서 이는 위험비(hazard ratio)에 근사합니다.
+
+### G-공식을 활용한 한계 생존율 추정
+
+풀링된 로지스틱 회귀 모델을 사용하여 각 처치 조건에서의 **한계 생존율(marginal survival curve)**을 추정할 수 있습니다.
+이는 @sec-g-comp 에서 소개한 G-공식의 시간-사건 버전입니다.
+
+```{r}
+# 한계 생존 곡선 계산
+max_time <- max(ceiling(survival_sim$time))
+
+# 각 처치 조건에서 모든 시간 구간에 대한 사건 확률 예측
+predict_marginal_survival <- function(trt_val) {
+  # 모든 개인을 동일한 처치값으로 설정
+  pred_data <- survival_long |>
+    mutate(treatment = trt_val)
+
+  # 각 시간 구간에서의 조건부 사건 확률 예측
+  pred_probs <- predict(pooled_logistic, newdata = pred_data, type = "response")
+
+  pred_data |>
+    mutate(hazard_predicted = pred_probs) |>
+    group_by(interval) |>
+    summarize(avg_hazard = mean(hazard_predicted)) |>
+    arrange(interval) |>
+    mutate(
+      survival = cumprod(1 - avg_hazard),
+      treatment = trt_val
+    )
+}
+
+survival_curves <- bind_rows(
+  predict_marginal_survival(0),
+  predict_marginal_survival(1)
+) |>
+  mutate(treatment_label = ifelse(treatment == 1, "처치군", "대조군"))
+
+# 생존 곡선 시각화
+library(ggplot2)
+
+ggplot(survival_curves, aes(x = interval, y = survival,
+                             color = treatment_label,
+                             group = treatment_label)) +
+  geom_step(linewidth = 1) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  labs(
+    x = "시간 (월)",
+    y = "생존율",
+    color = NULL,
+    title = "처치군과 대조군의 한계 생존 곡선"
+  )
+```
+
+```{r}
+# 특정 시점에서의 효과 추정: 6개월 및 12개월 생존율 차이
+time_points <- c(6, 12)
+
+survival_at_time <- survival_curves |>
+  filter(interval %in% time_points) |>
+  select(interval, treatment_label, survival) |>
+  pivot_wider(names_from = treatment_label, values_from = survival) |>
+  mutate(
+    risk_difference = 처치군 - 대조군,
+    risk_ratio = 처치군 / 대조군
+  )
+
+cat("시점별 생존율 비교:\n")
+print(survival_at_time)
+```
+
 ## 인과 시간-사건 모델의 신뢰 구간 (Confidence intervals for causal time-to-event models)
+
+풀링된 로지스틱 회귀를 사용한 한계 생존 곡선과 처치 효과의 신뢰 구간은 부트스트랩을 통해 계산할 수 있습니다.
+
+```{r}
+#| message: false
+#| warning: false
+library(rsample)
+
+compute_survival_effect <- function(.split) {
+  .df <- as.data.frame(.split)
+
+  # 선택된 샘플에 대한 장기형 데이터 재생성
+  survival_long_boot <- .df |>
+    mutate(time_int = ceiling(time)) |>
+    rowwise() |>
+    do({
+      row <- .
+      max_t <- row$time_int
+      tibble(
+        id = row$id,
+        treatment = row$treatment,
+        age_group = row$age_group,
+        severity = row$severity,
+        interval = 1:max_t,
+        event_at_interval = ifelse(1:max_t == max_t & row$event == 1, 1, 0)
+      )
+    }) |>
+    ungroup()
+
+  # 풀링된 로지스틱 회귀
+  fit <- glm(
+    event_at_interval ~
+      treatment + ns(interval, df = 3) + age_group + severity,
+    data = survival_long_boot,
+    family = binomial()
+  )
+
+  # 각 처치 조건에서 12개월 생존율 추정
+  compute_surv_at_12 <- function(trt) {
+    pred_d <- survival_long_boot |> mutate(treatment = trt)
+    prbs <- predict(fit, newdata = pred_d, type = "response")
+    pred_d |>
+      mutate(haz = prbs) |>
+      group_by(interval) |>
+      summarize(avg_haz = mean(haz)) |>
+      arrange(interval) |>
+      slice(1:12) |>
+      summarize(survival_12m = prod(1 - avg_haz)) |>
+      pull(survival_12m)
+  }
+
+  s1 <- compute_surv_at_12(1)
+  s0 <- compute_surv_at_12(0)
+
+  tibble(
+    term = c("treated_12m", "control_12m", "risk_diff_12m"),
+    estimate = c(s1, s0, s1 - s0)
+  )
+}
+
+# 부트스트랩 수행
+boots_survival <- bootstraps(survival_sim, times = 200, apparent = TRUE) |>
+  mutate(results = map(splits, compute_survival_effect))
+
+# 신뢰 구간 계산
+ci_result <- int_pctl(boots_survival, results)
+
+cat("12개월 생존율과 처치 효과의 95% 신뢰 구간:\n")
+print(ci_result)
+```
+
+::: callout-note
+## 풀링된 로지스틱 회귀 vs. 콕스 회귀
+
+전통적인 생존 분석에서는 콕스 비례 위험 모델(Cox proportional hazards model)이 많이 사용됩니다.
+풀링된 로지스틱 회귀는 몇 가지 장점을 가집니다:
+
+1. **유연성**: 비례 위험 가정(proportional hazards assumption)이 필요없음
+2. **G-공식과의 통합**: G-공식 프레임워크와 자연스럽게 결합
+3. **IPTW와의 결합**: 시간 가변적 중재에 대해 IPTW와 쉽게 결합
+4. **해석 가능성**: 한계 생존율로 직접적인 인과 효과 추정 가능
+
+단, 연속 시간 데이터를 이산화해야 하며, 데이터 크기가 증가한다는 단점이 있습니다.
+:::
