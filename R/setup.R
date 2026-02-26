@@ -1,3 +1,13 @@
+# 한글 폰트 설정: 시스템에 Noto Sans CJK KR이 있으면 사용, 없으면 sans로 fallback
+.noto_family <- "sans"
+if (requireNamespace("systemfonts", quietly = TRUE)) {
+  .available_fonts <- systemfonts::system_fonts()
+  if (any(grepl("Noto Sans CJK KR|NotoSansCJKkr|Noto Sans KR",
+                .available_fonts$family, ignore.case = TRUE))) {
+    .noto_family <- "Noto Sans CJK KR"
+  }
+}
+
 options(
   tidyverse.quiet = TRUE,
   propensity.quiet = TRUE,
@@ -10,7 +20,7 @@ options(
   ggplot2.discrete.fill = if(requireNamespace("ggokabeito", quietly = TRUE)) ggokabeito::palette_okabe_ito() else "viridis",
   ggplot2.continuous.colour = "viridis",
   ggplot2.continuous.fill = "viridis",
-  book.base_family = "sans",
+  book.base_family = .noto_family,
   book.base_size = 14
 )
 
