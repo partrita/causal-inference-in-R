@@ -174,7 +174,7 @@ ipw_results |>
     estimate = map_dbl(
       boot_fits,
       \(.fit) .fit |>
-        filter(term == "park_extra_magic_morning엑스트라 매직 아워") |>
+        filter(term == "park_extra_magic_morning") |>
         pull(estimate)
     )
   ) |>
@@ -188,7 +188,7 @@ ipw_results |>
 ```{r}
 # t-기반 신뢰 구간 가져오기
 boot_estimate <- int_t(ipw_results, boot_fits) |>
-  filter(term == "park_extra_magic_morning엑스트라 매직 아워")
+  filter(term == "park_extra_magic_morning")
 boot_estimate
 ```
 

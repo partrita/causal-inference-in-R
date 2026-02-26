@@ -186,7 +186,7 @@ dagify(
 
 ```{r}
 seven_dwarfs_train |>
-  summarize(
+  reframe(
     across(
       c(park_date, starts_with("wait_minutes")),
       \(.x) range(.x, na.rm = TRUE)

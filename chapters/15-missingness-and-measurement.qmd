@@ -7,6 +7,8 @@
 # TODO: remove when first edition complete
 status("wip")
 library(gt)
+library(broom)
+library(tidyverse)
 ```
 
 누락되거나(missing) 잘못 측정된(mismeasured) 데이터는 대부분의 실제 데이터셋에서 발생하는 문제로, 묘사, 예측, 인과 추론의 세 가지 분석 유형 모두에 영향을 미칩니다.
@@ -101,6 +103,9 @@ ggdag2 <- function(.dag, ..., order = 1:9, seed = 1633, box.padding = 3.4, edges
 }
 
 add_measured <- function(.df) {
+  if (!"label" %in% names(.df)) {
+    .df <- mutate(.df, label = labels[name])
+  }
   mutate(
     .df,
     measured = case_when(
@@ -112,6 +117,9 @@ add_measured <- function(.df) {
 }
 
 add_missing <- function(.df) {
+  if (!"label" %in% names(.df)) {
+    .df <- mutate(.df, label = labels[name])
+  }
   mutate(
     .df,
     missing = case_when(
@@ -310,7 +318,7 @@ depend_dag |>
   ggdag2(color = measured, order = 6:7, box.padding = 3.7, seed = 123)
 
 depend_dag |>
-  dagitty::backdoorGraph() |>
+  dagitty::backDoorGraph() |>
   tidy_dagitty() |>
   add_measured() |>
   ggdag2(color = measured, order = 6:7, box.padding = 3.7, seed = 123)
