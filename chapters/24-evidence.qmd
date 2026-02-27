@@ -40,6 +40,7 @@ library(ggplot2)
 library(broom)
 library(touringplans)
 library(propensity)
+library(ggokabeito)
 
 seven_dwarfs_9 <- seven_dwarfs_train_2018 |>
   filter(wait_hour == 9) |>
@@ -268,11 +269,14 @@ sampling_model <- glm(
 )
 
 # 연구 표본에서의 가중치 계산
-study_sample_with_weights <- sampling_model |>
-  augment(type.predict = "response", data = study_sample) |>
+# sampling_model은 combined 데이터로 학습되었으므로
+# study_sample에 직접 augment() 불가 → predict()로 예측
+study_sample_with_weights <- study_sample |>
   mutate(
+    ps_sampling = predict(sampling_model, newdata = study_sample,
+                          type = "response"),
     # 운송 가중치: (1 - P(S=1)) / P(S=1)
-    transport_weight = (1 - .fitted) / .fitted
+    transport_weight = (1 - ps_sampling) / ps_sampling
   )
 
 cat("운송 가중치 요약:\n")
@@ -298,11 +302,11 @@ study_result <- ps_study |>
   pull(estimate)
 
 # 운송 가중치를 적용한 효과 (연간 효과로 운송)
-transported_result <- ps_study |>
-  augment(type.predict = "response",
-          data = study_sample_with_weights) |>
+transported_result <- study_sample_with_weights |>
   mutate(
-    w_combined = wt_ate(.fitted, park_extra_magic_morning) * transport_weight
+    ps_emm = predict(ps_study, newdata = study_sample_with_weights,
+                     type = "response"),
+    w_combined = wt_ate(ps_emm, park_extra_magic_morning) * transport_weight
   ) |>
   lm(wait_minutes_posted_avg ~ park_extra_magic_morning,
      data = _, weights = w_combined) |>
