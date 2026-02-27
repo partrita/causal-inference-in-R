@@ -129,6 +129,7 @@ cat("(참 효과: 2.0)\n")
 
 ```{r}
 #| message: false
+#| eval: false
 # ivreg 패키지를 사용한 2SLS (표준 오차 올바른 계산)
 # install.packages("ivreg")
 library(ivreg)
