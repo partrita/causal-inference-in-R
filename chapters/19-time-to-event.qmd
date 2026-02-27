@@ -92,15 +92,11 @@ survival_sim |>
 
 ```{r}
 # 생존 데이터를 장기형으로 변환 (purrr::map + tidyr::unnest 방식)
-# ceiling(time)이 0이 될 수 있으므로 pmax(1, ...) 로 최솟값을 1로 보장
-make_long_rows <- function(id, treatment, age_group, severity, time_int, event) {
+# make_long_rows: interval과 event_at_interval만 반환 (부모 df와 충돌 방지)
+make_long_rows <- function(time_int, event) {
   max_t <- pmax(1L, as.integer(time_int))  # 최소 1구간 보장
   tibble(
-    id              = id,
-    treatment       = treatment,
-    age_group       = age_group,
-    severity        = severity,
-    interval        = seq_len(max_t),
+    interval          = seq_len(max_t),
     event_at_interval = as.integer(seq_len(max_t) == max_t & event == 1)
   )
 }
@@ -109,10 +105,7 @@ survival_long <- survival_sim |>
   mutate(time_int = ceiling(time)) |>
   filter(!is.na(time_int)) |>        # NA 행 제거
   mutate(
-    rows = purrr::pmap(
-      list(id, treatment, age_group, severity, time_int, event),
-      make_long_rows
-    )
+    rows = purrr::pmap(list(time_int, event), make_long_rows)
   ) |>
   tidyr::unnest(rows) |>
   select(id, treatment, age_group, severity, interval, event_at_interval)
@@ -236,10 +229,7 @@ compute_survival_effect <- function(.split) {
     mutate(time_int = ceiling(time)) |>
     filter(!is.na(time_int)) |>
     mutate(
-      rows = purrr::pmap(
-        list(id, treatment, age_group, severity, time_int, event),
-        make_long_rows
-      )
+      rows = purrr::pmap(list(time_int, event), make_long_rows)
     ) |>
     tidyr::unnest(rows) |>
     select(id, treatment, age_group, severity, interval, event_at_interval)
