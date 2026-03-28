@@ -79,13 +79,14 @@ causal_quartet |>
   facet_wrap(~dataset)
 ```
 
+이 데이터셋들을 사용하여 답하고자 하는 인과적 질문은 다음과 같습니다:
 각 데이터셋에 대한 질문은 세 번째 변수인 `covariate`(공변량)를 조정할지 여부입니다.
 `covariate`는 교란 요인(confounder)일까요?
 매개 요인(mediator)일까요?
 콜라이더(collider)일까요?
 우리는 데이터를 사용하여 이 문제를 해결할 수 없습니다.
-@tbl-quartet_lm 에서는 어떤 효과가 맞는지 명확하지 않습니다.
-마찬가지로 `exposure`와 `covariate` 사이의 상관관계도 도움이 되지 않습니다: 모두 똑같으니까요!
+@tbl-quartet_lm에서는 어떤 효과가 맞는지 명확하지 않습니다.
+마찬가지로 `exposure`와 `covariate` 사이의 상관관계도 도움이 되지 않습니다. 모두 똑같으니까요!
 
 ```{r}
 #| label: tbl-quartet_lm

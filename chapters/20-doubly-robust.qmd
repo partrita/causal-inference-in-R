@@ -13,25 +13,25 @@ status("wip")
 1. **성향 점수 기반 방법(PS-based methods)**: 처치 메커니즘 모델($P(X \mid C)$)을 올바르게 명시
 2. **결과 회귀 방법(Outcome regression)**: 결과 모델($E[Y \mid X, C]$)을 올바르게 명시(G-공식)
 
-두 방법 모두 모델을 올바르게 명시해야만 편향되지 않은 추정치를 제공합니다.
-**이중 로버스트(doubly robust, DR) 추정량**은 이 두 모델 중 *하나만* 올바르게 명시되어도 여전히 편향되지 않은 추정치를 제공하는 특별한 성질을 가집니다.
+두 방법 모두 모델을 올바르게 명시해야만 편향되지 않은 추정치를 얻습니다.
+**이중 로버스트(doubly robust, DR) 추정량**은 두 모델 중 *하나만* 올바르게 명시되어도 편향되지 않은 추정치를 얻는 특별한 성질이 있습니다.
 
 ## 증강된 성향 점수 (Augmented propensity scores)
 
 이중 로버스트 추정량의 대표적인 형태는 **증강된 역확률 가중치(Augmented Inverse Probability Weighting, AIPW)** 추정량입니다.
 AIPW는 IPTW와 G-공식(결과 회귀)을 결합합니다.
 
-ATE에 대한 AIPW 추정량은 다음과 같이 정의됩니다:
+ATE AIPW 추정량은 다음과 같이 정의됩니다:
 
 $$\hat{\tau}_{AIPW} = \frac{1}{n}\sum_{i=1}^{n}\left[\hat{\mu}_1(C_i) - \hat{\mu}_0(C_i) + \frac{X_i(Y_i - \hat{\mu}_1(C_i))}{\hat{e}(C_i)} - \frac{(1-X_i)(Y_i - \hat{\mu}_0(C_i))}{1-\hat{e}(C_i)}\right]$$
 
 여기서:
-- $\hat{\mu}_x(C_i) = E[Y \mid X = x, C = C_i]$: 결과 모델의 예측값
+- $\hat{\mu}_x(C_i) = E[Y \mid X = x, C = C_i]$: 결과 모델 예측값
 - $\hat{e}(C_i) = P(X = 1 \mid C = C_i)$: 성향 점수
 
-이 추정량은 두 가지 "방어선"을 갖습니다:
-- 결과 모델이 올바르면: 성향 점수 부분의 기대값이 0이 되어 결과 모델만으로 추정
-- 성향 점수 모델이 올바르면: 결과 모델의 편향을 성향 점수 부분이 보정
+이 추정량에는 두 가지 "방어선"이 있습니다:
+- 결과 모델이 올바르면: 성향 점수 부분 기대값이 0이 되어 결과 모델만으로 추정합니다.
+- 성향 점수 모델이 올바르면: 결과 모델 편향을 성향 점수 부분이 보정합니다.
 
 ```{r}
 #| message: false
@@ -113,18 +113,18 @@ cat("  G-공식 (결과 모델만):", round(gcomp_estimate, 2), "분\n")
 ::: callout-note
 ## 이중 로버스티(Double Robustness)란?
 
-이중 로버스트 추정량은 두 모델 중 하나가 잘못 명시되어도 추정치가 편향되지 않습니다:
+이중 로버스트 추정량은 두 모델 중 하나만 잘못 명시되어도 편향되지 않습니다:
 
 - **성향 점수 모델이 올바른 경우**: 결과 모델의 오명시를 보정
 - **결과 모델이 올바른 경우**: 성향 점수 모델의 오명시를 보정
-- **둘 다 올바른 경우**: 더 효율적인(분산이 작은) 추정치 제공
+- **둘 다 올바른 경우**: 더 효율적인(분산이 작은) 추정치를 제공합니다.
 
 물론 두 모델이 모두 잘못 명시되면 이중 로버스트 추정량도 편향됩니다.
 :::
 
 ### `{DoubleML}` 또는 `{AIPW}` 패키지 사용
 
-실무에서는 전용 패키지를 사용하는 것이 편리합니다:
+실무에서는 전용 패키지를 사용하면 편리합니다:
 
 ```{r}
 #| eval: false
@@ -147,29 +147,29 @@ aipw_result$summary()
 
 ## 대상 학습 (Targeted Learning)
 
-**대상 학습(Targeted Learning, TL)**은 Laan과 동료들이 개발한 세미파라메트릭 추정 프레임워크로, 사전에 지정된 추정 대상에 대해 최적의 통계적 성능을 달성하는 것을 목표로 합니다 [@laan2006targeted; @laan2011targeted].
+**대상 학습(Targeted Learning, TL)**은 Laan과 동료들이 개발한 세미파라메트릭 추정 프레임워크로, 사전에 지정된 추정 대상의 통계적 성능을 최적화하는 것이 목표입니다 [@laan2006targeted; @laan2011targeted].
 
 대상 학습의 핵심 알고리즘은 **TMLE(Targeted Maximum Likelihood Estimation)** 또는 **TMLE(Targeted Minimum Loss-based Estimation)**입니다.
 
 ### TMLE의 작동 원리
 
-TMLE은 세 가지 단계로 구성됩니다:
+TMLE는 세 단계로 이루어집니다:
 
 **1단계: 초기 추정(Initial estimation)**
 - 결과 모델 $Q = E[Y \mid X, C]$ 추정 (G-공식 부분)
 - 성향 점수 $g = P(X = 1 \mid C)$ 추정
 
-**2단계: 목표 갱신(Targeting/Fluctuation)**
-- 초기 결과 모델을 성향 점수 정보를 사용하여 "목표" 추정 대상 쪽으로 갱신
-- 이 과정이 이중 로버스트 성질을 보장
+**2단계: 목표 업데이트(Targeting/Fluctuation)**
+- 초기 결과 모델을 성향 점수 정보로 "목표" 추정 대상에 맞춰 업데이트합니다.
+- 이 과정에서 이중 로버스트 성질을 보장합니다.
 
 **3단계: 추정치 계산(Substitution)**
-- 갱신된 모델로 최종 추정치 계산
+- 업데이트한 모델로 최종 추정치를 계산합니다.
 
 ```{r}
 #| message: false
 #| warning: false
-# TMLE 수동 구현 (개념 설명 목적)
+# TMLE 수동 구현 (개념 설명용)
 # 실제로는 tmle, tmle3, ltmle 패키지 사용 권장
 
 # 1단계: 초기 추정
@@ -184,19 +184,19 @@ Q0   <- predict(outcome_model)
 g1 <- predict(ps_model, type = "response")
 g0 <- 1 - g1
 
-# 2단계: 영리한 공변량(clever covariate)으로 갱신
+# 2단계: 영리한 공변량(clever covariate)으로 업데이트
 # 영리한 공변량: 처치군은 1/g(X=1), 비처치군은 -1/g(X=0)
 clever_cov <- seven_dwarfs_9$park_extra_magic_morning / g1 -
   (1 - seven_dwarfs_9$park_extra_magic_morning) / g0
 
-# 잔차에 대해 영리한 공변량으로 로지스틱 회귀 (fluctuation)
+# 잔차를 대상으로 영리한 공변량을 활용해 로지스틱 회귀를 수행합니다 (fluctuation)
 # 선형 결과이므로 선형 회귀 사용
 fluctuation <- lm(
   (seven_dwarfs_9$wait_minutes_posted_avg - Q0) ~ clever_cov - 1
 )
 epsilon <- coef(fluctuation)["clever_cov"]
 
-# 3단계: 갱신된 예측값으로 ATE 계산
+# 3단계: 업데이트한 예측값으로 ATE 계산
 Q_star_1 <- Q0_1 + epsilon / g1
 Q_star_0 <- Q0_0 - epsilon / g0
 
@@ -232,8 +232,8 @@ summary(tmle_fit)
 ```{r}
 #| label: fig-dr-comparison
 #| fig-cap: >
-#|   모델 오명시 상황에서 세 가지 추정량의 비교. 결과 모델이나 성향 점수 모델 중
-#|   하나가 올바르면 이중 로버스트 추정량(AIPW, TMLE)은 편향되지 않습니다.
+#|   모델을 잘못 명시했을 때 세 가지 추정량 비교. 결과 모델이나 성향 점수 모델 중
+#|   하나만 올바르면 이중 로버스트 추정량(AIPW, TMLE)은 편향되지 않습니다.
 #| message: false
 #| warning: false
 
@@ -264,12 +264,12 @@ ggplot(methods_comparison, aes(x = reorder(방법, 방법_순서), y = ATE,
 ::: callout-tip
 ## 어떤 방법을 선택해야 할까요?
 
-실무적으로 다음을 고려하십시오:
+실무에서는 다음을 고려하세요:
 
-1. **표본 크기가 작을 때**: AIPW나 TMLE이 더 안정적
-2. **모델 오명시 우려가 있을 때**: 이중 로버스트 방법이 보험을 제공
-3. **머신러닝과 결합할 때**: TMLE이 자연스러운 선택
-4. **해석 가능성이 중요할 때**: G-공식이나 IPTW가 더 직관적
+1. **표본 크기가 작을 때**: AIPW나 TMLE가 더 안정적입니다.
+2. **모델을 잘못 명시할 우려가 있을 때**: 이중 로버스트 방법이 안전장치가 됩니다.
+3. **머신러닝과 결합할 때**: TMLE가 자연스러운 선택입니다.
+4. **해석 가능성이 중요할 때**: G-공식이나 IPTW가 더 직관적입니다.
 
-현대 인과 추론 실무에서는 이중 로버스트 방법을 기본으로 사용하고, 단순 방법들과 결과를 비교하는 것이 좋은 관행입니다.
+현대 인과 추론 실무에서는 이중 로버스트 방법을 기본으로 사용하고, 단순한 방법들과 결과를 비교하는 것이 좋습니다.
 :::
