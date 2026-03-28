@@ -1,9 +1,9 @@
- @import url('https://fonts.googleapis.com/css2?family=Darker+Grotesque&family=Karla:ital,wght@0,400;0,700;1,400&family=Roboto+Mono&display=swap');
+ @import url('https://fonts.googleapis.com/css2?family=Karla:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono&display=swap');
  
 /*-- scss:defaults --*/
-$font-family-base: "Karla" !default;
-$font-family-code: "Roboto Mono" !default;
-$headings-font-family: "Darker Grotesque" !default;
+$font-family-base: "Noto Sans KR", sans-serif !default;
+$font-family-code: "Roboto Mono", monospace !default;
+$headings-font-family: "Noto Sans KR", sans-serif !default;
 
 /*-- scss:rules --*/
 p.caption {
