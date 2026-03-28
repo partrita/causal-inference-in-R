@@ -96,7 +96,7 @@ smds <- balance_metrics |>
 smds
 ```
 
-예를 들어, 위에서 티켓 시즌에 대한 *관찰된* 표준화된 평균 차이(성향 점수를 반영하기 전)는 `r smds |> filter(variable == "park_ticket_season" & method == "observed") |> pull(smd) |> round(2)`임을 볼 수 있습니다. 하지만 성향 점수 가중치를 반영한 후에는 이 수치가 감소하여 `r smds |> filter(variable == "park_ticket_season" & method == "w_ate") |> pull(smd) |> round(2)`가 되었습니다.
+예를 들어, 위에서 티켓 시즌에 대한 *관찰된* 표준화된 평균 차이(성향 점수를 반영하기 전)는 `r smds |> filter(variable == "park_ticket_season" & method == "observed") |> pull(estimate) |> round(2)`임을 볼 수 있습니다. 하지만 성향 점수 가중치를 반영한 후에는 이 수치가 감소하여 `r smds |> filter(variable == "park_ticket_season" & method == "w_ate") |> pull(estimate) |> round(2)`가 되었습니다.
 
 이 지표의 한 가지 단점은 오직 *평균*에서의 균형만을 정량화한다는 것입니다. 이는 연속형 교란 요인에 대해서는 충분하지 않을 수 있는데, 평균에서는 균형이 잡혀 있더라도 꼬리 부분에서는 심각하게 불균형할 수 있기 때문입니다.
 이 장의 끝에서 우리는 교란 요인의 전체 분포에 걸쳐 균형을 검토하기 위한 몇 가지 도구들을 보여줄 것입니다.
