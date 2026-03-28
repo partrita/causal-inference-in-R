@@ -151,8 +151,7 @@ satisfaction_strat_est <- satisfaction_strat |>
     names_from = update_frequency,
     values_from = avg_satisfaction
   ) |>
-  mutate(estimate = daily - weekly) |>
-  select(customer_type, estimate)
+  reframe(estimate = daily - weekly)
 
 satisfaction_strat_est
 ```
@@ -404,6 +403,7 @@ satisfaction3_strat |>
 
 구간의 수를 늘리면 어떻게 되는지 살펴봅시다. 아래 그림에서 우리는 구간의 수를 텍스트 예시의 5개에서 3개에서 20개 사이로 변경해 보았습니다. 구간의 수가 늘어날수록 편향이 감소하는 것을 확인할 수 있습니다. 
 
+
 ```{r}
 #| code-fold: true
 update_bins <- function(bins) {
@@ -453,6 +453,7 @@ satisfaction3 |>
 
 하지만 모든 좋은 일에는 한계가 있듯이, 구간의 수를 늘리는 데에도 한계가 있습니다. 예를 들어 구간을 30개로 늘리면 어떤 일이 일어나는지 봅시다.
 
+
 ```{r}
 satisfaction3 |>
   mutate(num_users_q = ntile(num_users, 30)) |>
@@ -470,6 +471,7 @@ satisfaction3 |>
 ```
 
 추정치가 `NA`인 이유는 일부 구간에서 노출 그룹 중 하나에 속한 사람이 아무도 없어서 그 차이를 추정할 수 없기 때문입니다. 이제 이 분석은 우리의 **긍정성(positivity)** 가정을 위배합니다. 이는 확률적(stochastic) 위배입니다; 이는 우리의 표본 크기 `r scales::comma(n)` 및 구간의 수 30개와 관련이 있습니다. 우연히 30개 구간 중 적어도 하나에서 노출 그룹 중 하나에 아무도 속하지 않게 되었고, 이로 인해 인과 효과를 추정할 수 없게 된 것입니다. 이 비모수적 방법은 유연하지만 표본 크기에 따른 한계가 있습니다. 모수적 모델(parametric models)은 특정 가정 하에 외삽(extrapolate)을 가능하게 해주므로 더 효율적이라는 장점이 있습니다(우리의 가정이 옳다는 전제 하에 말이죠. @sec-parametric 에서 더 자세히 배워봅시다). 
+
 
 
 :::
@@ -752,7 +754,7 @@ plot_estimates <- function(d) {
     )) |>
     filter(term == "update_frequency") |>
     mutate(model = "조정하지 않음")
-  
+
   adj_model <- lm(
     satisfaction ~ update_frequency + business_hours +
       customer_type,
@@ -766,12 +768,12 @@ plot_estimates <- function(d) {
     )) |>
     filter(term == "update_frequency") |>
     mutate(model = "직접 조정")
-  
+
   df <- d |>
     mutate(across(where(is.factor), as.integer)) |>
     mutate(update_frequency = update_frequency - 1) |>
     as.data.frame()
-  
+
   x <- PSW::psw(
     df,
     "update_frequency ~ business_hours + customer_type",
@@ -789,7 +791,7 @@ plot_estimates <- function(d) {
     p.value = NA,
     model = "역확률 가중치 부여"
   )
-  
+
   models <- bind_rows(unadj_model, adj_model, psw_model) |>
     mutate(model = factor(
       model,
@@ -799,7 +801,7 @@ plot_estimates <- function(d) {
         "역확률 가중치 부여"
       )
     ))
-  
+
   models |>
     select(model, estimate, std.error, starts_with("conf")) |>
     pivot_longer(

@@ -139,7 +139,9 @@ fit_extra_magic <- glm(
 # wait_minutes_posted_avg에 대한 선형 모델
 fit_wait_minutes <- lm(
   wait_minutes_posted_avg ~
-    park_extra_magic_morning + park_ticket_season + park_close +
+    park_extra_magic_morning +
+    park_ticket_season +
+    park_close +
     park_temperature_high,
   data = seven_dwarfs_9
 )
@@ -360,10 +362,14 @@ compute_stats <- function(sim_obj) {
   exposure_val <- sim_obj |>
     pluck("contrast", 1)
 
-  control_val <- sim_obj |>
-    pluck("contrast", 2)
+# ATT: average over exposed observations only
+avg_comparisons(
+  gcomp_model,
+  variables = "park_extra_magic_morning",
+  newdata = filter(seven_dwarfs_9, park_extra_magic_morning == 1)
+)
 
-  sim_obj |>
+sim_obj |>
     pluck("df_outcome") |>
     group_by(wait_minutes_posted_avg) |>
     summarize(avg_wait_actual = mean(wait_minutes_actual_avg)) |>
@@ -396,7 +402,6 @@ nine <- seven_dwarfs_train_2018 |>
 wait_times <- eight |>
   left_join(nine, by = "park_date") |>
   drop_na(wait_minutes_actual_avg)
-
 # 모든 것이 계획대로 작동하는지 확인하기 위해 단일 점 추정치를 구합니다
 wait_times |>
   fit_models() |>

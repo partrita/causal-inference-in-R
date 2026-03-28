@@ -63,7 +63,6 @@ dag_plot +
 ```
 
 이제 이 데이터에 대한 몇 가지 탐색적 분석을 마쳤으니, 이 질문에 어떻게 답해야 할까요? 우리는 @sec-dags 를 통해 닫아야 할 세 개의 백도어 경로가 있음을 알고 있습니다. 각 경로에는 하나의 변수가 있으며, 결과적으로 세 개의 교란 요인이 존재합니다: 그날의 과거 최고 기온, 공원 폐쇄 시간, 그리고 티켓 시즌(비수기, 평수기, 성수기)입니다.
-
 또한 우리는 이 경로들을 닫을 수 있는 여러 가지 방법이 있다는 것도 알고 있습니다. 층화(stratification)는 차원의 저주(curse of dimensionality) 때문에 여기서 좋은 해결책이 아니므로, 통계 모델을 사용하는 것이 좋습니다. 하지만 어떤 관계를 모델링해야 할까요? @fig-dag-close-paths-1 , @fig-dag-close-paths-2 , @fig-dag-close-paths-3 을 고려해 보십시오.
 
 ```{r}
@@ -305,7 +304,7 @@ seven_dwarfs_9_with_ps |>
   mutate(
     support = case_when(
       park_extra_magic_morning == 0 &
-        .fitted < min(.fitted[park_extra_magic_morning == 1]) ~ "비노출군_범위미만",
+.fitted < min(.fitted[park_extra_magic_morning == 1]) ~ "비노출군_범위미만",
       park_extra_magic_morning == 1 & 
         .fitted > max(.fitted[park_extra_magic_morning == 0]) ~ "노출군_범위초과",
       .default = "공통_지지_영역내",

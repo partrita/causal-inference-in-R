@@ -52,32 +52,47 @@ smds <- tidy_smd(
 library(broom)
 library(touringplans)
 library(propensity)
+library(halfmoon)
 
 seven_dwarfs_9 <- seven_dwarfs_train_2018 |> filter(wait_hour == 9)
 
 seven_dwarfs_9_with_ps <-
   glm(
-    park_extra_magic_morning ~ park_ticket_season + park_close + park_temperature_high,
+    park_extra_magic_morning ~
+      park_ticket_season + park_close + park_temperature_high,
     data = seven_dwarfs_9,
     family = binomial()
-  ) |>
+ ) |>
   augment(type.predict = "response", data = seven_dwarfs_9)
 seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
-  mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
+  mutate(
+    w_ate = wt_ate(.fitted, park_extra_magic_morning),
+    park_extra_magic_morning = factor(park_extra_magic_morning)
+ )
 ```
 
 이제 `tidy_smd` 함수를 사용하여 가중치 부여 전후의 표준화된 평균 차이를 검토해 보겠습니다.
 
 ```{r}
 library(halfmoon)
-smds <-
+balance_metrics <-
   seven_dwarfs_9_with_wt |>
   mutate(park_close = as.numeric(park_close)) |>
-  tidy_smd(
+  check_balance(
     .vars = c(park_ticket_season, park_close, park_temperature_high),
-    .group = park_extra_magic_morning,
-    .wts = w_ate
-  )
+    .exposure = park_extra_magic_morning,
+    .weights = w_ate
+ )
+
+balance_metrics
+```
+
+`check_balance()` also calculates other metrics, but we will focus on the standardized mean difference for now.
+
+```{r}
+smds <- balance_metrics |>
+  filter(metric == "smd")
+
 smds
 ```
 
@@ -100,11 +115,11 @@ smds
 ggplot(
   data = smds,
   aes(
-    x = abs(smd),
+    x = abs(estimate),
     y = variable,
     group = method,
     color = method
-  )
+ )
 ) +
   geom_love()
 ```
@@ -126,13 +141,18 @@ ggplot(
   aes(
     x = factor(park_extra_magic_morning),
     y = park_temperature_high,
-    group = park_extra_magic_morning
-  )
+    color = park_extra_magic_morning
+ )
 ) +
-  geom_boxplot(outlier.color = NA) +
-  geom_jitter() +
+  geom_jitter(width = .12, height = 0, alpha = .5) +
+  geom_boxplot(
+    outlier.color = NA,
+    fill = NA,
+    width = .3,
+    color = "black"
+ ) +
   labs(
-    x = "엑스트라 매직 아워",
+x = "엑스트라 매직 아워",
     y = "최고 기온"
   )
 ```
@@ -148,14 +168,19 @@ ggplot(
   aes(
     x = factor(park_extra_magic_morning),
     y = park_temperature_high,
-    group = park_extra_magic_morning,
+    color = park_extra_magic_morning,
     weight = w_ate
-  )
+ )
 ) +
-  geom_boxplot(outlier.color = NA) +
-  geom_jitter() +
+  geom_jitter(width = .12, height = 0, alpha = .5) +
+  geom_boxplot(
+    outlier.color = NA,
+    fill = NA,
+    width = .3,
+    color = "black"
+ ) +
   labs(
-    x = "엑스트라 매직 아워",
+x = "엑스트라 매직 아워",
     y = "과거 최고 기온"
   )
 ```
@@ -172,10 +197,10 @@ ggplot(
   aes(
     x = park_temperature_high,
     color = factor(park_extra_magic_morning)
-  )
+ )
 ) +
   geom_ecdf() +
-  scale_color_manual(
+scale_color_manual(
     "엑스트라 매직 아워",
     values = c("#5154B8", "#5DB854"),
     labels = c("있음", "없음")
@@ -197,10 +222,10 @@ ggplot(
   aes(
     x = park_temperature_high,
     color = factor(park_extra_magic_morning)
-  )
+ )
 ) +
   geom_ecdf(aes(weights = w_ate)) +
-  scale_color_manual(
+scale_color_manual(
     "엑스트라 매직 아워",
     values = c("#5154B8", "#5DB854"),
     labels = c("있음", "없음")
@@ -231,10 +256,10 @@ ggplot(
 seven_dwarfs_9_with_ps <-
   glm(
     park_extra_magic_morning ~ park_ticket_season + park_close +
-      splines::ns(park_temperature_high, df = 5), # 스플라인을 사용하여 모델 재적합
+splines::ns(park_temperature_high, df = 5), # 스플라인을 사용하여 모델 재적합
     data = seven_dwarfs_9,
     family = binomial()
-  ) |>
+ ) |>
   augment(type.predict = "response", data = seven_dwarfs_9)
 seven_dwarfs_9_with_wt <- seven_dwarfs_9_with_ps |>
   mutate(w_ate = wt_ate(.fitted, park_extra_magic_morning))
@@ -251,10 +276,10 @@ ggplot(
   aes(
     x = park_temperature_high,
     color = factor(park_extra_magic_morning)
-  )
+ )
 ) +
   geom_ecdf(aes(weights = w_ate)) +
-  scale_color_manual(
+scale_color_manual(
     "엑스트라 매직 아워",
     values = c("#5154B8", "#5DB854"),
     labels = c("있음", "없음")
@@ -282,7 +307,6 @@ ggplot(
 예를 들어, 그 관계가 선형인지 모를 수 있습니다.
 이 관계를 잘못 명시하면 잔차 교란(residual confounding)이 발생할 수 있습니다: 해당 교란 요인을 부분적으로만 통제하게 되어 추정치에 약간의 편향이 남게 될 수 있습니다.
 예측 중심의 지표들을 사용하여 다양한 함수 형태를 테스트하는 것은 모델의 정확도를 높이는 데 도움이 될 수 있으며, 잠재적으로 더 나은 통제를 가능하게 합니다.
-
 
 ::: callout-note
 ## 인과 모델을 과적합(overfit)시킬 수 있나요?
@@ -315,3 +339,66 @@ ggplot(
 
 실무적으로는, 과적합을 줄이는 기술인 교차 검증(cross-validation)이 머신러닝을 사용하는 인과 모델에서 자주 사용되며, 이에 대해서는 [Chapter -@sec-causal-ml] 에서 논의할 것입니다.
 :::
+
+### Matching and the propensity score paradox
+
+A quirk of propensity score matching is that, after we've achieved good balance, if we *continue* to prune matches, we will see the opposite effect: we *increase* imbalance.
+The reason for this is that, with propensity score matching, after we've achieved balance, there is no good reason to prefer one match over another in terms of pruning; pruning becomes random.
+The problem is that we are more likely to remove well-matched pairs than to maintain balance.
+
+In @fig-ps-paradox-caliper, we see that as we tighten the caliper (resulting in fewer matched pairs), we first improve balance, then, as the caliper approaches zero, we worsen balance.
+
+```{r}
+#| label: fig-ps-paradox-caliper
+#| fig-cap: "Balance metrics across different caliper widths in propensity score matching, demonstrating the propensity score paradox."
+#| code-fold: true
+library(MatchIt)
+caliper_widths <- c(0.25, 0.1, 0.05, 0.025, 0.01)
+
+check_balance_by_cal <- function(caliper) {
+  match_obj <- matchit(
+    park_extra_magic_morning ~
+      park_ticket_season + park_close + park_temperature_high,
+    data = seven_dwarfs_9,
+    method = "nearest",
+    caliper = caliper,
+    distance = "glm"
+ )
+
+  matched_data <- match.data(match_obj)
+
+  balance <- matched_data |>
+    mutate(park_close = as.numeric(park_close)) |>
+    check_balance(
+      .vars = c(park_ticket_season, park_close, park_temperature_high),
+      .exposure = park_extra_magic_morning
+ )
+
+  balance |>
+    filter(metric == "smd") |>
+    mutate(
+      caliper = caliper,
+      n_matched = nrow(matched_data)
+ )
+}
+
+balance_by_caliper <- map(caliper_widths, check_balance_by_cal) |>
+  bind_rows()
+
+ggplot(
+  balance_by_caliper,
+  aes(x = caliper, y = abs(estimate), color = variable)
+) +
+  geom_line() +
+  geom_point() +
+  scale_x_reverse() +
+  labs(
+    x = "caliper",
+    y = "smd"
+ ) +
+  theme(legend.position = "right")
+```
+
+In practice, the propensity score paradox is not such a big deal, for two reasons: first, for many data sets, you will see improved balance by pruning matches well before you start to encounter the paradox.
+Second, if we start to see that a caliper is too stringent and is worsening balance, we can simply use a less strict caliper.
+That said, some other matching algorithms, such as coarsened exact matching and Mahalanobis distance matching---both available in MatchIt---don't suffer from this problem and may be worth considering if you are encountering the paradox but feel you need to continue pruning.

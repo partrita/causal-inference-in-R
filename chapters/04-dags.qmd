@@ -511,7 +511,7 @@ podcast_dag <- dagify(
     prepared = "준비 상태"
   )
 )
-ggdag(podcast_dag, use_labels = "label", text = FALSE) +
+ggdag(podcast_dag, use_labels = TRUE, use_text = FALSE) +
   theme_dag()
 ```
 
@@ -597,7 +597,7 @@ pod_dag |>
 #| fig-cap: "`ggdag_paths()`는 DAG의 열린 경로들을 시각화합니다. `podcast_dag`에는 두 개의 열린 경로가 있습니다: `mood`로부터의 포크와 `prepared`로부터의 포크입니다."
 podcast_dag |>
   # 경로뿐만 아니라 전체 DAG를 연한 회색 "그림자"로 보여줍니다
-  ggdag_paths(shadow = TRUE, text = FALSE, use_labels = "label")
+  ggdag_paths(shadow = TRUE, use_text = FALSE, use_labels = TRUE)
 ```
 
 ::: callout-tip
@@ -645,8 +645,8 @@ podcast_dag_tidy |>
 #| fig-cap: "팟캐스트-시험 DAG에 대한 최소 조정 집합의 시각화. 이 DAG가 옳다면, 백도어 경로를 차단하기 위해 `mood`와 `prepared`라는 두 변수가 필요합니다."
 ggdag_adjustment_set(
   podcast_dag,
-  text = FALSE,
-  use_labels = "label"
+  use_text = FALSE,
+  use_labels = TRUE
 )
 ```
 
@@ -701,8 +701,8 @@ ggdag에서 사용할 수 있는 다른 두 가지 옵션은 **전체 조정 집
 #| fig-cap: "`podcast_dag`에 대한 모든 유효한 조정 집합."
 ggdag_adjustment_set(
   podcast_dag,
-  text = FALSE,
-  use_labels = "label",
+  use_text = FALSE,
+  use_labels = TRUE,
   # 모든 조정 집합 가져오기
   type = "all"
 )
@@ -800,7 +800,7 @@ podcast_dag_wrong <- dagify(
     prepared = "준비 상태"
   )
 )
-ggdag(podcast_dag_wrong, use_labels = "label", text = FALSE) +
+ggdag(podcast_dag_wrong, use_labels = TRUE, use_text = FALSE) +
   theme_dag()
 ```
 
@@ -877,7 +877,7 @@ podcast_dag2 <- dagify(
   )
 )
 
-ggdag(podcast_dag2, use_labels = "label", text = FALSE)
+ggdag(podcast_dag2, use_labels = TRUE, use_text = FALSE)
 ```
 
 ```{r}
@@ -892,8 +892,9 @@ adj_sets <- glue::glue("`{adj_sets}`")
 ```{r}
 #| label: fig-podcast_dag2-paths
 #| fig-width: 11
+#| fig-height: 4.5
 #| fig-cap: "`podcast_dag2`에 있는 세 개의 열린 경로. `podcast`가 `exam`에 미치는 효과가 없으므로, 정확한 효과를 얻기 위해서는 이 세 개의 백도어 경로를 모두 닫아야 합니다."
-ggdag_paths(podcast_dag2, use_labels = "label", text = FALSE, shadow = TRUE)
+ggdag_paths(podcast_dag2, use_labels = TRUE, use_text = FALSE, shadow = TRUE)
 ```
 세 경로를 모두 닫기 위한 네 개의 최소 조정 집합이 있습니다(그리고 전체 조정 집합은 18개나 됩니다!).
 최소 조정 집합은 `r adj_sets`입니다.
@@ -906,7 +907,8 @@ ggdag_paths(podcast_dag2, use_labels = "label", text = FALSE, shadow = TRUE)
 #| label: fig-podcast_dag2-as
 #| fig-cap: "@fig-podcast_dag2-paths 의 백도어 경로들을 닫아줄 유효한 최소 조정 집합들."
 #| fig-height: 8
-ggdag_adjustment_set(podcast_dag2, use_labels = "label", text = FALSE)
+#| fig-cap: "@fig-podcast_dag2-paths 의 백도어 경로들을 닫아줄 유효한 최소 조정 집합들."
+ggdag_adjustment_set(podcast_dag2, use_labels = TRUE, use_text = FALSE)
 ```
 이러한 조정 집합들 중에서 선택하는 것은 판단의 문제입니다: 만약 모든 데이터가 완벽하게 측정되었고, DAG가 옳으며, 우리가 그것들을 올바르게 모델링했다면, 어떤 것을 사용하든 상관없습니다.
 각 조정 집합은 편향되지 않은 추정치를 제공할 것입니다.
@@ -956,7 +958,7 @@ podcast_dag3 <- dagify(
     showed_up = "시험 응시 여부"
   )
 )
-ggdag(podcast_dag3, use_labels = "label", text = FALSE)
+ggdag(podcast_dag3, use_labels = TRUE, use_text = FALSE)
 ```
 문제는 `showed_up`이 콜라이더이자 매개 요인이라는 점입니다: 이 변수에 대해 층화하는 것은 DAG의 많은 변수들 사이에 관계를 유발하지만, `podcast`가 `exam`에 미치는 간접 효과를 차단합니다.
 다행히 조정 집합이 첫 번째 문제를 처리할 수 있습니다; `showed_up`이 `exam` *보다 먼저* 일어나기 때문에, 노출과 결과 사이의 콜라이더 편향 위험이 적습니다.
@@ -969,7 +971,7 @@ ggdag(podcast_dag3, use_labels = "label", text = FALSE)
 #| fig-cap: "데이터가 본질적으로 시험 응시 여부에 조건부화되어 있다는 점을 감안할 때 `podcast_dag3`에 대한 조정 집합. 이 경우, `podcast`가 `exam`에 미치는 총 효과에 대해 편향되지 않은 추정치를 복구할 방법이 없습니다."
 podcast_dag3 |>
   adjust_for("showed_up") |>
-  ggdag_adjustment_set(text = FALSE, use_labels = "label")
+  ggdag_adjustment_set(use_text = FALSE, use_labels = TRUE)
 ```
 
 이런 상황에서도 여러분이 추정하고자 하는 추정 대상을 변경함으로써 여전히 효과를 추정할 수 있는 경우가 있습니다.
@@ -982,7 +984,7 @@ podcast_dag3 |>
 #| fig-cap: "다른 효과를 목표로 할 때 `podcast_dag3`에 대한 조정 집합. `podcast`가 `exam`에 미치는 직접 효과를 추정하기 위해 사용할 수 있는 하나의 최소 조정 집합이 있습니다."
 podcast_dag3 |>
   adjust_for("showed_up") |>
-  ggdag_adjustment_set(effect = "direct", text = FALSE, use_labels = "label")
+  ggdag_adjustment_set(effect = "direct", use_text = FALSE, use_labels = TRUE)
 ```
 
 #### M-편향(M-Bias) 및 나비 편향(Butterfly Bias) {#sec-m-bias}
@@ -1044,7 +1046,7 @@ podcast_dag4 <- dagify(
   latent = c("u1", "u2")
 )
 
-ggdag(podcast_dag4, use_labels = "label", text = FALSE)
+ggdag(podcast_dag4, use_labels = TRUE, use_text = FALSE)
 ```
 
 문제는 우리의 원래 DAG가 맞다고 생각할 때 발생합니다: `mood`가 조정 집합에 포함되어 있어서 이를 통제하게 됩니다.
@@ -1061,7 +1063,7 @@ ggdag(podcast_dag4, use_labels = "label", text = FALSE)
 #| fig-cap: "`mood`가 콜라이더인 경우의 조정 집합. 만약 우리가 `mood`를 통제하면서 `mood`를 유발하는 측정되지 않은 원인들에 대해 모르거나 가지고 있지 않다면, 콜라이더를 조정함으로써 열린 백도어 경로를 닫을 방법이 없습니다."
 podcast_dag4 |>
   adjust_for("mood") |>
-  ggdag_adjustment_set(use_labels = "label", text = FALSE)
+  ggdag_adjustment_set(use_labels = TRUE, use_text = FALSE)
 ```
 
 물론 여기서 가장 좋은 것은 `mood`를 전혀 통제하지 않는 것입니다.
@@ -1078,7 +1080,7 @@ podcast_dag4 |>
 #| fig-height: 4
 #| fig-cap: "나비 편향에서 `mood`는 콜라이더이자 교란 요인입니다. `mood`에 의한 편향을 통제하는 것은 콜라이더를 조건부화했기 때문에 새로운 경로를 열게 됩니다. 우리는 `u1`이나 `u2` 없이는 모든 백도어 경로를 적절히 닫을 수 없습니다."
 butterfly_bias(x = "podcast", y = "exam", m = "mood", a = "u1", b = "u2") |>
-  ggdag(text = FALSE, use_labels = "label")
+  ggdag(use_text = FALSE, use_labels = TRUE)
 ```
 
 이제 우리는 어려운 상황에 처해 있습니다: `mood`가 교란 요인이기 때문에 통제해야 하지만, `mood`를 통제하면 `u1`에서 `u2`로 가는 경로가 열립니다.
@@ -1123,7 +1125,7 @@ podcast_dag5 <- dagify(
     grader_mood = "채점자의 기분"
   )
 )
-ggdag(podcast_dag5, use_labels = "label", text = FALSE)
+ggdag(podcast_dag5, use_labels = TRUE, use_text = FALSE)
 ```
 
 이제 노출과 결과 *둘 다*와 관련되지는 않은 두 개의 변수가 있습니다: `podcast`를 유발하지만 `exam`은 유발하지 않는 `humor`, 그리고 `exam`을 유발하지만 `podcast`는 유발하지 않는 `grader_mood`입니다.
@@ -1190,7 +1192,7 @@ error_dag <- dagify(
 )
 
 error_dag |>
-  ggdag(text = FALSE, use_labels = "label")
+  ggdag(use_text = FALSE, use_labels = TRUE)
 ```
 
 ## DAG 구축을 위한 권장 사항
@@ -1322,7 +1324,7 @@ dagify(
   global_temp ~ ac_use,
   labels = c(ac_use = "에어컨 사용", global_temp = "지구 기온")
 ) |>
-  ggdag(layout = "circle", edge_type = "arc", text = FALSE, use_labels = "label")
+  ggdag(layout = "circle", edge_type = "arc", use_text = FALSE, use_labels = TRUE)
 ```
 
 DAG의 관점에서 볼 때, 이것은 *DAG*의 *A*(비순환) 부분 때문에 문제가 됩니다: 그것은 순환적입니다!
@@ -1356,7 +1358,7 @@ dagify(
     global_temp_2020 = "지구 기온\n(2020)"
   )
 ) |>
-  ggdag(text = FALSE, use_labels = "label")
+  ggdag(use_text = FALSE, use_labels = TRUE)
 ```
 
 두 변수는 피드*백* 루프에 있는 것이 아니라, 실제로는 피드*포워드* 루프에 있습니다: 그들은 시간에 따라 함께 진화합니다.
@@ -1376,6 +1378,65 @@ dagify(
 추가적인 변수들을 통제해야 할까요?
 추정하고자 하는 효과를 변경해야 할까요?
 그 질문에 답하는 것이 아예 가능하기는 할까요?
+
+<!-- TODO: revisit this after I've thought it through a bit more -->
+
+<!-- Let's consider an example: workers at a factory are potentially exposed to something (e.g., a carcinogenic) that may increase their risk of dying. Some workers are exposed, and some are not. The problem is that exposure *prior* to the study resulted in only those healthy enough to work being present at the start of the study. If there is another factor, say some important aspect of the worker's health, that also contributes to whether or not they are at work, we have selection bias. We are inherently stratifying on whether or not someone is at work. -->
+
+<!-- ```{r} -->
+
+<!-- dagify( -->
+
+<!--     death ~ health, -->
+
+<!--     exposed ~ exposed_prior + at_work, -->
+
+<!--     at_work ~ exposed_prior + health, -->
+
+<!--     exposure = "exposed", -->
+
+<!--     outcome = "death", -->
+
+<!--     latent = c("health", "exposed_prior"), -->
+
+<!--     coords = time_ordered_coords(list( -->
+
+<!--         c("health", "exposed_prior"), -->
+
+<!--         "at_work", -->
+
+<!-- "exposed", -->
+
+<!--         "death" -->
+
+<!--     )), -->
+
+<!--     labels = c( -->
+
+<!--         exposed_prior = "Exposed\n(prior)", -->
+
+<!--         exposed = "Exposed\n(start)", -->
+
+<!--         at_work = "Working", -->
+
+<!--         health = "Health\nStatus", -->
+
+<!--         death = "Death" -->
+
+<!--     ) -->
+
+<!-- ) |>  -->
+
+<!--   ggdag(use_text = FALSE, use_labels = TRUE) -->
+
+<!-- ``` -->
+
+<!-- `at_work` is a collider: both health status and prior exposure have arrows going into it. Controlling for it induces a ... -->
+
+<!-- -   race/shooting (show the `effect` argument of `adjustmentSets` to get direct effect) -->
+
+<!-- -   healthy worker bias -->
+
 
 ::: callout-tip
 ## 환자-대조군 연구는 어떤가요?
@@ -1582,7 +1643,7 @@ podcast_dag_pruned <- dagify(
   )
 )
 
-ggdag(podcast_dag_pruned, text = FALSE, use_labels = "label")
+ggdag(podcast_dag_pruned, use_text = FALSE, use_labels = TRUE)
 ```
 
 이 DAG가 더 합리적으로 보입니다.
