@@ -1,21 +1,20 @@
+### 시간 가변적 설정
 
-### Time-varying Settings
+모수적 g-공식은 노출, 공변량, 결과가 시간에 따라 변화하는 시나리오로 자연스럽게 확장될 수 있습니다. 이는 다음과 같은 일련의 단계를 통해 구현됩니다:
 
-The parameteric g-formula can naturally extend to scenarios when the exposure, covariates, and outcomes change over time. It is implemented through the following sequence of steps:
+1. 적절한 DAG를 그려 변수들의 시간적 구조를 설계합니다. 이를 통해 기초 공변량, 시간 가변적 공변량, 처치, 결과의 순서를 명시합니다.
 
-1. The time-ordered structure of the variables is laid out by drawing the appropriate DAG, which makes explicit the ordering of baseline covariates, time-varying covariates, treatment, and outcome.
+2. 기초 시점 이후의 각 시점에 대해, 시간이 지남에 따라 값이 진화하는 모든 변수에 대한 모수적 모델을 지정합니다. 각 모델은 해당 시점의 변수를 그래프에서 그보다 앞선 변수들의 함수로 표현합니다. 연속형 변수에는 선형 모델이, 이진 변수에는 로지스틱 회귀가 일반적으로 사용되지만, 적절한 모수적 사양이라면 무엇이든 사용할 수 있습니다.
 
-2. For each time point after baseline, a parametric model is specified for every variable whose value evolves over time. Each model expresses the variable at that moment as a function of the variables that precede it in the graph. Linear models are commonly used for continuous variables and logistic regressions for binary variables, although any suitable parametric specification can be used.
+3. 각 개인의 관찰된 기초 공변량을 사용하여, 적합된 모델을 통해 시간 가변적 교란 요인과 결과의 예측값을 순차적으로 생성합니다. 각 시점에서 노출은 관찰되거나 예측된 값 대신 평가하고자 하는 개입 체계에 따라 설정됩니다. 한 시점의 예측값은 다음 시점 모델의 입력값이 되어 개입의 효과를 시간의 흐름에 따라 전파시킵니다.
 
-3. Using the observed baseline covariates for each individual, predicted values for time-varying confounders and outcomes are generated sequentially using the fitted models. At each time point, the exposure is set according to the intervention regime being evaluated (rather than using its observed or predicted value). Predictions from one time point become inputs to the model for the next time point, propagating the intervention's effects forward through time.
+4. 개입 하에서 예측된 결과들을 표본의 모든 개인에 대해 평균하여 해당 개입 체계 하에서의 기대 결과를 얻습니다. 이 과정은 관심 있는 각 개입(노출이 관찰된 값으로 유지되는 자연적 경과 포함)에 대해 반복됩니다. 이러한 평균들을 비교함으로써 원하는 인과적 대조를 얻을 수 있습니다.
 
-4. The predicted outcomes under the intervention are averaged across all individuals in the sample to obtain the expected outcome under that intervention regime. This process is repeated for each intervention of interest (including the natural course where exposures remain at their observed values). The desired causal contrast is obtained by comparing these averages.
+일곱 난쟁이 광산 열차(Seven Dwarfs Mine Train) 데이터로 돌아가서, 공원 측이 오전 8시의 게시된 대기 시간이 30분을 넘지 않도록 보장하는 운영 정책을 고려하고 있다고 가정해 봅시다. 이른 아침의 게시된 대기 시간은 대기 줄이 얼마나 빨리 쌓이는지에 영향을 미치므로, 이 정책은 오전 늦은 시간의 혼잡도에 영향을 줄 것으로 예상됩니다. 따라서 우리는 다음과 같은 질문을 던집니다:
 
-Returning to the Seven Dwarfs Mine Train data, suppose the park is considering an operational policy that guarantees the posted wait at 8am never exceeds thirty minutes. The policy is expected to influence congestion later in the morning, since the early-morning posted wait affects how quickly queues accumulate. We therefore pose the following question:
+> 모든 공원 날짜에 대해 오전 8시의 게시된 대기 시간을 30분으로 설정했다면, 실제 관찰된 결과와 비교했을 때 오전 10시의 평균 실제 대기 시간은 어떻게 되었을까요?
 
-> What would the average actual wait time at 10am have been if, for every park date, the posted wait at 8am were set to thirty minutes, compared with what was actually observed?
-
-Below is a proposed DAG to answer this causal question.
+다음은 이 인과적 질문에 답하기 위해 제안된 DAG입니다.
 
 ```{r}
 #| label: fig-dag-morning-waits
@@ -23,10 +22,9 @@ Below is a proposed DAG to answer this causal question.
 #| message: false
 #| warning: false
 #| fig.cap: >
-#|   Time-ordered DAG representing the effect of setting the 8am posted wait
-#|   to a fixed value on the actual wait at 10am. Baseline covariates influence
-#|   each wait time; the posted wait at 8am influences the posted wait at 9am,
-#|   and both influence the actual wait at 10am.
+#|   오전 8시의 게시된 대기 시간을 고정된 값으로 설정했을 때 오전 10시의 실제 대기 시간에 미치는 효과를 나타내는 시간 순서 DAG입니다. 
+#|   기초 공변량은 각 대기 시간에 영향을 미칩니다. 오전 8시의 게시된 대기 시간은 오전 9시의 게시된 대기 시간에 영향을 미치며, 
+#|   두 시간대 모두 오전 10시의 실제 대기 시간에 영향을 미칩니다.
 
 library(ggdag)
 library(ggokabeito)
@@ -39,12 +37,12 @@ coord_dag <- list(
 )
 
 labels <- c(
-  Season = "Ticket Season",
-  weather = "Historic high temperature",
-  close   = "Time park closed",
-  wait8   = "8am posted wait",
-  wait9   = "9am posted wait",
-  wait10  = "10am actual wait"
+  Season = "티켓 시즌",
+  weather = "역대 최고 기온",
+  close   = "공원 폐장 시간",
+  wait8   = "오전 8시 게시 대기 시간",
+  wait9   = "오전 9시 게시 대기 시간",
+  wait10  = "오전 10시 실제 대기 시간"
 )
 
 dagify(
@@ -73,17 +71,17 @@ dagify(
     limits = c(-1.5, 2.5),
     breaks = c(-1, 0, 1, 2),
     labels = c(
-      "Baseline\n(one year ago)",
-      "8am\n(today)",
-      "9am\n(today)",
-      "10am\n(today)"
+      "기초\n(1년 전)",
+      "오전 8시\n(오늘)",
+      "오전 9시\n(오늘)",
+      "오전 10시\n(오늘)"
     )
   )
 ```
 
-Because each park date includes hourly posted waits across the morning, these repeated measurements form a simple longitudinal sequence. Weather, ticket season, Extra Magic Morning, and closing time remain fixed for the date, but posted waits change from hour to hour and depend on what happened earlier. The posted wait at 8am influences the posted wait at 9am, and both influence the actual wait at 10am, so an intervention applied at 8am propagates forward through the subsequent hours.
+각 공원 날짜에는 오전 내내 시간당 게시된 대기 시간이 포함되어 있으므로, 이러한 반복 측정값은 간단한 종단적 서열을 형성합니다. 날씨, 티켓 시즌, 엑스트라 매직 모닝(Extra Magic Morning), 폐장 시간은 해당 날짜에 고정되어 있지만, 게시된 대기 시간은 시간마다 변하며 이전 시간의 상황에 의존합니다. 오전 8시의 게시된 대기 시간은 오전 9시의 게시된 대기 시간에 영향을 미치고, 두 시간대 모두 오전 10시의 실제 대기 시간에 영향을 주므로, 오전 8시에 적용된 개입은 이후 시간대로 전파됩니다.
 
-To set up this example, let's reshape the 8am and 9am posted waits so that both appear on the same row, along with the baseline park-level features.
+이 예시를 설정하기 위해, 오전 8시와 9시의 게시된 대기 시간을 기초 공원 수준 특성과 함께 동일한 행에 나타나도록 재구성해 보겠습니다.
 
 ```{r}
 df <- seven_dwarfs_train_2018 |>
@@ -103,7 +101,7 @@ wide <- df |>
   drop_na(wait_8, wait_9)
 ```
 
-To add the outcome, the 10am actual wait is merged with these data before fitting any models, so that both models are trained on the same set of dates.
+결과를 추가하기 위해, 모델을 적합하기 전에 오전 10시의 실제 대기 시간을 이 데이터와 병합하여 두 모델 모두 동일한 날짜 집합에서 훈련되도록 합니다.
 
 ```{r}
 ten <- seven_dwarfs_train_2018 |>
@@ -115,7 +113,7 @@ three <- wide |>
   drop_na(wait_minutes_actual_avg)
 ```
 
-Now let's fit the model for the posted wait, expressing its dependence on the 8am posted wait and the baseline covariates.
+이제 오전 8시의 게시된 대기 시간과 기초 공변량에 대한 의존성을 표현하는 게시된 대기 시간 모델을 적합해 보겠습니다.
 
 ```{r}
 m9 <- lm(
@@ -128,7 +126,7 @@ m9 <- lm(
 )
 ```
 
-Now let's fit a second model that describes the 10am actual wait in terms of the earlier posted waits and the same baseline confounders.
+다음으로 이전의 게시된 대기 시간들과 동일한 기초 교란 요인들을 사용하여 오전 10시의 실제 대기 시간을 설명하는 두 번째 모델을 적합합니다.
 
 ```{r}
 m10 <- lm(
@@ -142,10 +140,10 @@ m10 <- lm(
 )
 ```
 
-To evaluate an intervention, suppose that all park dates begin with an 8am posted wait of thirty minutes. The longitudinal g-formula uses the fitted models to reconstruct the rest of the morning under this counterfactual scenario. The observed data are first modified so that the 8am wait is replaced by the intervention value. The 9am posted wait is then generated from its model using this modified 8am value, and the 10am actual wait is generated from its model using both the modified 8am value and the model-based value of the 9am wait. This sequence reproduces the evolving process under the intervention.
+개입을 평가하기 위해, 모든 공원 날짜가 오전 8시 게시 대기 시간 30분으로 시작한다고 가정해 봅시다. 종단적 g-공식은 적합된 모델을 사용하여 이 반사실적 시나리오 하에서 오전의 나머지 시간을 재구성합니다. 먼저 관찰된 데이터에서 오전 8시 대기 시간을 개입 값으로 대체합니다. 그런 다음 이 수정된 오전 8시 값을 사용하여 해당 모델로부터 오전 9시 게시 대기 시간을 생성하고, 수정된 오전 8시 값과 모델 기반의 오전 9시 대기 시간 값을 모두 사용하여 해당 모델로부터 오전 10시 실제 대기 시간을 생성합니다. 이 시퀀스는 개입 하에서 진화하는 과정을 재현합니다.
 
 ```{r}
-# Observed: use observed 8am waits
+# 자연적 경과: 관찰된 오전 8시 대기 시간 사용
 natural <- three |>
   mutate(wait_9_pred = predict(m9, newdata = pick(everything()))) |>
   mutate(
@@ -153,7 +151,7 @@ natural <- three |>
       newdata = mutate(pick(everything()), wait_9 = wait_9_pred))
   )
 
-# Intervention: set all 8am waits to 30
+# 개입: 모든 오전 8시 대기 시간을 30으로 설정
 intervention <- three |>
   mutate(wait_8 = 30) |>
   mutate(wait_9_pred = predict(m9, newdata = pick(everything()))) |>
@@ -162,7 +160,7 @@ intervention <- three |>
       newdata = mutate(pick(everything()), wait_9 = wait_9_pred))
   )
 
-# Estimate causal effect
+# 인과 효과 추정
 tibble(
   natural_mean = mean(natural$wait_10_pred),
   intervention_mean = mean(intervention$wait_10_pred),
@@ -170,17 +168,17 @@ tibble(
 )
 ```
 
-The average of `wait_10` across all dates gives the estimated expected outcome under the intervention. Repeating the same procedure with the observed values of `wait_8` yields the expected outcome under the natural course. Their difference measures the effect of lowering the early-morning posted wait to thirty minutes.
+모든 날짜에 걸친 `wait_10`의 평균은 개입 하에서의 추정된 기대 결과를 제공합니다. `wait_8`의 관찰된 값을 사용하여 동일한 절차를 반복하면 자연적 경과 하에서의 기대 결과를 얻을 수 있습니다. 이 둘의 차이는 이른 아침의 게시된 대기 시간을 30분으로 낮춘 효과를 측정합니다.
 
-To estimate the uncertainty around this effect we can use the bootstrap. Following the convention outlined in @sec-bootstrap, we wrap the entire procedure (including fitting both models) into a single function. Because the intervention's effect at 10am flows through predictions from the 9am model, both models must be refit on each resample; fitting only the outcome model would produce confidence intervals that are too narrow. Here are the steps:
+이 효과 주변의 불확실성을 추정하기 위해 부트스트랩을 사용할 수 있습니다. @sec-bootstrap 에 설명된 관례에 따라, 두 모델을 적합하는 것을 포함한 전체 절차를 하나의 함수로 묶습니다. 오전 10시에서의 개입 효과는 오전 9시 모델의 예측값을 통해 흐르기 때문에, 각 재표본(resample)마다 두 모델 모두 다시 적합해야 합니다. 결과 모델만 다시 적합하면 너무 좁은 신뢰 구간이 생성될 것입니다. 단계는 다음과 같습니다:
 
-1. Create a function to run the time-varying g-formula once on a sample of your data:
+1. 데이터 샘플에 대해 시간 가변적 g-공식을 한 번 실행하는 함수를 만듭니다:
 
 ```{r}
 fit_gformula_tv <- function(.split, ...) {
   .df <- as.data.frame(.split)
 
-  # fit model for 9am posted wait
+  # 오전 9시 게시 대기 시간 모델 적합
   m9 <- lm(
     wait_9 ~ wait_8 +
       park_extra_magic_morning +
@@ -190,7 +188,7 @@ fit_gformula_tv <- function(.split, ...) {
     data = .df
   )
 
-  # fit model for 10am actual wait
+  # 오전 10시 실제 대기 시간 모델 적합
   m10 <- lm(
     wait_minutes_actual_avg ~
       wait_9 + wait_8 +
@@ -201,7 +199,7 @@ fit_gformula_tv <- function(.split, ...) {
     data = .df
   )
 
-  # natural course
+  # 자연적 경과
   natural <- .df |>
     mutate(wait_9_pred = predict(m9, newdata = pick(everything()))) |>
     mutate(
@@ -209,7 +207,7 @@ fit_gformula_tv <- function(.split, ...) {
         newdata = mutate(pick(everything()), wait_9 = wait_9_pred))
     )
 
-  # intervention: set all 8am waits to 30
+  # 개입: 모든 오전 8시 대기 시간을 30으로 설정
   intervention <- .df |>
     mutate(wait_8 = 30) |>
     mutate(wait_9_pred = predict(m9, newdata = pick(everything()))) |>
@@ -225,7 +223,7 @@ fit_gformula_tv <- function(.split, ...) {
 }
 ```
 
-2. Use {rsample} to bootstrap our causal effect:
+2. {rsample}을 사용하여 인과 효과를 부트스트랩합니다:
 
 ```{r}
 #| message: false
@@ -242,7 +240,7 @@ gformula_tv_results <- bootstrapped_dwarfs_tv |>
   mutate(boot_fits = map(splits, fit_gformula_tv))
 ```
 
-Let's look at the results.
+결과를 살펴보겠습니다.
 
 ```{r}
 gformula_tv_results |>
@@ -259,7 +257,7 @@ gformula_tv_results |>
   theme_minimal()
 ```
 
-3. Pull out the causal effect:
+3. 인과 효과를 추출합니다:
 
 ```{r}
 boot_estimate_tv <- int_pctl(gformula_tv_results, boot_fits) |>
@@ -268,4 +266,4 @@ boot_estimate_tv <- int_pctl(gformula_tv_results, boot_fits) |>
 boot_estimate_tv
 ```
 
-We estimate that setting the 8am posted wait to thirty minutes for every park date would change the average actual wait time at 10am by `r round(boot_estimate_tv$.estimate, 1)` minutes, 95% CI (`r round(boot_estimate_tv$.lower, 1)`, `r round(boot_estimate_tv$.upper, 1)`).
+모든 공원 날짜에 대해 오전 8시의 게시된 대기 시간을 30분으로 설정하면 오전 10시의 평균 실제 대기 시간이 `r round(boot_estimate_tv$.estimate, 1)`분 변할 것으로 추정되며, 95% 신뢰 구간은 (`r round(boot_estimate_tv$.lower, 1)`, `r round(boot_estimate_tv$.upper, 1)`)입니다.

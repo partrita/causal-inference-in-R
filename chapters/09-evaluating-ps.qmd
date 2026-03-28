@@ -87,7 +87,7 @@ balance_metrics <-
 balance_metrics
 ```
 
-`check_balance()` also calculates other metrics, but we will focus on the standardized mean difference for now.
+`check_balance()`는 다른 지표들도 계산하지만, 여기서는 표준화된 평균 차이에 집중하겠습니다.
 
 ```{r}
 smds <- balance_metrics |>
@@ -340,17 +340,17 @@ scale_color_manual(
 실무적으로는, 과적합을 줄이는 기술인 교차 검증(cross-validation)이 머신러닝을 사용하는 인과 모델에서 자주 사용되며, 이에 대해서는 [Chapter -@sec-causal-ml] 에서 논의할 것입니다.
 :::
 
-### Matching and the propensity score paradox
+### 매칭과 성향 점수 역설 (Matching and the propensity score paradox)
 
-A quirk of propensity score matching is that, after we've achieved good balance, if we *continue* to prune matches, we will see the opposite effect: we *increase* imbalance.
-The reason for this is that, with propensity score matching, after we've achieved balance, there is no good reason to prefer one match over another in terms of pruning; pruning becomes random.
-The problem is that we are more likely to remove well-matched pairs than to maintain balance.
+성향 점수 매칭의 한 가지 특이한 점은, 충분한 균형을 달성한 후에도 매칭을 *계속해서* 솎아내면(pruning) 반대의 효과가 나타난다는 것입니다. 즉, 불균형이 오히려 *증가*하게 됩니다.
+그 이유는 성향 점수 매칭의 경우 균형이 달성된 후에는 솎아내기 관점에서 어떤 매칭을 다른 매칭보다 선호해야 할 타당한 이유가 없기 때문입니다. 즉, 솎아내기가 무작위적으로 변하게 됩니다.
+문제는 균형을 유지하기보다 잘 매칭된 쌍들을 제거할 가능성이 더 커진다는 것입니다.
 
-In @fig-ps-paradox-caliper, we see that as we tighten the caliper (resulting in fewer matched pairs), we first improve balance, then, as the caliper approaches zero, we worsen balance.
+@fig-ps-paradox-caliper 를 보면 캘리퍼(caliper)를 좁힐수록(매칭된 쌍의 수가 줄어듦에 따라) 처음에는 균형이 개선되다가, 캘리퍼가 0에 가까워지면 균형이 악화되는 것을 볼 수 있습니다.
 
 ```{r}
 #| label: fig-ps-paradox-caliper
-#| fig-cap: "Balance metrics across different caliper widths in propensity score matching, demonstrating the propensity score paradox."
+#| fig-cap: "성향 점수 매칭에서 다양한 캘리퍼 너비에 따른 균형 지표. 성향 점수 역설을 보여줍니다."
 #| code-fold: true
 library(MatchIt)
 caliper_widths <- c(0.25, 0.1, 0.05, 0.025, 0.01)
@@ -399,6 +399,6 @@ ggplot(
   theme(legend.position = "right")
 ```
 
-In practice, the propensity score paradox is not such a big deal, for two reasons: first, for many data sets, you will see improved balance by pruning matches well before you start to encounter the paradox.
-Second, if we start to see that a caliper is too stringent and is worsening balance, we can simply use a less strict caliper.
-That said, some other matching algorithms, such as coarsened exact matching and Mahalanobis distance matching---both available in MatchIt---don't suffer from this problem and may be worth considering if you are encountering the paradox but feel you need to continue pruning.
+실무적으로 성향 점수 역설은 두 가지 이유로 그리 큰 문제가 되지 않습니다. 첫째, 많은 데이터셋에서 역설이 발생하기 훨씬 전에 매칭을 솎아냄으로써 균형이 개선되는 것을 확인할 수 있습니다.
+둘째, 만약 캘리퍼가 너무 엄격하여 균형을 악화시킨다는 것을 알게 된다면, 간단히 덜 엄격한 캘리퍼를 사용하면 됩니다.
+그렇긴 하지만, `{MatchIt}`에서 사용할 수 있는 거친 정확 매칭(coarsened exact matching)이나 마할라노비스 거리 매칭(Mahalanobis distance matching)과 같은 다른 매칭 알고리즘들은 이러한 문제를 겪지 않으므로, 만약 역설이 발생하고 있지만 계속해서 솎아내기가 필요하다고 느껴진다면 고려해 볼 만한 대안입니다.
