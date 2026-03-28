@@ -907,7 +907,6 @@ ggdag_paths(podcast_dag2, use_labels = TRUE, use_text = FALSE, shadow = TRUE)
 #| label: fig-podcast_dag2-as
 #| fig-cap: "@fig-podcast_dag2-paths 의 백도어 경로들을 닫아줄 유효한 최소 조정 집합들."
 #| fig-height: 8
-#| fig-cap: "@fig-podcast_dag2-paths 의 백도어 경로들을 닫아줄 유효한 최소 조정 집합들."
 ggdag_adjustment_set(podcast_dag2, use_labels = TRUE, use_text = FALSE)
 ```
 이러한 조정 집합들 중에서 선택하는 것은 판단의 문제입니다: 만약 모든 데이터가 완벽하게 측정되었고, DAG가 옳으며, 우리가 그것들을 올바르게 모델링했다면, 어떤 것을 사용하든 상관없습니다.
