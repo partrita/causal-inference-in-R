@@ -362,14 +362,7 @@ compute_stats <- function(sim_obj) {
   exposure_val <- sim_obj |>
     pluck("contrast", 1)
 
-# ATT: average over exposed observations only
-avg_comparisons(
-  gcomp_model,
-  variables = "park_extra_magic_morning",
-  newdata = filter(seven_dwarfs_9, park_extra_magic_morning == 1)
-)
-
-sim_obj |>
+  sim_obj |>
     pluck("df_outcome") |>
     group_by(wait_minutes_posted_avg) |>
     summarize(avg_wait_actual = mean(wait_minutes_actual_avg)) |>
